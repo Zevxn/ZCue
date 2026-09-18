@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -8,6 +9,7 @@ using TypeSense.Models;
 using TypeSense.Services;
 using Forms = System.Windows.Forms;
 using MediaBrushes = System.Windows.Media.Brushes;
+using MediaBrush = System.Windows.Media.Brush;
 using MediaColor = System.Windows.Media.Color;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 
@@ -101,9 +103,15 @@ public partial class SuggestionWindow : Window
         var secondaryForeground = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromRgb(107, 114, 128))
             : new SolidColorBrush(MediaColor.FromRgb(156, 163, 175));
-        var selectedForeground = _isLightTheme
-            ? new SolidColorBrush(MediaColor.FromRgb(37, 99, 235))
-            : new SolidColorBrush(MediaColor.FromRgb(147, 197, 253));
+        var selectedNameForeground = _isLightTheme
+            ? new SolidColorBrush(MediaColor.FromRgb(30, 64, 175))
+            : new SolidColorBrush(MediaColor.FromRgb(243, 244, 246));
+        var selectedBadgeBackground = _isLightTheme
+            ? new SolidColorBrush(MediaColor.FromRgb(59, 130, 246))
+            : new SolidColorBrush(MediaColor.FromRgb(96, 165, 250));
+        var highlightForeground = _isLightTheme
+            ? new SolidColorBrush(MediaColor.FromRgb(219, 39, 119))
+            : new SolidColorBrush(MediaColor.FromRgb(244, 114, 182));
         var selectedBackground = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromRgb(239, 246, 255))
             : new SolidColorBrush(MediaColor.FromRgb(55, 65, 81));
@@ -112,22 +120,26 @@ public partial class SuggestionWindow : Window
         {
             Background = isSelected ? selectedBackground : MediaBrushes.Transparent,
             CornerRadius = new CornerRadius(7),
-            Padding = new Thickness(8, 7, 8, 7),
+            Padding = new Thickness(10, 9, 10, 9),
             Margin = new Thickness(0, 1, 0, 1),
             Cursor = System.Windows.Input.Cursors.Arrow
         };
 
         var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition
+        {
+            Width = GridLength.Auto,
+            MaxWidth = 220
+        });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var badge = new Border
         {
-            Width = 20,
-            Height = 20,
-            CornerRadius = new CornerRadius(10),
-            Background = isSelected ? selectedForeground : (_isLightTheme
+            Width = 24,
+            Height = 24,
+            CornerRadius = new CornerRadius(12),
+            Background = isSelected ? selectedBadgeBackground : (_isLightTheme
                 ? new SolidColorBrush(MediaColor.FromRgb(229, 231, 235))
                 : new SolidColorBrush(MediaColor.FromRgb(75, 85, 99))),
             HorizontalAlignment = WpfHorizontalAlignment.Left,
@@ -136,7 +148,7 @@ public partial class SuggestionWindow : Window
             {
                 Text = (index + 1).ToString(),
                 Foreground = isSelected ? MediaBrushes.White : secondaryForeground,
-                FontSize = 11,
+                FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
                 HorizontalAlignment = WpfHorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -146,34 +158,33 @@ public partial class SuggestionWindow : Window
         Grid.SetColumn(badge, 0);
         grid.Children.Add(badge);
 
-        var namePanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        namePanel.Children.Add(new TextBlock
+        var nameBlock = new TextBlock
         {
-            Text = match.Item.Name,
-            Foreground = isSelected ? selectedForeground : foreground,
-            FontSize = 14,
+            Foreground = isSelected ? selectedNameForeground : foreground,
+            FontSize = 18,
             FontWeight = FontWeights.SemiBold,
-            TextTrimming = TextTrimming.CharacterEllipsis
-        });
-        namePanel.Children.Add(new TextBlock
-        {
-            Text = match.Item.Abbreviation,
-            Foreground = secondaryForeground,
-            FontSize = 11,
-            Margin = new Thickness(0, 2, 0, 0)
-        });
-        Grid.SetColumn(namePanel, 1);
-        grid.Children.Add(namePanel);
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+            MaxWidth = 220
+        };
+        AppendHighlightedName(
+            nameBlock,
+            match,
+            isSelected ? selectedNameForeground : foreground,
+            highlightForeground);
+        Grid.SetColumn(nameBlock, 1);
+        grid.Children.Add(nameBlock);
 
         var preview = match.Item.Content.Replace('\r', ' ').Replace('\n', ' ');
         var previewBlock = new TextBlock
         {
             Text = preview,
             Foreground = secondaryForeground,
-            FontSize = 12,
+            FontSize = 14,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(12, 0, 0, 0)
+            Margin = new Thickness(8, 0, 0, 0),
+            MinWidth = 0
         };
         Grid.SetColumn(previewBlock, 2);
         grid.Children.Add(previewBlock);
@@ -185,6 +196,47 @@ public partial class SuggestionWindow : Window
             args.Handled = true;
         };
         return row;
+    }
+
+    private static void AppendHighlightedName(
+        TextBlock nameBlock,
+        PromptMatch match,
+        MediaBrush normalForeground,
+        MediaBrush highlightForeground)
+    {
+        var name = match.Item.Name;
+        var highlightStart = Math.Clamp(match.HighlightStart, 0, name.Length);
+        var highlightLength = Math.Clamp(match.HighlightLength, 0, name.Length - highlightStart);
+
+        AppendNameRun(nameBlock, name[..highlightStart], normalForeground, false);
+        AppendNameRun(
+            nameBlock,
+            name.Substring(highlightStart, highlightLength),
+            highlightLength > 0 ? highlightForeground : normalForeground,
+            highlightLength > 0);
+        AppendNameRun(
+            nameBlock,
+            name[(highlightStart + highlightLength)..],
+            normalForeground,
+            false);
+    }
+
+    private static void AppendNameRun(
+        TextBlock nameBlock,
+        string text,
+        MediaBrush foreground,
+        bool isHighlighted)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        nameBlock.Inlines.Add(new Run(text)
+        {
+            Foreground = foreground,
+            FontWeight = isHighlighted ? FontWeights.Bold : FontWeights.SemiBold
+        });
     }
 
     // !SECTION 候选行渲染

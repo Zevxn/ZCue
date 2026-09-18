@@ -28,6 +28,7 @@ public sealed class PromptItem
 public enum PromptMatchKind
 {
     AbbreviationPrefix,
+    AbbreviationContains,
     NameStartsWith,
     NameContains
 }
@@ -37,4 +38,6 @@ public sealed record PromptMatch(
     string TriggerText,
     int MatchLength,
     int QualityScore,
-    PromptMatchKind MatchKind);
+    PromptMatchKind MatchKind,
+    int HighlightStart,
+    int HighlightLength);
