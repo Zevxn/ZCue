@@ -10,6 +10,11 @@ public sealed class PromptItem
 
     public string Content { get; set; } = string.Empty;
 
+    public string Preview => Content
+        .Replace('\r', ' ')
+        .Replace('\n', ' ')
+        .Trim();
+
     public int UsageCount { get; set; }
 
     public bool Enabled { get; set; } = true;

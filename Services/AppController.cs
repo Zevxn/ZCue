@@ -11,6 +11,8 @@ public sealed class AppController : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly InputBufferService _inputBuffer = new();
     private readonly PromptCatalogService _catalog = new();
+    private readonly AppSettingsService _settings = new();
+    private readonly StartupService _startupService = new();
     private readonly PromptMatchService _matchService = new();
     private readonly CaretPositionService _caretPositionService = new();
     private readonly FocusedTextService _focusedTextService = new();
@@ -34,16 +36,24 @@ public sealed class AppController : IDisposable
     {
         _dispatcher = dispatcher;
         _suggestionWindow = new SuggestionWindow();
+        _suggestionWindow.ShowPreview = _settings.Current.ShowContentPreview;
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
 
-        _promptManagerWindow = new PromptManagerWindow(_catalog);
-        _trayIcon = new TrayIconService(new StartupService());
+        _trayIcon = new TrayIconService(_startupService);
+        _promptManagerWindow = new PromptManagerWindow(
+            _catalog,
+            _settings,
+            _startupService,
+            () => !IsPaused(),
+            enabled => SetPaused(!enabled),
+            _trayIcon.UpdateStartupState);
         _trayIcon.OpenManagerRequested += OpenPromptManager;
         _trayIcon.PauseRequested += () => SetPaused(true);
         _trayIcon.EnableRequested += () => SetPaused(false);
         _trayIcon.ExitRequested += ExitApplication;
 
         _keyboardHook.KeyDown += HandleKeyDown;
+        _settings.Changed += HandleSettingsChanged;
     }
 
     public void Start()
@@ -71,6 +81,7 @@ public sealed class AppController : IDisposable
         }
 
         _disposed = true;
+        _settings.Changed -= HandleSettingsChanged;
         _keyboardHook.KeyDown -= HandleKeyDown;
         _keyboardHook.Dispose();
         _suggestionWindow.Hide();
@@ -133,14 +144,17 @@ public sealed class AppController : IDisposable
                 return KeyboardHookDecision.Block;
             }
 
-            if (input.VirtualKeyCode == NativeMethods.VK_RETURN
+            if ((input.VirtualKeyCode == NativeMethods.VK_RETURN
+                    && _settings.Current.EnableEnterConfirmation)
                 || input.VirtualKeyCode == NativeMethods.VK_TAB && !input.IsShiftDown)
             {
                 ConfirmSelection(GetSelectedIndex());
                 return KeyboardHookDecision.Block;
             }
 
-            if (!input.IsShiftDown && input.VirtualKeyCode is >= 0x31 and <= 0x39)
+            if (_settings.Current.EnableNumberSelection
+                && !input.IsShiftDown
+                && input.VirtualKeyCode is >= 0x31 and <= 0x39)
             {
                 var numberIndex = input.VirtualKeyCode - 0x31;
                 if (IsValidMatchIndex(numberIndex))
@@ -451,6 +465,11 @@ public sealed class AppController : IDisposable
             _promptManagerWindow.Show();
             _promptManagerWindow.Activate();
         });
+    }
+
+    private void HandleSettingsChanged(AppSettings settings)
+    {
+        PostToUi(() => _suggestionWindow.ShowPreview = settings.ShowContentPreview);
     }
 
     private void ExitApplication()

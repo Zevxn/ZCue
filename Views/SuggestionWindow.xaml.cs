@@ -21,6 +21,7 @@ public partial class SuggestionWindow : Window
     private IntPtr _windowHandle;
     private int _selectedIndex;
     private bool _isLightTheme;
+    private bool _showPreview = true;
 
     public SuggestionWindow()
     {
@@ -30,6 +31,25 @@ public partial class SuggestionWindow : Window
     }
 
     public event Action<int>? SelectionRequested;
+
+    public bool ShowPreview
+    {
+        get => _showPreview;
+        set
+        {
+            if (_showPreview == value)
+            {
+                return;
+            }
+
+            _showPreview = value;
+            if (IsLoaded)
+            {
+                RenderRows();
+                UpdateLayout();
+            }
+        }
+    }
 
     public void ShowSuggestions(
         IReadOnlyList<PromptMatch> matches,
@@ -186,6 +206,11 @@ public partial class SuggestionWindow : Window
             Margin = new Thickness(8, 0, 0, 0),
             MinWidth = 0
         };
+        if (!_showPreview)
+        {
+            grid.ColumnDefinitions[2].Width = new GridLength(0);
+            previewBlock.Visibility = Visibility.Collapsed;
+        }
         Grid.SetColumn(previewBlock, 2);
         grid.Children.Add(previewBlock);
 
