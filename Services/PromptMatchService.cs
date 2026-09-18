@@ -14,7 +14,6 @@ public sealed class PromptMatchService
             return Array.Empty<PromptMatch>();
         }
 
-        var normalizedInput = triggerText.Trim().ToLowerInvariant();
         var matches = new List<PromptMatch>();
 
         foreach (var item in promptItems)
@@ -24,69 +23,21 @@ public sealed class PromptMatchService
                 continue;
             }
 
-            var normalizedAbbreviation = item.Abbreviation.Trim().ToLowerInvariant();
-            var normalizedName = item.Name.Trim().ToLowerInvariant();
-
-            if (normalizedAbbreviation.StartsWith(normalizedInput, StringComparison.Ordinal))
+            PromptMatch? bestMatch = null;
+            for (var start = 0; start < triggerText.Length; start++)
             {
-                var quality = normalizedAbbreviation.Length == normalizedInput.Length ? 120 : 100;
-                matches.Add(new PromptMatch(
-                    item,
-                    triggerText,
-                    triggerText.Length,
-                    quality,
-                    PromptMatchKind.AbbreviationPrefix,
-                    0,
-                    Math.Min(triggerText.Length, item.Name.Length)));
-                continue;
+                var candidateText = triggerText[start..];
+                var candidateMatch = MatchSingle(item, candidateText);
+                if (candidateMatch is not null
+                    && (bestMatch is null || IsBetterMatch(candidateMatch, bestMatch)))
+                {
+                    bestMatch = candidateMatch;
+                }
             }
 
-            if (normalizedName.StartsWith(normalizedInput, StringComparison.Ordinal))
+            if (bestMatch is not null)
             {
-                var highlightStart = item.Name.IndexOf(triggerText.Trim(), StringComparison.OrdinalIgnoreCase);
-                matches.Add(new PromptMatch(
-                    item,
-                    triggerText,
-                    triggerText.Length,
-                    90,
-                    PromptMatchKind.NameStartsWith,
-                    Math.Max(0, highlightStart),
-                    normalizedInput.Length));
-                continue;
-            }
-
-            var abbreviationMatchStart = normalizedAbbreviation.IndexOf(
-                normalizedInput,
-                StringComparison.Ordinal);
-            if (abbreviationMatchStart > 0)
-            {
-                var highlight = MapAbbreviationRangeToName(
-                    item.Name,
-                    normalizedAbbreviation.Length,
-                    abbreviationMatchStart,
-                    normalizedInput.Length);
-                matches.Add(new PromptMatch(
-                    item,
-                    triggerText,
-                    triggerText.Length,
-                    80,
-                    PromptMatchKind.AbbreviationContains,
-                    highlight.Start,
-                    highlight.Length));
-                continue;
-            }
-
-            if (normalizedName.Contains(normalizedInput, StringComparison.Ordinal))
-            {
-                var highlightStart = item.Name.IndexOf(triggerText.Trim(), StringComparison.OrdinalIgnoreCase);
-                matches.Add(new PromptMatch(
-                    item,
-                    triggerText,
-                    triggerText.Length,
-                    75,
-                    PromptMatchKind.NameContains,
-                    Math.Max(0, highlightStart),
-                    normalizedInput.Length));
+                matches.Add(bestMatch);
             }
         }
 
@@ -98,6 +49,86 @@ public sealed class PromptMatchService
             .ThenBy(match => match.Item.Name, StringComparer.OrdinalIgnoreCase)
             .Take(maxResults)
             .ToArray();
+    }
+
+    private static PromptMatch? MatchSingle(PromptItem item, string triggerText)
+    {
+        var normalizedInput = triggerText.Trim().ToLowerInvariant();
+        if (normalizedInput.Length == 0)
+        {
+            return null;
+        }
+
+        var normalizedAbbreviation = item.Abbreviation.Trim().ToLowerInvariant();
+        var normalizedName = item.Name.Trim().ToLowerInvariant();
+
+        if (normalizedAbbreviation.StartsWith(normalizedInput, StringComparison.Ordinal))
+        {
+            var quality = normalizedAbbreviation.Length == normalizedInput.Length ? 120 : 100;
+            return new PromptMatch(
+                item,
+                triggerText,
+                triggerText.Length,
+                quality,
+                PromptMatchKind.AbbreviationPrefix,
+                0,
+                Math.Min(normalizedInput.Length, item.Name.Length));
+        }
+
+        if (normalizedName.StartsWith(normalizedInput, StringComparison.Ordinal))
+        {
+            var highlightStart = item.Name.IndexOf(triggerText.Trim(), StringComparison.OrdinalIgnoreCase);
+            return new PromptMatch(
+                item,
+                triggerText,
+                triggerText.Length,
+                90,
+                PromptMatchKind.NameStartsWith,
+                Math.Max(0, highlightStart),
+                normalizedInput.Length);
+        }
+
+        var abbreviationMatchStart = normalizedAbbreviation.IndexOf(
+            normalizedInput,
+            StringComparison.Ordinal);
+        if (abbreviationMatchStart > 0)
+        {
+            var highlight = MapAbbreviationRangeToName(
+                item.Name,
+                normalizedAbbreviation.Length,
+                abbreviationMatchStart,
+                normalizedInput.Length);
+            return new PromptMatch(
+                item,
+                triggerText,
+                triggerText.Length,
+                80,
+                PromptMatchKind.AbbreviationContains,
+                highlight.Start,
+                highlight.Length);
+        }
+
+        if (normalizedName.Contains(normalizedInput, StringComparison.Ordinal))
+        {
+            var highlightStart = item.Name.IndexOf(triggerText.Trim(), StringComparison.OrdinalIgnoreCase);
+            return new PromptMatch(
+                item,
+                triggerText,
+                triggerText.Length,
+                75,
+                PromptMatchKind.NameContains,
+                Math.Max(0, highlightStart),
+                normalizedInput.Length);
+        }
+
+        return null;
+    }
+
+    private static bool IsBetterMatch(PromptMatch candidate, PromptMatch current)
+    {
+        return candidate.QualityScore > current.QualityScore
+            || candidate.QualityScore == current.QualityScore
+                && candidate.MatchLength > current.MatchLength;
     }
 
     private static (int Start, int Length) MapAbbreviationRangeToName(
