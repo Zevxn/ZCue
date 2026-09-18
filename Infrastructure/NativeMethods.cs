@@ -15,6 +15,7 @@ internal static class NativeMethods
     internal const uint LLKHF_INJECTED = 0x10;
 
     internal const uint KEYEVENTF_KEYUP = 0x0002;
+    internal const uint KEYEVENTF_UNICODE = 0x0004;
     internal const uint INPUT_KEYBOARD = 1;
 
     internal const int VK_BACK = 0x08;
@@ -43,6 +44,7 @@ internal static class NativeMethods
     internal const int VK_Z = 0x5A;
 
     internal const int GWL_EXSTYLE = -20;
+    internal const uint GA_ROOT = 2;
     internal const int WS_EX_NOACTIVATE = 0x08000000;
     internal const int WS_EX_TOOLWINDOW = 0x00000080;
     internal const uint SWP_NOSIZE = 0x0001;
@@ -154,6 +156,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
 
     [DllImport("user32.dll")]
     internal static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);

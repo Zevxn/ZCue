@@ -15,20 +15,50 @@ public sealed class TextInsertionService
             return false;
         }
 
+        var text = replacement ?? string.Empty;
+
+        if (deleteLength > 0 && !SendBackspaces(deleteLength))
+        {
+            return false;
+        }
+
+        // 首选 Unicode 键盘包，避免在确认热路径上读取被其他程序占用的剪贴板。
+        if (SendUnicodeText(text))
+        {
+            return true;
+        }
+
+        // 少数程序不处理 VK_PACKET，再退回剪贴板粘贴方案。
+        return await PasteTextAsync(targetWindow, text).ConfigureAwait(true);
+    }
+
+    private static async Task<bool> PasteTextAsync(IntPtr targetWindow, string replacement)
+    {
+        if (!IsTargetForeground(targetWindow))
+        {
+            return false;
+        }
+
         var originalClipboard = TryGetClipboardData(out var clipboardCaptured);
         var clipboardChanged = false;
 
         try
         {
-            WpfClipboard.SetText(replacement ?? string.Empty, WpfTextDataFormat.UnicodeText);
-            clipboardChanged = true;
-
-            if (deleteLength > 0 && !SendBackspaces(deleteLength))
+            try
+            {
+                WpfClipboard.SetText(replacement, WpfTextDataFormat.UnicodeText);
+                clipboardChanged = true;
+            }
+            catch (ExternalException)
+            {
+                return false;
+            }
+            catch (InvalidOperationException)
             {
                 return false;
             }
 
-            if (!SendPaste())
+            if (!IsTargetForeground(targetWindow) || !SendPaste())
             {
                 return false;
             }
@@ -36,14 +66,6 @@ public sealed class TextInsertionService
             // 给目标应用一个短暂时间读取剪贴板，再恢复用户原有内容。
             await Task.Delay(80).ConfigureAwait(true);
             return true;
-        }
-        catch (ExternalException)
-        {
-            return false;
-        }
-        catch (InvalidOperationException)
-        {
-            return false;
         }
         finally
         {
@@ -99,6 +121,23 @@ public sealed class TextInsertionService
         return SendInputs(inputs);
     }
 
+    private static bool SendUnicodeText(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return true;
+        }
+
+        var inputs = new List<NativeMethods.Input>(text.Length * 2);
+        foreach (var character in text)
+        {
+            inputs.Add(CreateUnicodeInput(character, keyUp: false));
+            inputs.Add(CreateUnicodeInput(character, keyUp: true));
+        }
+
+        return SendInputs(inputs);
+    }
+
     private static NativeMethods.Input CreateKeyInput(int virtualKeyCode, bool keyUp)
     {
         return new NativeMethods.Input
@@ -111,6 +150,26 @@ public sealed class TextInsertionService
                     VirtualKey = (ushort)virtualKeyCode,
                     ScanCode = 0,
                     Flags = keyUp ? NativeMethods.KEYEVENTF_KEYUP : 0,
+                    Time = 0,
+                    ExtraInfo = IntPtr.Zero
+                }
+            }
+        };
+    }
+
+    private static NativeMethods.Input CreateUnicodeInput(char character, bool keyUp)
+    {
+        return new NativeMethods.Input
+        {
+            Type = NativeMethods.INPUT_KEYBOARD,
+            Data = new NativeMethods.InputUnion
+            {
+                Keyboard = new NativeMethods.KeyboardInput
+                {
+                    VirtualKey = 0,
+                    ScanCode = character,
+                    Flags = NativeMethods.KEYEVENTF_UNICODE
+                        | (keyUp ? NativeMethods.KEYEVENTF_KEYUP : 0),
                     Time = 0,
                     ExtraInfo = IntPtr.Zero
                 }
@@ -153,5 +212,11 @@ public sealed class TextInsertionService
             captured = false;
             return null;
         }
+    }
+
+    private static bool IsTargetForeground(IntPtr targetWindow)
+    {
+        return targetWindow != IntPtr.Zero
+            && NativeMethods.GetForegroundWindow() == targetWindow;
     }
 }

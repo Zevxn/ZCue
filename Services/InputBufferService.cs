@@ -48,6 +48,19 @@ public sealed class InputBufferService
         }
     }
 
+    public void ReplaceFromTextBeforeCaret(string textBeforeCaret)
+    {
+        lock (_gate)
+        {
+            _buffer.Clear();
+            if (!string.IsNullOrEmpty(textBeforeCaret))
+            {
+                _buffer.Append(textBeforeCaret);
+                TrimToMaxLength();
+            }
+        }
+    }
+
     public string GetCurrentToken()
     {
         lock (_gate)

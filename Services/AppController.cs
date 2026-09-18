@@ -13,6 +13,7 @@ public sealed class AppController : IDisposable
     private readonly PromptCatalogService _catalog = new();
     private readonly PromptMatchService _matchService = new();
     private readonly CaretPositionService _caretPositionService = new();
+    private readonly FocusedTextService _focusedTextService = new();
     private readonly TextInsertionService _textInsertionService = new();
     private readonly KeyboardHookService _keyboardHook = new();
     private readonly TrayIconService _trayIcon;
@@ -24,6 +25,7 @@ public sealed class AppController : IDisposable
     private IntPtr _targetWindow;
     private int _selectedIndex;
     private long _stateVersion;
+    private long _textSyncRequest;
     private bool _suggestionsVisible;
     private bool _paused;
     private bool _disposed;
@@ -96,6 +98,11 @@ public sealed class AppController : IDisposable
         if (input.HasSystemModifier)
         {
             ClearSuggestions(resetBuffer: true);
+            if (IsTextChangingSystemShortcut(input))
+            {
+                ScheduleFocusedTextSync(foregroundWindow);
+            }
+
             return KeyboardHookDecision.Pass;
         }
 
@@ -108,6 +115,7 @@ public sealed class AppController : IDisposable
             }
 
             ClearSuggestions(resetBuffer: true);
+            ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
         }
 
@@ -147,6 +155,7 @@ public sealed class AppController : IDisposable
         {
             _inputBuffer.Backspace();
             RecomputeSuggestions(foregroundWindow);
+            ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
         }
 
@@ -156,12 +165,14 @@ public sealed class AppController : IDisposable
             || input.VirtualKeyCode is NativeMethods.VK_PRIOR or NativeMethods.VK_NEXT)
         {
             ClearSuggestions(resetBuffer: true);
+            ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
         }
 
         if (input.VirtualKeyCode is NativeMethods.VK_RETURN or NativeMethods.VK_TAB or NativeMethods.VK_SPACE)
         {
             ClearSuggestions(resetBuffer: true);
+            ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
         }
 
@@ -176,6 +187,13 @@ public sealed class AppController : IDisposable
                 _inputBuffer.Append(input.Text);
                 RecomputeSuggestions(foregroundWindow);
             }
+
+            ScheduleFocusedTextSync(foregroundWindow);
+        }
+        else
+        {
+            // IME 提交、组合键和第三方控件可能没有可由 ToUnicodeEx 返回的字符。
+            ScheduleFocusedTextSync(foregroundWindow);
         }
 
         return KeyboardHookDecision.Pass;
@@ -307,6 +325,7 @@ public sealed class AppController : IDisposable
             _stateVersion++;
         }
 
+        CancelFocusedTextSync();
         _inputBuffer.Reset();
         var selectedMatch = match!;
         _catalog.IncrementUsage(selectedMatch.Item.Id);
@@ -333,6 +352,7 @@ public sealed class AppController : IDisposable
 
     private void ClearSuggestions(bool resetBuffer)
     {
+        CancelFocusedTextSync();
         if (resetBuffer)
         {
             _inputBuffer.Reset();
@@ -384,6 +404,37 @@ public sealed class AppController : IDisposable
     // !SECTION 候选状态与确认
 
     // SECTION 托盘、UI 调度与生命周期
+
+    private bool IsTextChangingSystemShortcut(KeyboardInputEventArgs input)
+    {
+        return input.IsCtrlDown
+            && (input.VirtualKeyCode is NativeMethods.VK_V or NativeMethods.VK_X or NativeMethods.VK_Z);
+    }
+
+    private void ScheduleFocusedTextSync(IntPtr targetWindow)
+    {
+        var request = Interlocked.Increment(ref _textSyncRequest);
+        PostAsyncToUi(async () =>
+        {
+            await Task.Delay(35).ConfigureAwait(true);
+            if (request != Volatile.Read(ref _textSyncRequest)
+                || NativeMethods.GetForegroundWindow() != targetWindow)
+            {
+                return;
+            }
+
+            if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
+            {
+                _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
+                RecomputeSuggestions(targetWindow);
+            }
+        });
+    }
+
+    private void CancelFocusedTextSync()
+    {
+        Interlocked.Increment(ref _textSyncRequest);
+    }
 
     private bool IsPaused()
     {
