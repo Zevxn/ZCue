@@ -10,8 +10,6 @@ public sealed class PromptMatchService
         bool IsExact,
         bool UsedAlternateInitial);
 
-    private readonly PinyinAliasService _aliasService = new();
-
     public IReadOnlyList<PromptMatch> Match(
         string triggerText,
         IEnumerable<PromptItem> promptItems,
@@ -37,7 +35,11 @@ public sealed class PromptMatchService
                 continue;
             }
 
-            var aliases = _aliasService.GetAliases(item);
+            var aliases = item.PinyinAliases;
+            if (aliases.Count == 0)
+            {
+                continue;
+            }
             PromptMatch? bestMatch = null;
             for (var start = 0; start <= triggerText.Length - minimumMatchLength; start++)
             {

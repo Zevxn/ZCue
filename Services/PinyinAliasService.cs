@@ -5,74 +5,65 @@ using TypeSense.Models;
 
 namespace TypeSense.Services;
 
-public enum PromptAliasKind
-{
-    FullPinyin,
-    Initials
-}
-
-public sealed record PromptAliasSegment(
-    int SearchStart,
-    int SearchLength,
-    int NameStart,
-    int NameLength,
-    bool IsPrimary = true);
-
-public sealed record PromptAlias(
-    string Text,
-    string SearchText,
-    PromptAliasKind Kind,
-    IReadOnlyList<PromptAliasSegment> Segments,
-    bool IsPrimary = true)
-{
-    public (int Start, int Length) MapToName(int searchStart, int searchLength, int nameLength)
-    {
-        if (nameLength <= 0 || searchLength <= 0)
-        {
-            return (0, 0);
-        }
-
-        var searchEnd = searchStart + searchLength;
-        var overlappingSegments = Segments
-            .Where(segment => segment.SearchStart < searchEnd
-                && segment.SearchStart + segment.SearchLength > searchStart)
-            .ToArray();
-
-        if (overlappingSegments.Length == 0)
-        {
-            return (0, 0);
-        }
-
-        var start = overlappingSegments.Min(segment => segment.NameStart);
-        var end = overlappingSegments.Max(segment => segment.NameStart + segment.NameLength);
-        start = Math.Clamp(start, 0, nameLength);
-        end = Math.Clamp(Math.Max(start + 1, end), start, nameLength);
-        return (start, end - start);
-    }
-}
-
 public sealed class PinyinAliasService
 {
     private const int MaxGeneratedPinyinVariants = 64;
     private static readonly ConcurrentDictionary<char, IReadOnlyList<PinyinOption>> PinyinCache = new();
 
-    public IReadOnlyList<PromptAlias> GetAliases(PromptItem item)
+    public bool RefreshAliases(PromptItem item)
     {
-        var aliases = new List<PromptAlias>();
-        var name = item.Name ?? string.Empty;
-
-        var generated = BuildGeneratedAliases(name);
-        aliases.AddRange(generated.Full);
-        aliases.AddRange(generated.Initials);
-
-        return aliases
+        var generatedAliases = BuildGeneratedAliases(item.Name ?? string.Empty);
+        var generated = generatedAliases.Full
+            .Concat(generatedAliases.Initials)
             .DistinctBy(alias => (alias.Kind, alias.SearchText))
-            .ToArray();
+            .ToList();
+
+        if (AreEquivalent(item.PinyinAliases, generated))
+        {
+            return false;
+        }
+
+        item.PinyinAliases = generated;
+        return true;
     }
 
     public static string NormalizeInput(string value)
     {
         return Normalize(value);
+    }
+
+    private static bool AreEquivalent(
+        IReadOnlyList<PromptAlias>? current,
+        IReadOnlyList<PromptAlias> generated)
+    {
+        if (current is null || current.Count != generated.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < generated.Count; index++)
+        {
+            var left = current[index];
+            var right = generated[index];
+            if (!string.Equals(left.Text, right.Text, StringComparison.Ordinal)
+                || !string.Equals(left.SearchText, right.SearchText, StringComparison.Ordinal)
+                || left.Kind != right.Kind
+                || left.IsPrimary != right.IsPrimary
+                || left.Segments.Count != right.Segments.Count)
+            {
+                return false;
+            }
+
+            for (var segmentIndex = 0; segmentIndex < right.Segments.Count; segmentIndex++)
+            {
+                if (left.Segments[segmentIndex] != right.Segments[segmentIndex])
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     // SECTION 拼音别名构建

@@ -6,6 +6,7 @@ public sealed class PromptCatalogService
 {
     private readonly object _gate = new();
     private readonly PromptStorageService _storage;
+    private readonly PinyinAliasService _pinyinAliasService = new();
     private readonly List<PromptItem> _items;
 
     // SECTION 初始化与查询
@@ -22,7 +23,16 @@ public sealed class PromptCatalogService
                 .Select(Normalize)
                 .ToList();
 
-        if (loadedItems is null)
+        var aliasesChanged = false;
+        foreach (var item in _items)
+        {
+            if (item.PinyinAliases.Count == 0)
+            {
+                aliasesChanged |= _pinyinAliasService.RefreshAliases(item);
+            }
+        }
+
+        if (loadedItems is null || aliasesChanged)
         {
             PersistLocked();
         }
@@ -58,6 +68,7 @@ public sealed class PromptCatalogService
                 copy.Id = Guid.NewGuid().ToString("N");
             }
 
+            _pinyinAliasService.RefreshAliases(copy);
             _items.Add(copy);
             PersistLocked();
             return copy.Clone();
@@ -76,6 +87,7 @@ public sealed class PromptCatalogService
 
             var copy = Normalize(item);
             copy.Id = _items[index].Id;
+            _pinyinAliasService.RefreshAliases(copy);
             _items[index] = copy;
             PersistLocked();
             return true;
@@ -163,6 +175,9 @@ public sealed class PromptCatalogService
         Id = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id,
         Name = item.Name?.Trim() ?? string.Empty,
         Content = item.Content ?? string.Empty,
+        PinyinAliases = item.PinyinAliases?
+            .Select(alias => alias.DeepCopy())
+            .ToList() ?? [],
         UsageCount = Math.Max(0, item.UsageCount),
         Enabled = item.Enabled
     };

@@ -8,6 +8,8 @@ public sealed class PromptItem
 
     public string Content { get; set; } = string.Empty;
 
+    public List<PromptAlias> PinyinAliases { get; set; } = [];
+
     public string Preview => Content
         .Replace('\r', ' ')
         .Replace('\n', ' ')
@@ -22,6 +24,9 @@ public sealed class PromptItem
         Id = Id,
         Name = Name,
         Content = Content,
+        PinyinAliases = PinyinAliases?
+            .Select(alias => alias.DeepCopy())
+            .ToList() ?? [],
         UsageCount = UsageCount,
         Enabled = Enabled
     };
