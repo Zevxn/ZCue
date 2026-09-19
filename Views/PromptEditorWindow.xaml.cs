@@ -22,7 +22,6 @@ public partial class PromptEditorWindow : Window
         Title = "编辑指令";
         TitleTextBlock.Text = "编辑指令";
         NameTextBox.Text = item.Name;
-        AbbreviationTextBox.Text = item.Abbreviation;
         ContentTextBox.Text = item.Content;
         EnabledCheckBox.IsChecked = item.Enabled;
     }
@@ -32,18 +31,11 @@ public partial class PromptEditorWindow : Window
     private void HandleSaveClick(object sender, RoutedEventArgs e)
     {
         var name = NameTextBox.Text.Trim();
-        var abbreviation = AbbreviationTextBox.Text.Trim();
         var content = ContentTextBox.Text;
 
         if (name.Length == 0)
         {
             ShowValidationMessage("请填写指令名称。", NameTextBox);
-            return;
-        }
-
-        if (abbreviation.Length == 0)
-        {
-            ShowValidationMessage("请填写触发缩写。", AbbreviationTextBox);
             return;
         }
 
@@ -57,7 +49,6 @@ public partial class PromptEditorWindow : Window
         {
             Id = _editingId ?? Guid.NewGuid().ToString("N"),
             Name = name,
-            Abbreviation = abbreviation,
             Content = content,
             UsageCount = _usageCount,
             Enabled = EnabledCheckBox.IsChecked == true

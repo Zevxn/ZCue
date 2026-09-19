@@ -16,6 +16,7 @@ TypeSense 是一个 Windows 全局 Prompt 实时补全 MVP，目标是在普通�
 - 指令管理界面：搜索、新增、编辑、删除和启用/禁用
 - Prompt 与软件设置保存到当前用户的本地 JSON 配置
 - 软件设置：全局监听、内容预览、数字键选择和 Enter 确认
+- 根据指令名称自动生成全拼和首字母隐藏别名，管理界面不再维护缩写字段
 
 首次启动时会将内置示例 Prompt 写入当前用户的本地配置目录；后续可以通过管理器维护自己的指令。
 
@@ -45,6 +46,7 @@ Services/
   PromptCatalogService.cs
   PromptStorageService.cs
   AppSettingsService.cs
+  PinyinAliasService.cs
 Infrastructure/
   NativeMethods.cs
   TrayIconService.cs
@@ -61,4 +63,4 @@ ViewModels/
 
 - 某些自绘控件或高权限窗口无法提供 UI Automation caret，也可能拒绝低权限进程的输入注入；此时会退回窗口位置。
 - MVP 尚未监听鼠标低级 Hook，也未处理 IME 组合过程，因此光标在同一窗口内鼠标跳转和复杂中文输入法场景会在后续阶段增强。
-- 当前使用 JSON 持久化，尚未接入 SQLite、拼音和模糊匹配。
+- 当前使用 JSON 持久化，已支持基础拼音别名匹配，尚未接入 SQLite 和更复杂的模糊匹配。

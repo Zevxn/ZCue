@@ -326,7 +326,6 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="22" />
                                             <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
@@ -344,20 +343,7 @@
                                                    TextTrimming="CharacterEllipsis"
                                                    VerticalAlignment="Center"
                                                    MaxWidth="190" />
-                                        <Border Grid.Column="2"
-                                                Background="#EFF6FF"
-                                                BorderBrush="#BFDBFE"
-                                                BorderThickness="1"
-                                                CornerRadius="5"
-                                                Padding="7,2"
-                                                Margin="10,0,0,0"
-                                                VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Abbreviation}"
-                                                       Foreground="#2563EB"
-                                                       FontFamily="Consolas"
-                                                       FontSize="12" />
-                                        </Border>
-                                        <TextBlock Grid.Column="3"
+                                        <TextBlock Grid.Column="2"
                                                    Text="{Binding Preview}"
                                                    Foreground="#64748B"
                                                    FontSize="13"
@@ -365,7 +351,7 @@
                                                    TextWrapping="NoWrap"
                                                    TextTrimming="CharacterEllipsis"
                                                    VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="4"
+                                        <StackPanel Grid.Column="3"
                                                     Style="{StaticResource RowActionPanel}"
                                                     Orientation="Horizontal"
                                                     VerticalAlignment="Center"

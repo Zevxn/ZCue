@@ -81,15 +81,12 @@
                    Foreground="#0F172A" />
         <TextBlock Grid.Row="1"
                    Margin="0,7,0,24"
-                   Text="设置名称、缩写和要插入到当前输入框的完整内容。"
+                   Text="设置名称和要插入到当前输入框的完整内容。"
                    Foreground="#64748B"
                    FontSize="13" />
 
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -107,26 +104,11 @@
                      MaxLength="80" />
 
             <TextBlock Grid.Row="2"
-                       Text="触发缩写"
-                       FontWeight="SemiBold"
-                       Foreground="#334155" />
-            <TextBlock Grid.Row="3"
-                       Margin="0,4,0,7"
-                       Text="输入缩写后，TypeSense 会在任意文本框中显示候选。"
-                       Foreground="#94A3B8"
-                       FontSize="12" />
-            <TextBox x:Name="AbbreviationTextBox"
-                     Grid.Row="4"
-                     Margin="0,0,0,18"
-                     Style="{StaticResource FieldTextBox}"
-                     MaxLength="80" />
-
-            <TextBlock Grid.Row="5"
                        Text="指令内容"
                        FontWeight="SemiBold"
                        Foreground="#334155" />
             <TextBox x:Name="ContentTextBox"
-                     Grid.Row="6"
+                     Grid.Row="3"
                      Margin="0,7,0,18"
                      Style="{StaticResource FieldTextBox}"
                      MinHeight="150"
@@ -138,7 +120,7 @@
                      MaxLength="10000" />
 
             <CheckBox x:Name="EnabledCheckBox"
-                      Grid.Row="7"
+                      Grid.Row="4"
                       Content="启用这条指令"
                       IsChecked="True"
                       FontSize="14"

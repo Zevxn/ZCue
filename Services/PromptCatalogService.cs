@@ -18,7 +18,6 @@ public sealed class PromptCatalogService
             ? CreateDefaultItems()
             : loadedItems
                 .Where(item => !string.IsNullOrWhiteSpace(item.Name)
-                    && !string.IsNullOrWhiteSpace(item.Abbreviation)
                     && !string.IsNullOrWhiteSpace(item.Content))
                 .Select(Normalize)
                 .ToList();
@@ -137,7 +136,6 @@ public sealed class PromptCatalogService
         {
             Id = "mvp-polish",
             Name = "中文润色",
-            Abbreviation = "zwrs",
             Content = "请对下面这段文字进行学术化润色，保持原意并改善逻辑与表达。",
             UsageCount = 0,
             Enabled = true
@@ -146,7 +144,6 @@ public sealed class PromptCatalogService
         {
             Id = "mvp-rewrite",
             Name = "中文改写",
-            Abbreviation = "zwgx",
             Content = "请在保持原意的基础上改写下面这段文字，使表达更加清晰、自然、准确。",
             UsageCount = 0,
             Enabled = true
@@ -155,7 +152,6 @@ public sealed class PromptCatalogService
         {
             Id = "mvp-translate",
             Name = "中文翻译",
-            Abbreviation = "zwfy",
             Content = "请将下面这段文字准确翻译成英文，并保持术语和语气的一致性。",
             UsageCount = 0,
             Enabled = true
@@ -166,7 +162,6 @@ public sealed class PromptCatalogService
     {
         Id = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id,
         Name = item.Name?.Trim() ?? string.Empty,
-        Abbreviation = item.Abbreviation?.Trim() ?? string.Empty,
         Content = item.Content ?? string.Empty,
         UsageCount = Math.Max(0, item.UsageCount),
         Enabled = item.Enabled

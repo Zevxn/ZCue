@@ -141,7 +141,6 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
         }
 
         return prompt.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)
-            || prompt.Abbreviation.Contains(filter, StringComparison.OrdinalIgnoreCase)
             || prompt.Content.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 

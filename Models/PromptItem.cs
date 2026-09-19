@@ -6,8 +6,6 @@ public sealed class PromptItem
 
     public string Name { get; set; } = string.Empty;
 
-    public string Abbreviation { get; set; } = string.Empty;
-
     public string Content { get; set; } = string.Empty;
 
     public string Preview => Content
@@ -23,7 +21,6 @@ public sealed class PromptItem
     {
         Id = Id,
         Name = Name,
-        Abbreviation = Abbreviation,
         Content = Content,
         UsageCount = UsageCount,
         Enabled = Enabled
@@ -32,8 +29,8 @@ public sealed class PromptItem
 
 public enum PromptMatchKind
 {
-    AbbreviationPrefix,
-    AbbreviationContains,
+    PinyinFull,
+    PinyinInitial,
     NameStartsWith,
     NameContains
 }
