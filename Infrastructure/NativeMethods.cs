@@ -6,8 +6,13 @@ namespace TypeSense.Infrastructure;
 internal static class NativeMethods
 {
     internal const int WH_KEYBOARD_LL = 13;
+    internal const int WH_MOUSE_LL = 14;
     internal const int WM_KEYDOWN = 0x0100;
     internal const int WM_SYSKEYDOWN = 0x0104;
+    internal const int WM_LBUTTONDOWN = 0x0201;
+    internal const int WM_RBUTTONDOWN = 0x0204;
+    internal const int WM_MBUTTONDOWN = 0x0207;
+    internal const int WM_XBUTTONDOWN = 0x020B;
     internal const uint WM_QUIT = 0x0012;
 
     internal const uint LLKHF_EXTENDED = 0x01;
@@ -56,13 +61,23 @@ internal static class NativeMethods
     internal const uint SWP_SHOWWINDOW = 0x0040;
     internal static readonly IntPtr HWND_TOPMOST = new(-1);
 
-    // SECTION 键盘 Hook 与消息循环
+    // SECTION 低级输入 Hook 与消息循环
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct KbdLlHookStruct
     {
         internal uint VkCode;
         internal uint ScanCode;
+        internal uint Flags;
+        internal uint Time;
+        internal UIntPtr DwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MsllHookStruct
+    {
+        internal Point Point;
+        internal uint MouseData;
         internal uint Flags;
         internal uint Time;
         internal UIntPtr DwExtraInfo;
@@ -95,8 +110,14 @@ internal static class NativeMethods
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
 
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate IntPtr MouseHookProc(int code, IntPtr wParam, IntPtr lParam);
+
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr SetWindowsHookEx(int idHook, HookProc callback, IntPtr moduleHandle, uint threadId);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowsHookExW", SetLastError = true)]
+    internal static extern IntPtr SetWindowsHookEx(int idHook, MouseHookProc callback, IntPtr moduleHandle, uint threadId);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -133,7 +154,7 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     internal static extern IntPtr DispatchMessage([In] ref Message message);
 
-    // !SECTION 键盘 Hook 与消息循环
+    // !SECTION 低级输入 Hook 与消息循环
 
     // SECTION 键盘状态与窗口信息
 

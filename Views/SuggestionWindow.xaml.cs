@@ -92,6 +92,16 @@ public partial class SuggestionWindow : Window
         }
     }
 
+    public bool ContainsScreenPoint(int x, int y)
+    {
+        return _windowHandle != IntPtr.Zero
+            && NativeMethods.GetWindowRect(_windowHandle, out var rectangle)
+            && x >= rectangle.Left
+            && x < rectangle.Right
+            && y >= rectangle.Top
+            && y < rectangle.Bottom;
+    }
+
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);

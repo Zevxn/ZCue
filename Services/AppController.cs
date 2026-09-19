@@ -9,6 +9,7 @@ namespace TypeSense.Services;
 public sealed class AppController : IDisposable
 {
     private readonly Dispatcher _dispatcher;
+    private readonly DispatcherTimer _foregroundMonitor;
     private readonly InputBufferService _inputBuffer = new();
     private readonly PromptCatalogService _catalog = new();
     private readonly AppSettingsService _settings = new();
@@ -36,6 +37,11 @@ public sealed class AppController : IDisposable
     public AppController(Dispatcher dispatcher)
     {
         _dispatcher = dispatcher;
+        _foregroundMonitor = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(120)
+        };
+        _foregroundMonitor.Tick += HandleForegroundMonitorTick;
         _suggestionWindow = new SuggestionWindow();
         _suggestionWindow.ShowPreview = _settings.Current.ShowContentPreview;
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
@@ -55,6 +61,7 @@ public sealed class AppController : IDisposable
         _trayIcon.ExitRequested += ExitApplication;
 
         _keyboardHook.KeyDown += HandleKeyDown;
+        _keyboardHook.MouseButtonDown += HandleMouseButtonDown;
         _settings.Changed += HandleSettingsChanged;
     }
 
@@ -85,7 +92,10 @@ public sealed class AppController : IDisposable
         _disposed = true;
         _settings.Changed -= HandleSettingsChanged;
         _keyboardHook.KeyDown -= HandleKeyDown;
+        _keyboardHook.MouseButtonDown -= HandleMouseButtonDown;
         _keyboardHook.Dispose();
+        _foregroundMonitor.Stop();
+        _foregroundMonitor.Tick -= HandleForegroundMonitorTick;
         _suggestionWindow.Hide();
         _ghostPreviewWindow.HidePreview();
         _promptManagerWindow.CloseWithoutHiding();
@@ -256,6 +266,7 @@ public sealed class AppController : IDisposable
             {
                 if (IsCurrentVersion(version))
                 {
+                    _foregroundMonitor.Stop();
                     _suggestionWindow.Hide();
                     _ghostPreviewWindow.HidePreview();
                 }
@@ -280,6 +291,7 @@ public sealed class AppController : IDisposable
                     _caretPositionService,
                     _settings.Current.ShowGhostPreview);
                 ShowGhostPreview(matches[currentIndex].Item.Content, targetWindow);
+                _foregroundMonitor.Start();
             }
             catch
             {
@@ -382,6 +394,14 @@ public sealed class AppController : IDisposable
         ConfirmSelection(index);
     }
 
+    private void HandleMouseButtonDown(int x, int y)
+    {
+        if (HasSuggestions() && !_suggestionWindow.ContainsScreenPoint(x, y))
+        {
+            ClearSuggestions(resetBuffer: true);
+        }
+    }
+
     private void ClearSuggestions(bool resetBuffer)
     {
         CancelFocusedTextSync();
@@ -400,6 +420,7 @@ public sealed class AppController : IDisposable
 
         PostToUi(() =>
         {
+            _foregroundMonitor.Stop();
             _suggestionWindow.Hide();
             _ghostPreviewWindow.HidePreview();
         });
@@ -434,6 +455,26 @@ public sealed class AppController : IDisposable
         lock (_stateGate)
         {
             return _stateVersion == version;
+        }
+    }
+
+    private void HandleForegroundMonitorTick(object? sender, EventArgs e)
+    {
+        IntPtr targetWindow;
+        lock (_stateGate)
+        {
+            if (!_suggestionsVisible)
+            {
+                _foregroundMonitor.Stop();
+                return;
+            }
+
+            targetWindow = _targetWindow;
+        }
+
+        if (targetWindow == IntPtr.Zero || NativeMethods.GetForegroundWindow() != targetWindow)
+        {
+            ClearSuggestions(resetBuffer: true);
         }
     }
 

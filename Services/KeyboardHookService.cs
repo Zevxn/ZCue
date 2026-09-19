@@ -38,19 +38,24 @@ public sealed class KeyboardHookService : IDisposable
 {
     private readonly object _gate = new();
     private readonly NativeMethods.HookProc _hookProc;
+    private readonly NativeMethods.MouseHookProc _mouseHookProc;
     private readonly ManualResetEventSlim _ready = new(false);
     private Thread? _hookThread;
     private uint _hookThreadId;
     private IntPtr _hookHandle;
+    private IntPtr _mouseHookHandle;
     private Exception? _startupException;
     private bool _disposed;
 
     public KeyboardHookService()
     {
         _hookProc = HookCallback;
+        _mouseHookProc = MouseHookCallback;
     }
 
     public event Func<KeyboardInputEventArgs, KeyboardHookDecision>? KeyDown;
+
+    public event Action<int, int>? MouseButtonDown;
 
     public bool IsRunning
     {
@@ -125,6 +130,7 @@ public sealed class KeyboardHookService : IDisposable
             _hookThread = null;
             _hookThreadId = 0;
             _hookHandle = IntPtr.Zero;
+            _mouseHookHandle = IntPtr.Zero;
         }
     }
 
@@ -162,6 +168,17 @@ public sealed class KeyboardHookService : IDisposable
             }
 
             _hookHandle = hookHandle;
+            var mouseHookHandle = NativeMethods.SetWindowsHookEx(
+                NativeMethods.WH_MOUSE_LL,
+                _mouseHookProc,
+                moduleHandle,
+                0);
+            if (mouseHookHandle == IntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            _mouseHookHandle = mouseHookHandle;
             // 确保线程消息队列已创建，Stop() 才能可靠投递 WM_QUIT。
             NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, 0);
             _ready.Set();
@@ -185,6 +202,12 @@ public sealed class KeyboardHookService : IDisposable
         }
         finally
         {
+            if (_mouseHookHandle != IntPtr.Zero)
+            {
+                NativeMethods.UnhookWindowsHookEx(_mouseHookHandle);
+                _mouseHookHandle = IntPtr.Zero;
+            }
+
             if (_hookHandle != IntPtr.Zero)
             {
                 NativeMethods.UnhookWindowsHookEx(_hookHandle);
@@ -227,6 +250,32 @@ public sealed class KeyboardHookService : IDisposable
         }
 
         return NativeMethods.CallNextHookEx(_hookHandle, code, wParam, lParam);
+    }
+
+    private IntPtr MouseHookCallback(int code, IntPtr wParam, IntPtr lParam)
+    {
+        if (code >= 0 && IsMouseButtonDown(wParam.ToInt32()))
+        {
+            try
+            {
+                var mouseData = Marshal.PtrToStructure<NativeMethods.MsllHookStruct>(lParam);
+                MouseButtonDown?.Invoke(mouseData.Point.X, mouseData.Point.Y);
+            }
+            catch
+            {
+                // 全局鼠标 Hook 只观察点击；异常不能阻断目标应用的鼠标输入。
+            }
+        }
+
+        return NativeMethods.CallNextHookEx(_mouseHookHandle, code, wParam, lParam);
+    }
+
+    private static bool IsMouseButtonDown(int message)
+    {
+        return message is NativeMethods.WM_LBUTTONDOWN
+            or NativeMethods.WM_RBUTTONDOWN
+            or NativeMethods.WM_MBUTTONDOWN
+            or NativeMethods.WM_XBUTTONDOWN;
     }
 
     // !SECTION Hook 线程与回调

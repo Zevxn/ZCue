@@ -30,7 +30,7 @@ TypeSense 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托�
 | `Models/PromptAlias.cs` | 持久化的全拼/首字母别名、分段信息和输入范围到名称高亮范围的映射。 |
 | `Models/AppSettings.cs` | 候选预览、数字键选择、Enter 确认等设置。 |
 | `Services/AppController.cs` | 应用编排中心，连接 Hook、缓冲区、匹配、候选窗、光标定位、文本插入、托盘和管理器。 |
-| `Services/KeyboardHookService.cs` | 独立线程上的 `WH_KEYBOARD_LL` 全局 Hook、修饰键状态和字符转换。 |
+| `Services/KeyboardHookService.cs` | 独立线程上的 `WH_KEYBOARD_LL` 键盘 Hook 和 `WH_MOUSE_LL` 鼠标按下监听；鼠标事件只观察、不拦截。 |
 | `Services/InputBufferService.cs` | 最近输入缓冲区、当前 token、Backspace、光标前文本同步和边界重置。默认最大缓冲长度为 30。 |
 | `Services/PromptMatchService.cs` | 读取已保存别名和名称，尝试当前输入的尾部候选片段，计算匹配质量、排序和名称高亮范围。 |
 | `Services/PinyinAliasService.cs` | 根据 Prompt 名称生成全拼、首字母、多音字变体及分段映射；不负责 UI。 |
@@ -54,8 +54,9 @@ TypeSense 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托�
 ```text
 App
 └─ AppController
-   ├─ KeyboardHookService (WH_KEYBOARD_LL 线程)
-   │  └─ KeyboardInputEventArgs -> HandleKeyDown
+   ├─ KeyboardHookService (WH_KEYBOARD_LL / WH_MOUSE_LL 专用线程)
+   │  ├─ KeyboardInputEventArgs -> HandleKeyDown
+   │  └─ 窗外鼠标按下 -> 清除候选；候选窗内点击交给 WPF 行选择
    ├─ InputBufferService -> 当前 token
    ├─ PromptCatalogService.GetEnabledItems()
    │  └─ PromptMatchService.Match()
@@ -67,6 +68,8 @@ App
 ```
 
 键盘 Hook 运行在专用线程，不能直接操作 WPF 控件；候选窗更新必须通过 `Dispatcher`。`AppController` 使用状态锁和版本号丢弃过期的 UI 更新。`SendInput` 产生的注入事件带有 injected 标记，Hook 必须忽略这些事件，避免文本插入递归触发匹配。
+
+鼠标 Hook 也运行在该专用线程：点击候选窗口范围内交由 WPF 行处理，点击候选窗以外则清空候选状态并通过 Dispatcher 隐藏窗口。候选可见时，`AppController` 还会短间隔检查前台窗口，确保窗口切换后不会留下置顶候选框。
 
 ## 数据与持久化约定
 
@@ -82,7 +85,7 @@ App
 1. 保持服务边界：全局 Hook、Win32 调用、UI Automation、文本注入、匹配算法和 WPF 渲染分别留在对应服务/视图中，不要把 `SendInput` 或存储逻辑散落到窗口代码。
 2. 保持 `PromptItem`、`PromptMatch`、`PromptAlias` 的字段含义和高亮映射一致。改变别名结构时，同时检查 JSON 反序列化、克隆、目录规范化、匹配和候选高亮。
 3. 不重新引入手工 `Abbreviation` 字段。用户可编辑的文本字段只有名称和内容，启用状态是独立开关；触发别名由名称自动派生并隐藏保存。
-4. 修改输入状态时同时考虑窗口切换、Backspace、空格/回车、方向键、Ctrl+A、Ctrl+V、撤销和 IME 提交；这些路径会重置或通过 `FocusedTextService` 同步缓冲区。
+4. 修改输入状态时同时考虑鼠标点击外部、前台窗口切换、Backspace、空格/回车、方向键、Ctrl+A、Ctrl+V、撤销和 IME 提交；这些路径会重置或通过 `FocusedTextService` 同步缓冲区。
 5. 候选窗必须继续使用无激活样式、置顶和 `SWP_NOACTIVATE`，不能因为刷新候选而抢走目标输入框焦点。
 6. 修改文本插入时必须保留：目标窗口前台校验、注入事件过滤、Unicode 支持、触发串删除长度、剪贴板恢复和异常隔离。
 7. `NativeMethods` 中的 P/Invoke 签名、结构体布局、Hook 消息循环和输入标志非常敏感，除非明确验证 Win32 行为，不要随意改名或调整字段类型。
@@ -102,6 +105,6 @@ App
 - 运行 `dotnet build TypeSense.sln`，确认无编译错误；如果程序正在运行并锁定输出文件，先退出托盘实例后再构建。
 - 运行 `git diff --check`，检查空白和补丁格式；确认没有误改用户本地数据文件、`bin/` 或 `obj/`。
 - 对匹配/别名改动，至少验证中文名称、全拼、首字母、多音字和高亮范围，并验证 JSON 往返后结果一致。
-- 对 Hook/输入注入改动，至少在 Notepad 等普通文本框验证监听、候选键盘操作、Unicode 插入、剪贴板内容和注入事件不递归。
+- 对 Hook/输入注入改动，至少在 Notepad 等普通文本框验证监听、候选键盘操作、窗外点击关闭、应用切换后关闭、Unicode 插入、剪贴板内容和注入事件不递归；点击候选行仍应能选择。
 - 对 UI/定位改动，验证候选窗不抢焦点、光标附近定位、屏幕边缘 fallback、深浅色主题和管理器双击编辑。
 - 对存储/设置改动，检查 `%LOCALAPPDATA%\TypeSense\prompts.json` 与 `settings.json` 的字段和加载回写行为；不要用测试数据覆盖用户现有配置。
