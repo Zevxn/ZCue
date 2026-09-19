@@ -360,16 +360,123 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-        <Style x:Key="RowActionPanel" TargetType="StackPanel">
-            <Setter Property="Opacity" Value="0" />
+        <Style x:Key="RowActionPanel" TargetType="Grid">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="Panel.ZIndex" Value="1" />
             <Setter Property="IsHitTestVisible" Value="False" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                              Value="True">
-                    <Setter Property="Opacity" Value="1" />
+                    <Setter Property="Visibility" Value="Visible" />
                     <Setter Property="IsHitTestVisible" Value="True" />
                 </DataTrigger>
             </Style.Triggers>
+        </Style>
+        <Style x:Key="RowActionIconButton" TargetType="Button">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextStrongBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="IconSurface"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Cursor="{TemplateBinding Cursor}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ThemeAccentSubtleBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="RowDeleteIconButton"
+               TargetType="Button"
+               BasedOn="{StaticResource RowActionIconButton}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource ThemeDangerTextBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource ThemeDangerHoverBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="RowEnabledToggle" TargetType="CheckBox">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="ToggleSurface"
+                                Background="Transparent"
+                                CornerRadius="6"
+                                Cursor="{TemplateBinding Cursor}">
+                            <Grid Width="16"
+                                  Height="16"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center">
+                                <Ellipse Stroke="{TemplateBinding Foreground}"
+                                         StrokeThickness="1.7" />
+                                <Path x:Name="ToggleMark"
+                                      Width="12"
+                                      Height="12"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Data="M 2,6 L 5,9 L 10,3"
+                                      Stroke="{TemplateBinding Foreground}"
+                                      StrokeThickness="1.6"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Visibility="Collapsed" />
+                                <Path x:Name="ToggleOffMark"
+                                      Width="12"
+                                      Height="12"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Data="M 2,2 L 10,10"
+                                      Stroke="{TemplateBinding Foreground}"
+                                      StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ToggleMark" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="ToggleOffMark" Property="Visibility" Value="Collapsed" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeSuccessBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleSurface"
+                                        Property="Background"
+                                        Value="{DynamicResource ThemeSurfaceBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ToggleSurface"
+                                        Property="Background"
+                                        Value="{DynamicResource ThemeAccentSubtleBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -552,81 +659,119 @@
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border x:Name="PromptRowCard"
-                                        Background="{DynamicResource ThemeSurfaceBrush}"
-                                        BorderBrush="{DynamicResource ThemeBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="10"
-                                        Height="56"
-                                        Padding="14,9">
-                                    <Grid VerticalAlignment="Center">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="22" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                                   Text="⋮⋮"
-                                                   Tag="PromptDragHandle"
-                                                   Cursor="Hand"
-                                                   Loaded="HandlePromptDragHandleLoaded"
-                                                   Foreground="{DynamicResource ThemeTextMutedBrush}"
-                                                   FontSize="17"
-                                                   VerticalAlignment="Center"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding Name}"
-                                                   Foreground="{DynamicResource ThemeTextPrimaryBrush}"
-                                                   FontSize="15"
-                                                    FontWeight="SemiBold"
-                                                    TextTrimming="CharacterEllipsis"
-                                                    VerticalAlignment="Center"
-                                                    MaxWidth="170" />
-                                        <Border Grid.Column="2"
-                                                Style="{StaticResource CategoryBadge}"
-                                                Margin="11,0,0,0">
-                                            <TextBlock Text="{Binding CategoryName}"
+                                <Grid HorizontalAlignment="Stretch">
+                                    <Border x:Name="PromptRowCard"
+                                            Background="{DynamicResource ThemeSurfaceBrush}"
+                                            BorderBrush="{DynamicResource ThemeBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Height="56"
+                                            Padding="14,9">
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="22" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="⋮⋮"
+                                                       Tag="PromptDragHandle"
+                                                       Cursor="Hand"
+                                                       Loaded="HandlePromptDragHandleLoaded"
+                                                       Foreground="{DynamicResource ThemeTextMutedBrush}"
+                                                       FontSize="17"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Name}"
+                                                       Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"
+                                                       MaxWidth="170" />
+                                            <Border Grid.Column="2"
+                                                    Style="{StaticResource CategoryBadge}"
+                                                    Margin="11,0,0,0">
+                                                <TextBlock Text="{Binding CategoryName}"
+                                                           Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                                                           FontSize="11" />
+                                            </Border>
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding Preview}"
                                                        Foreground="{DynamicResource ThemeTextSecondaryBrush}"
-                                                       FontSize="11" />
+                                                       FontSize="13"
+                                                       Margin="12,0,0,0"
+                                                       TextWrapping="NoWrap"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                    <Grid Style="{StaticResource RowActionPanel}"
+                                          HorizontalAlignment="Right"
+                                          VerticalAlignment="Stretch"
+                                          Margin="0,1,1,1">
+                                        <Border Background="{DynamicResource ThemeHoverSurfaceBrush}"
+                                                CornerRadius="0,9,9,0">
+                                            <Border.OpacityMask>
+                                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                                    <GradientStop Color="#00FFFFFF" Offset="0" />
+                                                    <GradientStop Color="#FF000000" Offset="0.18" />
+                                                    <GradientStop Color="#FF000000" Offset="1" />
+                                                </LinearGradientBrush>
+                                            </Border.OpacityMask>
                                         </Border>
-                                        <TextBlock Grid.Column="3"
-                                                   Text="{Binding Preview}"
-                                                   Foreground="{DynamicResource ThemeTextSecondaryBrush}"
-                                                   FontSize="13"
-                                                   Margin="12,0,14,0"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="4"
-                                                    Style="{StaticResource RowActionPanel}"
-                                                    Orientation="Horizontal"
+                                        <StackPanel Orientation="Horizontal"
                                                     VerticalAlignment="Center"
-                                                    Margin="0">
+                                                    Margin="28,0,8,0"
+                                                    Panel.ZIndex="1">
                                             <TextBlock Text="{Binding UsageCount, StringFormat=使用 {0} 次}"
                                                        Foreground="{DynamicResource ThemeTextMutedBrush}"
-                                                       FontSize="12"
+                                                       FontSize="11"
                                                        VerticalAlignment="Center"
-                                                       Margin="0,0,14,0" />
+                                                       Margin="0,0,8,0" />
                                             <CheckBox IsChecked="{Binding Enabled, Mode=OneWay}"
-                                                      Style="{StaticResource ThemedCheckBox}"
+                                                      Style="{StaticResource RowEnabledToggle}"
                                                       Click="HandleEnabledClick"
                                                       ToolTip="启用/禁用"
                                                       VerticalAlignment="Center"
-                                                      Margin="0,0,14,0" />
-                                            <Button Content="编辑"
-                                                    Tag="{Binding}"
-                                                    Style="{StaticResource SecondaryButton}"
-                                                    Click="HandleEditClick" />
-                                            <Button Content="删除"
-                                                    Tag="{Binding}"
-                                                    Style="{StaticResource DangerButton}"
-                                                    Margin="7,0,0,0"
-                                                    Click="HandleDeleteClick" />
+                                                      Margin="0,0,2,0" />
+                                            <Button Tag="{Binding}"
+                                                    Style="{StaticResource RowActionIconButton}"
+                                                    ToolTip="编辑"
+                                                    Click="HandleEditClick"
+                                                    Margin="2,0,0,0">
+                                                <Path Width="16"
+                                                      Height="16"
+                                                      Stretch="Uniform"
+                                                      Data="M 11,4 H 4 V 20 H 20 V 13 M 18,2 L 22,6 L 12,16 L 8,17 L 9,13 Z"
+                                                      Fill="Transparent"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                                      StrokeThickness="1.8"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round" />
+                                            </Button>
+                                            <Button Tag="{Binding}"
+                                                    Style="{StaticResource RowDeleteIconButton}"
+                                                    ToolTip="删除"
+                                                    Click="HandleDeleteClick"
+                                                    Margin="2,0,0,0">
+                                                <Path Width="16"
+                                                      Height="16"
+                                                      Stretch="Uniform"
+                                                      Data="M 4,6 H 20 M 9,6 V 4 H 15 V 6 M 6,6 L 7,20 H 17 L 18,6 M 10,10 V 16 M 14,10 V 16"
+                                                      Fill="Transparent"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                                      StrokeThickness="1.8"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round" />
+                                            </Button>
                                         </StackPanel>
                                     </Grid>
-                                </Border>
+                                </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                                                  Value="True">
