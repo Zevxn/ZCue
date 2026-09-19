@@ -117,6 +117,67 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
         return deleted;
     }
 
+    public bool MovePrompt(string draggedId, string targetId, bool insertAfter)
+    {
+        if (string.Equals(draggedId, targetId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var visiblePrompts = FilteredPrompts.Cast<PromptItem>().ToList();
+        var draggedVisibleIndex = visiblePrompts.FindIndex(prompt => prompt.Id == draggedId);
+        var targetVisibleIndex = visiblePrompts.FindIndex(prompt => prompt.Id == targetId);
+        if (draggedVisibleIndex < 0
+            || targetVisibleIndex < 0
+            || (!insertAfter && draggedVisibleIndex + 1 == targetVisibleIndex)
+            || (insertAfter && draggedVisibleIndex == targetVisibleIndex + 1))
+        {
+            return false;
+        }
+
+        var draggedPrompt = Prompts.FirstOrDefault(prompt => prompt.Id == draggedId);
+        var targetPrompt = Prompts.FirstOrDefault(prompt => prompt.Id == targetId);
+        if (draggedPrompt is null || targetPrompt is null)
+        {
+            return false;
+        }
+
+        var draggedIndex = Prompts.IndexOf(draggedPrompt);
+        Prompts.Remove(draggedPrompt);
+        var targetIndex = Prompts.IndexOf(targetPrompt);
+        if (targetIndex < 0)
+        {
+            Prompts.Insert(Math.Min(draggedIndex, Prompts.Count), draggedPrompt);
+            return false;
+        }
+
+        Prompts.Insert(targetIndex + (insertAfter ? 1 : 0), draggedPrompt);
+        return true;
+    }
+
+    public void RestorePromptOrder(IReadOnlyList<string> orderedIds)
+    {
+        if (orderedIds.Count != Prompts.Count
+            || orderedIds.Distinct(StringComparer.Ordinal).Count() != Prompts.Count
+            || orderedIds.Any(id => !Prompts.Any(prompt => prompt.Id == id)))
+        {
+            return;
+        }
+
+        for (var targetIndex = 0; targetIndex < orderedIds.Count; targetIndex++)
+        {
+            var prompt = Prompts.First(candidate => candidate.Id == orderedIds[targetIndex]);
+            var currentIndex = Prompts.IndexOf(prompt);
+            if (currentIndex != targetIndex)
+            {
+                Prompts.Move(currentIndex, targetIndex);
+            }
+        }
+    }
+
+    public bool ReorderPrompts(IReadOnlyList<string> orderedIds) =>
+        _catalog.ReorderItems(orderedIds);
+
     public bool SetEnabled(string id, bool enabled)
     {
         var updated = _catalog.SetEnabled(id, enabled);
@@ -186,7 +247,16 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
             return false;
         }
 
-        Reload(SelectedPrompt?.Id);
+        for (var targetIndex = 0; targetIndex < orderedIds.Count; targetIndex++)
+        {
+            var category = Categories.First(candidate => candidate.Id == orderedIds[targetIndex]);
+            var currentIndex = Categories.IndexOf(category);
+            if (currentIndex != targetIndex)
+            {
+                Categories.Move(currentIndex, targetIndex);
+            }
+        }
+
         return true;
     }
 

@@ -69,31 +69,31 @@
     <Grid Margin="28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="TitleTextBlock"
-                   Text="新建指令"
-                   FontSize="24"
-                   FontWeight="SemiBold"
-                   Foreground="#0F172A" />
-        <TextBlock Grid.Row="1"
-                   Margin="0,7,0,24"
-                   Text="设置名称和要插入到当前输入框的完整内容。"
-                   Foreground="#64748B"
-                   FontSize="13" />
+        <StackPanel Grid.Row="0"
+                    Margin="0,0,0,20">
+            <TextBlock x:Name="TitleTextBlock"
+                       Text="新建指令"
+                       FontSize="24"
+                       FontWeight="SemiBold"
+                       Foreground="#0F172A" />
+            <TextBlock Margin="0,7,0,0"
+                       Text="设置名称和要插入到当前输入框的完整内容。"
+                       Foreground="#64748B"
+                       FontSize="13" />
+        </StackPanel>
 
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <TextBlock Text="指令名称"
@@ -101,18 +101,18 @@
                        Foreground="#334155" />
             <TextBox x:Name="NameTextBox"
                      Grid.Row="1"
-                     Margin="0,7,0,18"
+                     Margin="0,7,0,14"
                      Style="{StaticResource FieldTextBox}"
                      MaxLength="80" />
 
             <TextBlock Grid.Row="2"
-                       Margin="0,0,0,7"
+                       Margin="0,0,0,6"
                        Text="提示词分类"
                        FontWeight="SemiBold"
                        Foreground="#334155" />
             <ComboBox x:Name="CategoryComboBox"
                       Grid.Row="3"
-                      Margin="0,0,0,18"
+                      Margin="0,0,0,14"
                       Padding="9,7"
                       DisplayMemberPath="Name"
                       SelectedValuePath="Id"
@@ -121,12 +121,12 @@
                       BorderThickness="1" />
 
             <TextBlock Grid.Row="4"
+                       Margin="0,0,0,6"
                        Text="指令内容"
                        FontWeight="SemiBold"
                        Foreground="#334155" />
             <TextBox x:Name="ContentTextBox"
                      Grid.Row="5"
-                     Margin="0,7,0,18"
                      Style="{StaticResource FieldTextBox}"
                      MinHeight="150"
                      AcceptsReturn="True"
@@ -135,28 +135,36 @@
                      VerticalScrollBarVisibility="Auto"
                      HorizontalScrollBarVisibility="Disabled"
                      MaxLength="10000" />
-
-            <CheckBox x:Name="EnabledCheckBox"
-                      Grid.Row="6"
-                      Content="启用这条指令"
-                      IsChecked="True"
-                      FontSize="14"
-                      Foreground="#334155" />
         </Grid>
 
-        <StackPanel Grid.Row="3"
-                    Margin="0,16,0,0"
-                    HorizontalAlignment="Right"
-                    Orientation="Horizontal">
-            <Button Content="取消"
-                    IsCancel="True"
-                    Style="{StaticResource SecondaryButton}"
-                    Margin="0,0,10,0"
-                    Click="HandleCancelClick" />
-            <Button Content="保存"
-                    IsDefault="True"
-                    Style="{StaticResource PrimaryButton}"
-                    Click="HandleSaveClick" />
-        </StackPanel>
+        <Grid Grid.Row="2"
+              Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <CheckBox x:Name="EnabledCheckBox"
+                      Grid.Column="0"
+                      Content="启用这条指令"
+                      IsChecked="True"
+                      VerticalAlignment="Center"
+                      FontSize="14"
+                      Foreground="#334155" />
+
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center">
+                <Button Content="取消"
+                        IsCancel="True"
+                        Style="{StaticResource SecondaryButton}"
+                        Margin="0,0,10,0"
+                        Click="HandleCancelClick" />
+                <Button Content="保存"
+                        IsDefault="True"
+                        Style="{StaticResource PrimaryButton}"
+                        Click="HandleSaveClick" />
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

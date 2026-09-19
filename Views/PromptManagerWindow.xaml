@@ -369,6 +369,10 @@
                               SelectedItem="{Binding SelectedPrompt, Mode=TwoWay}"
                               Background="Transparent"
                               BorderThickness="0"
+                              AllowDrop="True"
+                              DragOver="HandlePromptListDragOver"
+                              Drop="HandlePromptListDrop"
+                              GiveFeedback="HandleDragGiveFeedback"
                               PreviewMouseLeftButtonDown="HandlePromptListMouseLeftButtonDown"
                               PreviewMouseMove="HandlePromptListMouseMove"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -390,6 +394,8 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0"
                                                    Text="⋮⋮"
+                                                   Tag="PromptDragHandle"
+                                                   Cursor="SizeAll"
                                                    Foreground="#CBD5E1"
                                                    FontSize="17"
                                                    VerticalAlignment="Center"
@@ -828,5 +834,10 @@
                 </ScrollViewer>
             </Grid>
         </Grid>
+
+        <Canvas x:Name="DragPreviewCanvas"
+                Panel.ZIndex="1000"
+                IsHitTestVisible="False"
+                ClipToBounds="False" />
     </Grid>
 </Window>

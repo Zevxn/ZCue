@@ -58,7 +58,6 @@ public sealed class PromptCatalogService
         }
 
         if (loadedData is null
-            || loadedData.RequiresMigration
             || categoriesChanged
             || aliasesChanged
             || promptCategoriesChanged)
@@ -142,6 +141,32 @@ public sealed class PromptCatalogService
             }
 
             return removed;
+        }
+    }
+
+    public bool ReorderItems(IReadOnlyList<string> orderedIds)
+    {
+        lock (_gate)
+        {
+            if (orderedIds.Count != _items.Count
+                || orderedIds.Distinct(StringComparer.Ordinal).Count() != _items.Count
+                || orderedIds.Any(id => !_items.Any(item => item.Id == id)))
+            {
+                return false;
+            }
+
+            var orderedItems = orderedIds
+                .Select(id => _items.First(item => item.Id == id))
+                .ToArray();
+            if (_items.SequenceEqual(orderedItems))
+            {
+                return false;
+            }
+
+            _items.Clear();
+            _items.AddRange(orderedItems);
+            PersistLocked();
+            return true;
         }
     }
 

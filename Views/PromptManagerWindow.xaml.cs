@@ -2,6 +2,10 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using TypeSense.Models;
 using TypeSense.Services;
 using TypeSense.ViewModels;
@@ -10,6 +14,8 @@ using WpfCheckBox = System.Windows.Controls.CheckBox;
 using WpfDataObject = System.Windows.DataObject;
 using WpfDragEventArgs = System.Windows.DragEventArgs;
 using WpfDragDropEffects = System.Windows.DragDropEffects;
+using WpfGiveFeedbackEventArgs = System.Windows.GiveFeedbackEventArgs;
+using WpfImage = System.Windows.Controls.Image;
 using WpfListViewItem = System.Windows.Controls.ListViewItem;
 using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 using WpfOrientation = System.Windows.Controls.Orientation;
@@ -25,8 +31,19 @@ public partial class PromptManagerWindow : Window
     private readonly Action? _refreshStartupState;
     private bool _allowClose;
     private WpfPoint _promptDragStartPoint;
+    private WpfPoint _promptDragGrabOffset;
     private string? _pendingPromptDragId;
+    private string[]? _promptDragOriginalOrder;
+    private bool _promptReorderCommitted;
     private WpfPoint _categoryDragStartPoint;
+    private WpfPoint _categoryDragGrabOffset;
+    private string[]? _categoryDragOriginalOrder;
+    private bool _categoryReorderCommitted;
+    private WpfPoint _dragPreviewPointerOffset;
+    private UIElement? _dragPreviewSource;
+    private double _dragPreviewSourceOpacity;
+    private WpfImage? _dragPreviewImage;
+    private System.Windows.Threading.DispatcherTimer? _dragPreviewTimer;
 
     public PromptManagerWindow(
         PromptCatalogService catalog,
@@ -177,7 +194,7 @@ public partial class PromptManagerWindow : Window
         UpdateEmptyState();
     }
 
-    // SECTION 分类筛选与拖放
+    // SECTION 拖拽排序与分类筛选
 
     private void HandleCategoryClick(object sender, RoutedEventArgs e)
     {
@@ -197,6 +214,7 @@ public partial class PromptManagerWindow : Window
         _pendingPromptDragId = null;
 
         if (e.OriginalSource is not DependencyObject source
+            || FindAncestor<TextBlock>(source) is not { Tag: "PromptDragHandle" }
             || FindAncestor<WpfButton>(source) is not null
             || FindAncestor<WpfCheckBox>(source) is not null)
         {
@@ -207,6 +225,7 @@ public partial class PromptManagerWindow : Window
         if (container?.DataContext is PromptItem item)
         {
             _pendingPromptDragId = item.Id;
+            _promptDragGrabOffset = e.GetPosition(container);
         }
     }
 
@@ -230,8 +249,274 @@ public partial class PromptManagerWindow : Window
 
         var promptId = _pendingPromptDragId;
         _pendingPromptDragId = null;
+        _promptDragOriginalOrder = _promptViewModel.Prompts
+            .Select(prompt => prompt.Id)
+            .ToArray();
+        _promptReorderCommitted = false;
         var data = new WpfDataObject("TypeSense.PromptId", promptId);
-        DragDrop.DoDragDrop(PromptListView, data, WpfDragDropEffects.Move);
+        if (FindPromptContainer(promptId) is { } sourceContainer)
+        {
+            BeginDragPreview(sourceContainer, _promptDragGrabOffset);
+        }
+
+        try
+        {
+            DragDrop.DoDragDrop(PromptListView, data, WpfDragDropEffects.Move);
+        }
+        finally
+        {
+            EndDragPreview();
+            if (!_promptReorderCommitted && _promptDragOriginalOrder is not null)
+            {
+                var oldPositions = CapturePromptPositions();
+                _promptViewModel.RestorePromptOrder(_promptDragOriginalOrder);
+                AnimatePromptFlow(oldPositions);
+            }
+
+            _promptDragOriginalOrder = null;
+            _promptReorderCommitted = false;
+        }
+    }
+
+    private WpfListViewItem? FindPromptContainer(string promptId)
+    {
+        var prompt = _promptViewModel.Prompts.FirstOrDefault(item => item.Id == promptId);
+        return prompt is null
+            ? null
+            : PromptListView.ItemContainerGenerator.ContainerFromItem(prompt) as WpfListViewItem;
+    }
+
+    private void HandlePromptListDragOver(object sender, WpfDragEventArgs e)
+    {
+        UpdateDragPreviewPosition();
+        if (e.Data.GetData("TypeSense.PromptId") is not string draggedId)
+        {
+            e.Effects = WpfDragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        e.Effects = WpfDragDropEffects.Move;
+        if (TryGetPromptDropTarget(e, out var targetId, out var insertAfter))
+        {
+            var oldPositions = CapturePromptPositions();
+            if (_promptViewModel.MovePrompt(draggedId, targetId, insertAfter))
+            {
+                AnimatePromptFlow(oldPositions);
+            }
+        }
+
+        e.Handled = true;
+    }
+
+    private void HandlePromptListDrop(object sender, WpfDragEventArgs e)
+    {
+        if (e.Data.GetData("TypeSense.PromptId") is not string)
+        {
+            e.Effects = WpfDragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        var orderedIds = _promptViewModel.Prompts
+            .Select(prompt => prompt.Id)
+            .ToArray();
+        var saved = _promptViewModel.ReorderPrompts(orderedIds);
+        _promptReorderCommitted = saved
+            || (_promptDragOriginalOrder is not null
+                && _promptDragOriginalOrder.SequenceEqual(orderedIds, StringComparer.Ordinal));
+        e.Effects = WpfDragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    private bool TryGetPromptDropTarget(
+        WpfDragEventArgs e,
+        out string targetId,
+        out bool insertAfter)
+    {
+        targetId = string.Empty;
+        insertAfter = false;
+        var pointerY = e.GetPosition(PromptListView).Y;
+        PromptItem? lastVisiblePrompt = null;
+
+        foreach (var prompt in _promptViewModel.FilteredPrompts.Cast<PromptItem>())
+        {
+            if (PromptListView.ItemContainerGenerator.ContainerFromItem(prompt)
+                is not WpfListViewItem container)
+            {
+                continue;
+            }
+
+            lastVisiblePrompt = prompt;
+            var top = container.TransformToAncestor(PromptListView)
+                .Transform(new WpfPoint(0, 0)).Y;
+            if (pointerY < top + container.ActualHeight / 2)
+            {
+                targetId = prompt.Id;
+                return true;
+            }
+        }
+
+        if (lastVisiblePrompt is null)
+        {
+            return false;
+        }
+
+        targetId = lastVisiblePrompt.Id;
+        insertAfter = true;
+        return true;
+    }
+
+    private void HandleDragGiveFeedback(object sender, WpfGiveFeedbackEventArgs e)
+    {
+        UpdateDragPreviewPosition();
+    }
+
+    private void BeginDragPreview(UIElement source, WpfPoint pointerOffset)
+    {
+        EndDragPreview();
+        if (source.RenderSize.Width <= 0
+            || source.RenderSize.Height <= 0
+            || CaptureVisual(source) is not { } snapshot)
+        {
+            return;
+        }
+
+        _dragPreviewSource = source;
+        _dragPreviewSourceOpacity = source.Opacity;
+        _dragPreviewPointerOffset = pointerOffset;
+        _dragPreviewImage = new WpfImage
+        {
+            Source = snapshot,
+            Width = source.RenderSize.Width,
+            Height = source.RenderSize.Height,
+            Opacity = 0.96,
+            IsHitTestVisible = false,
+            Effect = new DropShadowEffect
+            {
+                Color = Colors.Black,
+                BlurRadius = 12,
+                ShadowDepth = 2,
+                Opacity = 0.18,
+                RenderingBias = RenderingBias.Performance
+            }
+        };
+
+        DragPreviewCanvas.Children.Add(_dragPreviewImage);
+        source.Opacity = 0.32;
+        UpdateDragPreviewPosition();
+
+        _dragPreviewTimer = new System.Windows.Threading.DispatcherTimer(
+            System.Windows.Threading.DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _dragPreviewTimer.Tick += HandleDragPreviewTimerTick;
+        _dragPreviewTimer.Start();
+    }
+
+    private static BitmapSource? CaptureVisual(UIElement source)
+    {
+        var size = source.RenderSize;
+        if (size.Width <= 0 || size.Height <= 0)
+        {
+            return null;
+        }
+
+        var dpi = VisualTreeHelper.GetDpi(source);
+        var bitmap = new RenderTargetBitmap(
+            Math.Max(1, (int)Math.Ceiling(size.Width * dpi.DpiScaleX)),
+            Math.Max(1, (int)Math.Ceiling(size.Height * dpi.DpiScaleY)),
+            96 * dpi.DpiScaleX,
+            96 * dpi.DpiScaleY,
+            PixelFormats.Pbgra32);
+        bitmap.Render(source);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
+    private void HandleDragPreviewTimerTick(object? sender, EventArgs e)
+    {
+        UpdateDragPreviewPosition();
+    }
+
+    private void UpdateDragPreviewPosition()
+    {
+        if (_dragPreviewImage is null)
+        {
+            return;
+        }
+
+        var pointer = Mouse.GetPosition(DragPreviewCanvas);
+        Canvas.SetLeft(_dragPreviewImage, pointer.X - _dragPreviewPointerOffset.X);
+        Canvas.SetTop(_dragPreviewImage, pointer.Y - _dragPreviewPointerOffset.Y);
+    }
+
+    private void EndDragPreview()
+    {
+        if (_dragPreviewTimer is not null)
+        {
+            _dragPreviewTimer.Stop();
+            _dragPreviewTimer.Tick -= HandleDragPreviewTimerTick;
+            _dragPreviewTimer = null;
+        }
+
+        if (_dragPreviewImage is not null)
+        {
+            DragPreviewCanvas.Children.Remove(_dragPreviewImage);
+            _dragPreviewImage = null;
+        }
+
+        if (_dragPreviewSource is not null)
+        {
+            _dragPreviewSource.Opacity = _dragPreviewSourceOpacity;
+            _dragPreviewSource = null;
+        }
+    }
+
+    private Dictionary<string, WpfPoint> CapturePromptPositions()
+    {
+        PromptListView.UpdateLayout();
+        var positions = new Dictionary<string, WpfPoint>(StringComparer.Ordinal);
+        foreach (var prompt in _promptViewModel.FilteredPrompts.Cast<PromptItem>())
+        {
+            if (PromptListView.ItemContainerGenerator.ContainerFromItem(prompt)
+                is WpfListViewItem container)
+            {
+                positions[prompt.Id] = container.TransformToAncestor(PromptListView)
+                    .Transform(new WpfPoint(0, 0));
+            }
+        }
+
+        return positions;
+    }
+
+    private void AnimatePromptFlow(IReadOnlyDictionary<string, WpfPoint> oldPositions)
+    {
+        PromptListView.UpdateLayout();
+        foreach (var prompt in _promptViewModel.FilteredPrompts.Cast<PromptItem>())
+        {
+            if (PromptListView.ItemContainerGenerator.ContainerFromItem(prompt)
+                is WpfListViewItem container)
+            {
+                ResetFlowTransform(container);
+            }
+        }
+
+        PromptListView.UpdateLayout();
+        foreach (var prompt in _promptViewModel.FilteredPrompts.Cast<PromptItem>())
+        {
+            if (!oldPositions.TryGetValue(prompt.Id, out var oldPosition)
+                || PromptListView.ItemContainerGenerator.ContainerFromItem(prompt)
+                    is not WpfListViewItem container)
+            {
+                continue;
+            }
+
+            var newPosition = container.TransformToAncestor(PromptListView)
+                .Transform(new WpfPoint(0, 0));
+            AnimateFlow(container, oldPosition, newPosition);
+        }
     }
 
     private void HandleAddCategoryClick(object sender, RoutedEventArgs e)
@@ -314,7 +599,7 @@ public partial class PromptManagerWindow : Window
         }
     }
 
-    // !SECTION 分类筛选与拖放
+    // !SECTION 拖拽排序与分类筛选
 
     // !SECTION 页面导航与列表交互
 
@@ -373,12 +658,15 @@ public partial class PromptManagerWindow : Window
             Content = name,
             Tag = categoryId,
             Style = (Style)FindResource("CategoryPill"),
-            ToolTip = name,
+            ToolTip = categoryId.Length > 0 && categoryId != "all"
+                ? $"{name}（拖动可排序）"
+                : name,
             ClickMode = ClickMode.Release,
             IsTabStop = true,
             Focusable = true,
             AllowDrop = categoryId != "all"
         };
+        button.GiveFeedback += HandleDragGiveFeedback;
         button.DragOver += HandleCategoryDragOver;
         button.Drop += HandleCategoryDrop;
         if (categoryId.Length > 0 && categoryId != "all")
@@ -394,6 +682,10 @@ public partial class PromptManagerWindow : Window
     private void HandleCategoryMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _categoryDragStartPoint = e.GetPosition(CategoryPanel);
+        if (sender is WpfButton button)
+        {
+            _categoryDragGrabOffset = e.GetPosition(button);
+        }
     }
 
     private void HandleCategoryMouseMove(object sender, WpfMouseEventArgs e)
@@ -414,11 +706,31 @@ public partial class PromptManagerWindow : Window
         }
 
         var data = new WpfDataObject("TypeSense.CategoryId", categoryId);
-        DragDrop.DoDragDrop((WpfButton)sender, data, WpfDragDropEffects.Move);
+        _categoryDragOriginalOrder = GetCategoryButtonOrder();
+        _categoryReorderCommitted = false;
+        var sourceButton = (WpfButton)sender;
+        BeginDragPreview(sourceButton, _categoryDragGrabOffset);
+
+        try
+        {
+            DragDrop.DoDragDrop(sourceButton, data, WpfDragDropEffects.Move);
+        }
+        finally
+        {
+            EndDragPreview();
+            if (!_categoryReorderCommitted && _categoryDragOriginalOrder is not null)
+            {
+                ApplyCategoryButtonOrder(_categoryDragOriginalOrder);
+            }
+
+            _categoryDragOriginalOrder = null;
+            _categoryReorderCommitted = false;
+        }
     }
 
     private void HandleCategoryDragOver(object sender, WpfDragEventArgs e)
     {
+        UpdateDragPreviewPosition();
         if (sender is not WpfButton { Tag: string targetCategoryId })
         {
             e.Effects = WpfDragDropEffects.None;
@@ -426,11 +738,24 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        var isPrompt = e.Data.GetDataPresent("TypeSense.PromptId");
-        var isCategory = targetCategoryId.Length > 0
+        if (e.Data.GetData("TypeSense.PromptId") is string)
+        {
+            e.Effects = WpfDragDropEffects.Move;
+        }
+        else if (targetCategoryId.Length > 0
             && targetCategoryId != "all"
-            && e.Data.GetDataPresent("TypeSense.CategoryId");
-        e.Effects = isPrompt || isCategory ? WpfDragDropEffects.Move : WpfDragDropEffects.None;
+            && e.Data.GetData("TypeSense.CategoryId") is string draggedCategoryId)
+        {
+            e.Effects = WpfDragDropEffects.Move;
+            var targetButton = (WpfButton)sender;
+            var insertAfter = e.GetPosition(targetButton).X >= targetButton.ActualWidth / 2;
+            PreviewCategoryMove(draggedCategoryId, targetCategoryId, insertAfter);
+        }
+        else
+        {
+            e.Effects = WpfDragDropEffects.None;
+        }
+
         e.Handled = true;
     }
 
@@ -445,34 +770,219 @@ public partial class PromptManagerWindow : Window
         {
             _promptViewModel.AssignCategory(promptId, targetCategoryId);
             UpdateEmptyState();
+            e.Effects = WpfDragDropEffects.Move;
+            e.Handled = true;
             return;
         }
 
         if (targetCategoryId.Length == 0
             || targetCategoryId == "all"
-            || e.Data.GetData("TypeSense.CategoryId") is not string draggedCategoryId)
+            || e.Data.GetData("TypeSense.CategoryId") is not string)
         {
+            e.Effects = WpfDragDropEffects.None;
+            e.Handled = true;
             return;
         }
 
-        var categories = _promptViewModel.Categories.ToList();
-        var sourceIndex = categories.FindIndex(category => category.Id == draggedCategoryId);
-        var targetIndex = categories.FindIndex(category => category.Id == targetCategoryId);
+        var orderedIds = GetCategoryButtonOrder();
+        var saved = _promptViewModel.ReorderCategories(orderedIds);
+        _categoryReorderCommitted = saved
+            || (_categoryDragOriginalOrder is not null
+                && _categoryDragOriginalOrder.SequenceEqual(orderedIds, StringComparer.Ordinal));
+        UpdateCategoryButtonStates();
+        e.Effects = WpfDragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    private void PreviewCategoryMove(string draggedId, string targetId, bool insertAfter)
+    {
+        var orderedIds = GetCategoryButtonOrder().ToList();
+        var sourceIndex = orderedIds.IndexOf(draggedId);
+        var targetIndex = orderedIds.IndexOf(targetId);
         if (sourceIndex < 0 || targetIndex < 0 || sourceIndex == targetIndex)
         {
             return;
         }
 
-        var dropPosition = e.GetPosition((WpfButton)sender);
-        var insertAfter = dropPosition.X >= ((WpfButton)sender).ActualWidth / 2;
-        var movedCategory = categories[sourceIndex];
-        categories.RemoveAt(sourceIndex);
-        targetIndex = categories.FindIndex(category => category.Id == targetCategoryId);
-        categories.Insert(targetIndex + (insertAfter ? 1 : 0), movedCategory);
-        if (_promptViewModel.ReorderCategories(categories.Select(category => category.Id).ToArray()))
+        orderedIds.RemoveAt(sourceIndex);
+        targetIndex = orderedIds.IndexOf(targetId);
+        var insertIndex = targetIndex + (insertAfter ? 1 : 0);
+        if (insertIndex == sourceIndex)
         {
-            RenderCategoryButtons();
+            return;
         }
+
+        orderedIds.Insert(insertIndex, draggedId);
+        ApplyCategoryButtonOrder(orderedIds);
+    }
+
+    private string[] GetCategoryButtonOrder() => CategoryPanel.Children
+        .OfType<WpfButton>()
+        .Select(button => button.Tag as string ?? string.Empty)
+        .Where(id => id.Length > 0 && id != "all")
+        .ToArray();
+
+    private void ApplyCategoryButtonOrder(IReadOnlyList<string> orderedIds)
+    {
+        var oldPositions = CaptureCategoryPositions();
+        var buttons = CategoryPanel.Children.OfType<WpfButton>().ToArray();
+        var allButton = buttons.FirstOrDefault(button => button.Tag as string == "all");
+        var uncategorizedButton = buttons.FirstOrDefault(button => button.Tag as string == string.Empty);
+        if (allButton is null
+            || uncategorizedButton is null
+            || orderedIds.Count != buttons.Length - 2)
+        {
+            return;
+        }
+
+        var buttonsById = buttons
+            .Where(button => button.Tag is string id && id.Length > 0 && id != "all")
+            .ToDictionary(button => (string)button.Tag, StringComparer.Ordinal);
+        if (orderedIds.Any(id => !buttonsById.ContainsKey(id)))
+        {
+            return;
+        }
+
+        var desiredButtons = new List<WpfButton>(buttons.Length)
+        {
+            allButton,
+            uncategorizedButton
+        };
+        desiredButtons.AddRange(orderedIds.Select(id => buttonsById[id]));
+
+        for (var targetIndex = 0; targetIndex < desiredButtons.Count; targetIndex++)
+        {
+            var button = desiredButtons[targetIndex];
+            var currentIndex = CategoryPanel.Children.IndexOf(button);
+            if (currentIndex != targetIndex)
+            {
+                CategoryPanel.Children.RemoveAt(currentIndex);
+                CategoryPanel.Children.Insert(targetIndex, button);
+            }
+        }
+
+        AnimateCategoryFlow(oldPositions);
+    }
+
+    private Dictionary<string, WpfPoint> CaptureCategoryPositions()
+    {
+        CategoryPanel.UpdateLayout();
+        var positions = new Dictionary<string, WpfPoint>(StringComparer.Ordinal);
+        foreach (var button in CategoryPanel.Children.OfType<WpfButton>())
+        {
+            if (button.Tag is string id)
+            {
+                positions[id] = button.TransformToAncestor(CategoryPanel)
+                    .Transform(new WpfPoint(0, 0));
+            }
+        }
+
+        return positions;
+    }
+
+    private void AnimateCategoryFlow(IReadOnlyDictionary<string, WpfPoint> oldPositions)
+    {
+        CategoryPanel.UpdateLayout();
+        foreach (var button in CategoryPanel.Children.OfType<WpfButton>())
+        {
+            ResetFlowTransform(button);
+        }
+
+        CategoryPanel.UpdateLayout();
+        foreach (var button in CategoryPanel.Children.OfType<WpfButton>())
+        {
+            if (button.Tag is not string id
+                || !oldPositions.TryGetValue(id, out var oldPosition))
+            {
+                continue;
+            }
+
+            var newPosition = button.TransformToAncestor(CategoryPanel)
+                .Transform(new WpfPoint(0, 0));
+            AnimateFlow(button, oldPosition, newPosition);
+        }
+    }
+
+    private static void AnimateFlow(UIElement element, WpfPoint oldPosition, WpfPoint newPosition)
+    {
+        ResetFlowTransform(element);
+        var translate = GetFlowTransform(element);
+
+        var offsetX = oldPosition.X - newPosition.X;
+        var offsetY = oldPosition.Y - newPosition.Y;
+        if (Math.Abs(offsetX) < 0.5 && Math.Abs(offsetY) < 0.5)
+        {
+            return;
+        }
+
+        var duration = new Duration(TimeSpan.FromMilliseconds(170));
+        if (Math.Abs(offsetX) >= 0.5)
+        {
+            translate.BeginAnimation(
+                TranslateTransform.XProperty,
+                new DoubleAnimation(offsetX, 0, duration)
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                    FillBehavior = FillBehavior.Stop
+                });
+        }
+
+        if (Math.Abs(offsetY) >= 0.5)
+        {
+            translate.BeginAnimation(
+                TranslateTransform.YProperty,
+                new DoubleAnimation(offsetY, 0, duration)
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                    FillBehavior = FillBehavior.Stop
+                });
+        }
+    }
+
+    private static void ResetFlowTransform(UIElement element)
+    {
+        var translate = element.RenderTransform switch
+        {
+            TranslateTransform direct => direct,
+            TransformGroup group => group.Children.OfType<TranslateTransform>().FirstOrDefault(),
+            _ => null
+        };
+        if (translate is null)
+        {
+            return;
+        }
+
+        translate.BeginAnimation(TranslateTransform.XProperty, null);
+        translate.BeginAnimation(TranslateTransform.YProperty, null);
+        translate.X = 0;
+        translate.Y = 0;
+    }
+
+    private static TranslateTransform GetFlowTransform(UIElement element)
+    {
+        if (element.RenderTransform is TransformGroup existingGroup)
+        {
+            var existingTransform = existingGroup.Children.OfType<TranslateTransform>().FirstOrDefault();
+            if (existingTransform is not null)
+            {
+                return existingTransform;
+            }
+
+            var addedTransform = new TranslateTransform();
+            existingGroup.Children.Add(addedTransform);
+            return addedTransform;
+        }
+
+        var transformGroup = new TransformGroup();
+        if (element.RenderTransform is not null)
+        {
+            transformGroup.Children.Add(element.RenderTransform);
+        }
+
+        var translateTransform = new TranslateTransform();
+        transformGroup.Children.Add(translateTransform);
+        element.RenderTransform = transformGroup;
+        return translateTransform;
     }
 
     private static T? FindAncestor<T>(DependencyObject source)

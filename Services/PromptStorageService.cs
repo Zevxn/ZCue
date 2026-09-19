@@ -38,14 +38,6 @@ public sealed class PromptStorageService
         {
             var json = File.ReadAllText(_filePath);
             using var document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind == JsonValueKind.Array)
-            {
-                var legacyPrompts = JsonSerializer.Deserialize<List<PromptItem>>(
-                    json,
-                    _jsonOptions) ?? [];
-                return new StorageSnapshot(legacyPrompts, [], RequiresMigration: true);
-            }
-
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.EnumerateObject().Any(property =>
                     string.Equals(property.Name, "allCommands", StringComparison.OrdinalIgnoreCase)))
@@ -64,8 +56,7 @@ public sealed class PromptStorageService
                     .Where(command => command is not null)
                     .Select(ToPromptItem)
                     .ToArray(),
-                storedData.AllCategories ?? [],
-                RequiresMigration: false);
+                storedData.AllCategories ?? []);
         }
         catch
         {
@@ -136,8 +127,7 @@ public sealed class PromptStorageService
 
     public sealed record StorageSnapshot(
         IReadOnlyList<PromptItem> Prompts,
-        IReadOnlyList<PromptCategory> Categories,
-        bool RequiresMigration);
+        IReadOnlyList<PromptCategory> Categories);
 
     private sealed class StorageDocument
     {
