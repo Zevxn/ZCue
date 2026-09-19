@@ -87,6 +87,40 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="CategoryPill" TargetType="Button">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="13,7" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CategoryBadge" TargetType="Border">
+            <Setter Property="Background" Value="#F1F5F9" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CategoryName}" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
             <Setter Property="Foreground" Value="#DC2626" />
             <Style.Triggers>
@@ -254,6 +288,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
@@ -283,12 +318,33 @@
                             Click="HandleAddClick" />
                 </Grid>
 
-                <Border Grid.Row="1"
+                <Grid Grid.Row="1"
+                      Margin="0,20,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="CategoryPanel"
+                                    Orientation="Horizontal" />
+                    </ScrollViewer>
+                    <Button Grid.Column="1"
+                            Content="＋"
+                            Width="32"
+                            Height="32"
+                            Padding="0"
+                            ToolTip="添加分类"
+                            Style="{StaticResource SecondaryButton}"
+                            Click="HandleAddCategoryClick" />
+                </Grid>
+
+                <Border Grid.Row="2"
                         Background="White"
                         BorderBrush="#E2E8F0"
                         BorderThickness="1"
                         CornerRadius="8"
-                        Margin="0,24,0,16"
+                        Margin="0,12,0,16"
                         Padding="12,0">
                     <DockPanel LastChildFill="True">
                         <TextBlock DockPanel.Dock="Left"
@@ -307,12 +363,14 @@
                     </DockPanel>
                 </Border>
 
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="3">
                     <ListView x:Name="PromptListView"
                               ItemsSource="{Binding FilteredPrompts}"
                               SelectedItem="{Binding SelectedPrompt, Mode=TwoWay}"
                               Background="Transparent"
                               BorderThickness="0"
+                              PreviewMouseLeftButtonDown="HandlePromptListMouseLeftButtonDown"
+                              PreviewMouseMove="HandlePromptListMouseMove"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
@@ -325,6 +383,7 @@
                                     <Grid VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="22" />
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
@@ -339,19 +398,26 @@
                                                    Text="{Binding Name}"
                                                    Foreground="#0F172A"
                                                    FontSize="15"
-                                                   FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   VerticalAlignment="Center"
-                                                   MaxWidth="190" />
-                                        <TextBlock Grid.Column="2"
+                                                    FontWeight="SemiBold"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    VerticalAlignment="Center"
+                                                    MaxWidth="170" />
+                                        <Border Grid.Column="2"
+                                                Style="{StaticResource CategoryBadge}"
+                                                Margin="11,0,0,0">
+                                            <TextBlock Text="{Binding CategoryName}"
+                                                       Foreground="#64748B"
+                                                       FontSize="11" />
+                                        </Border>
+                                        <TextBlock Grid.Column="3"
                                                    Text="{Binding Preview}"
                                                    Foreground="#64748B"
                                                    FontSize="13"
-                                                   Margin="16,0,14,0"
+                                                   Margin="12,0,14,0"
                                                    TextWrapping="NoWrap"
                                                    TextTrimming="CharacterEllipsis"
                                                    VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="3"
+                                        <StackPanel Grid.Column="4"
                                                     Style="{StaticResource RowActionPanel}"
                                                     Orientation="Horizontal"
                                                     VerticalAlignment="Center"

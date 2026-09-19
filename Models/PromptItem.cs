@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace TypeSense.Models;
 
 public sealed class PromptItem
@@ -7,6 +9,11 @@ public sealed class PromptItem
     public string Name { get; set; } = string.Empty;
 
     public string Content { get; set; } = string.Empty;
+
+    public string CategoryId { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public string CategoryName { get; set; } = string.Empty;
 
     public List<PromptAlias> PinyinAliases { get; set; } = [];
 
@@ -24,6 +31,7 @@ public sealed class PromptItem
         Id = Id,
         Name = Name,
         Content = Content,
+        CategoryId = CategoryId,
         PinyinAliases = PinyinAliases?
             .Select(alias => alias.DeepCopy())
             .ToList() ?? [],

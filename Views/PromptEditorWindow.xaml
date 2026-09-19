@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="编辑指令"
         Width="620"
-        Height="600"
+        Height="640"
         MinWidth="560"
-        MinHeight="560"
+        MinHeight="600"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         Background="#F8FAFC"
@@ -90,7 +90,9 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -104,11 +106,26 @@
                      MaxLength="80" />
 
             <TextBlock Grid.Row="2"
+                       Margin="0,0,0,7"
+                       Text="提示词分类"
+                       FontWeight="SemiBold"
+                       Foreground="#334155" />
+            <ComboBox x:Name="CategoryComboBox"
+                      Grid.Row="3"
+                      Margin="0,0,0,18"
+                      Padding="9,7"
+                      DisplayMemberPath="Name"
+                      SelectedValuePath="Id"
+                      Background="White"
+                      BorderBrush="#CBD5E1"
+                      BorderThickness="1" />
+
+            <TextBlock Grid.Row="4"
                        Text="指令内容"
                        FontWeight="SemiBold"
                        Foreground="#334155" />
             <TextBox x:Name="ContentTextBox"
-                     Grid.Row="3"
+                     Grid.Row="5"
                      Margin="0,7,0,18"
                      Style="{StaticResource FieldTextBox}"
                      MinHeight="150"
@@ -120,7 +137,7 @@
                      MaxLength="10000" />
 
             <CheckBox x:Name="EnabledCheckBox"
-                      Grid.Row="4"
+                      Grid.Row="6"
                       Content="启用这条指令"
                       IsChecked="True"
                       FontSize="14"

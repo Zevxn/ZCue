@@ -11,12 +11,15 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
 {
     private readonly PromptCatalogService _catalog;
     private string _searchText = string.Empty;
+    private string _selectedCategoryId = "all";
     private PromptItem? _selectedPrompt;
 
     public PromptManagerViewModel(PromptCatalogService catalog)
     {
         _catalog = catalog;
         Prompts = new ObservableCollection<PromptItem>(_catalog.GetAllItems());
+        Categories = new ObservableCollection<PromptCategory>(_catalog.GetAllCategories());
+        UpdateCategoryNames();
         FilteredPrompts = CollectionViewSource.GetDefaultView(Prompts);
         FilteredPrompts.Filter = FilterPrompt;
     }
@@ -26,6 +29,8 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
     // SECTION 列表状态与筛选
 
     public ObservableCollection<PromptItem> Prompts { get; }
+
+    public ObservableCollection<PromptCategory> Categories { get; }
 
     public ICollectionView FilteredPrompts { get; }
 
@@ -55,6 +60,22 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
             }
 
             _searchText = value ?? string.Empty;
+            FilteredPrompts.Refresh();
+            OnPropertyChanged();
+        }
+    }
+
+    public string SelectedCategoryId
+    {
+        get => _selectedCategoryId;
+        set
+        {
+            if (string.Equals(_selectedCategoryId, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _selectedCategoryId = value ?? "all";
             FilteredPrompts.Refresh();
             OnPropertyChanged();
         }
@@ -107,13 +128,92 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
         return updated;
     }
 
+    // SECTION 分类变更
+
+    public PromptCategory? AddCategory(string name)
+    {
+        var category = _catalog.AddCategory(name);
+        if (category is not null)
+        {
+            Reload(SelectedPrompt?.Id);
+        }
+
+        return category;
+    }
+
+    public bool RenameCategory(string id, string name)
+    {
+        if (!_catalog.RenameCategory(id, name))
+        {
+            return false;
+        }
+
+        Reload(SelectedPrompt?.Id);
+        return true;
+    }
+
+    public bool DeleteCategory(string id)
+    {
+        if (!_catalog.DeleteCategory(id))
+        {
+            return false;
+        }
+
+        if (SelectedCategoryId == id)
+        {
+            SelectedCategoryId = "all";
+        }
+
+        Reload(SelectedPrompt?.Id);
+        return true;
+    }
+
+    public bool AssignCategory(string promptId, string categoryId)
+    {
+        if (!_catalog.AssignCategory(promptId, categoryId))
+        {
+            return false;
+        }
+
+        Reload(SelectedPrompt?.Id);
+        return true;
+    }
+
+    public bool ReorderCategories(IReadOnlyList<string> orderedIds)
+    {
+        if (!_catalog.ReorderCategories(orderedIds))
+        {
+            return false;
+        }
+
+        Reload(SelectedPrompt?.Id);
+        return true;
+    }
+
+    // !SECTION 分类变更
+
     public void Reload(string? selectedId)
     {
+        Categories.Clear();
+        foreach (var category in _catalog.GetAllCategories())
+        {
+            Categories.Add(category);
+        }
+
+        if (SelectedCategoryId != "all"
+            && SelectedCategoryId.Length > 0
+            && !Categories.Any(category => category.Id == SelectedCategoryId))
+        {
+            SelectedCategoryId = "all";
+        }
+
         Prompts.Clear();
         foreach (var prompt in _catalog.GetAllItems())
         {
             Prompts.Add(prompt);
         }
+
+        UpdateCategoryNames();
 
         SelectedPrompt = selectedId is null
             ? null
@@ -134,6 +234,12 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
             return false;
         }
 
+        if (SelectedCategoryId != "all"
+            && !string.Equals(prompt.CategoryId, SelectedCategoryId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         var filter = SearchText.Trim();
         if (filter.Length == 0)
         {
@@ -145,6 +251,22 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
     }
 
     // !SECTION 过滤逻辑
+
+    // SECTION 分类显示信息
+
+    private void UpdateCategoryNames()
+    {
+        var categoryNames = Categories.ToDictionary(
+            category => category.Id,
+            category => category.Name,
+            StringComparer.Ordinal);
+        foreach (var prompt in Prompts)
+        {
+            prompt.CategoryName = categoryNames.GetValueOrDefault(prompt.CategoryId, string.Empty);
+        }
+    }
+
+    // !SECTION 分类显示信息
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

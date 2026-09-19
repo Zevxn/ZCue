@@ -8,9 +8,24 @@ public partial class PromptEditorWindow : Window
     private readonly string? _editingId;
     private readonly int _usageCount;
 
-    public PromptEditorWindow(PromptItem? item = null)
+    public PromptEditorWindow(
+        PromptItem? item = null,
+        IReadOnlyList<PromptCategory>? categories = null,
+        string? defaultCategoryId = null)
     {
         InitializeComponent();
+
+        var categoryOptions = new List<PromptCategory>
+        {
+            new() { Id = string.Empty, Name = "无分类" }
+        };
+        if (categories is not null)
+        {
+            categoryOptions.AddRange(categories.Select(category => category.Clone()));
+        }
+
+        CategoryComboBox.ItemsSource = categoryOptions;
+        CategoryComboBox.SelectedValue = item?.CategoryId ?? defaultCategoryId ?? string.Empty;
 
         if (item is null)
         {
@@ -50,6 +65,7 @@ public partial class PromptEditorWindow : Window
             Id = _editingId ?? Guid.NewGuid().ToString("N"),
             Name = name,
             Content = content,
+            CategoryId = CategoryComboBox.SelectedValue as string ?? string.Empty,
             UsageCount = _usageCount,
             Enabled = EnabledCheckBox.IsChecked == true
         };
