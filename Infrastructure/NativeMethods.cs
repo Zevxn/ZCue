@@ -47,6 +47,9 @@ internal static class NativeMethods
     internal const uint GA_ROOT = 2;
     internal const int WS_EX_NOACTIVATE = 0x08000000;
     internal const int WS_EX_TOOLWINDOW = 0x00000080;
+    internal const int WS_EX_TRANSPARENT = 0x00000020;
+    internal const int WM_NCHITTEST = 0x0084;
+    internal const int HTTRANSPARENT = -1;
     internal const uint SWP_NOSIZE = 0x0001;
     internal const uint SWP_NOMOVE = 0x0002;
     internal const uint SWP_NOACTIVATE = 0x0010;

@@ -9,6 +9,7 @@ TypeSense 是一个 Windows 全局 Prompt 实时补全 MVP，目标是在普通�
 - 最近输入缓冲区与窗口切换重置
 - 缩写前缀匹配、名称匹配和基础排序
 - 无边框、置顶、不抢焦点候选窗口
+- 输入框内置顶、鼠标穿透的 Prompt 幽灵文字预览
 - UI Automation → `GetGUIThreadInfo` → 窗口位置的光标定位 fallback
 - `↑` / `↓`、数字 `1`～`9`、`Tab`、`Enter`、`Esc`
 - 剪贴板保护、Backspace 删除和 Unicode Ctrl+V 注入
@@ -52,6 +53,7 @@ Infrastructure/
   TrayIconService.cs
 Views/
   SuggestionWindow.xaml(.cs)
+  GhostPreviewWindow.xaml(.cs)
   PromptManagerWindow.xaml(.cs)
   PromptEditorWindow.xaml(.cs)
 ViewModels/
@@ -62,5 +64,6 @@ ViewModels/
 ## 已知边界
 
 - 某些自绘控件或高权限窗口无法提供 UI Automation caret，也可能拒绝低权限进程的输入注入；此时会退回窗口位置。
+- 幽灵文字使用独立覆盖窗，标准单行文本框中的字体和光标对齐最稳定；复杂自绘控件、特殊多行编辑器可能只能显示近似位置。
 - MVP 尚未监听鼠标低级 Hook，也未处理 IME 组合过程，因此光标在同一窗口内鼠标跳转和复杂中文输入法场景会在后续阶段增强。
 - 当前使用 JSON 持久化，已支持持久化拼音别名匹配，尚未接入 SQLite 和更复杂的模糊匹配。

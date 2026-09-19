@@ -20,6 +20,7 @@ public sealed class AppController : IDisposable
     private readonly KeyboardHookService _keyboardHook = new();
     private readonly TrayIconService _trayIcon;
     private readonly SuggestionWindow _suggestionWindow;
+    private readonly GhostPreviewWindow _ghostPreviewWindow;
     private readonly PromptManagerWindow _promptManagerWindow;
     private readonly object _stateGate = new();
 
@@ -38,6 +39,7 @@ public sealed class AppController : IDisposable
         _suggestionWindow = new SuggestionWindow();
         _suggestionWindow.ShowPreview = _settings.Current.ShowContentPreview;
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
+        _ghostPreviewWindow = new GhostPreviewWindow();
 
         _trayIcon = new TrayIconService(_startupService);
         _promptManagerWindow = new PromptManagerWindow(
@@ -85,6 +87,7 @@ public sealed class AppController : IDisposable
         _keyboardHook.KeyDown -= HandleKeyDown;
         _keyboardHook.Dispose();
         _suggestionWindow.Hide();
+        _ghostPreviewWindow.HidePreview();
         _promptManagerWindow.CloseWithoutHiding();
         _trayIcon.Dispose();
     }
@@ -249,7 +252,14 @@ public sealed class AppController : IDisposable
 
         if (matches.Count == 0)
         {
-            PostToUi(() => _suggestionWindow.Hide());
+            PostToUi(() =>
+            {
+                if (IsCurrentVersion(version))
+                {
+                    _suggestionWindow.Hide();
+                    _ghostPreviewWindow.HidePreview();
+                }
+            });
             return;
         }
 
@@ -262,15 +272,19 @@ public sealed class AppController : IDisposable
 
             try
             {
+                var currentIndex = GetSelectedIndex();
                 _suggestionWindow.ShowSuggestions(
                     matches,
-                    GetSelectedIndex(),
+                    currentIndex,
                     targetWindow,
-                    _caretPositionService);
+                    _caretPositionService,
+                    _settings.Current.ShowGhostPreview);
+                ShowGhostPreview(matches[currentIndex].Item.Content, targetWindow);
             }
             catch
             {
                 _suggestionWindow.Hide();
+                _ghostPreviewWindow.HidePreview();
             }
         });
     }
@@ -309,11 +323,14 @@ public sealed class AppController : IDisposable
                         matches,
                         selectedIndex,
                         targetWindow,
-                        _caretPositionService);
+                        _caretPositionService,
+                        _settings.Current.ShowGhostPreview);
+                    ShowGhostPreview(matches[selectedIndex].Item.Content, targetWindow);
                 }
                 catch
                 {
                     _suggestionWindow.Hide();
+                    _ghostPreviewWindow.HidePreview();
                 }
             }
         });
@@ -347,6 +364,7 @@ public sealed class AppController : IDisposable
         PostAsyncToUi(async () =>
         {
             _suggestionWindow.Hide();
+            _ghostPreviewWindow.HidePreview();
             if (NativeMethods.GetForegroundWindow() != targetWindow)
             {
                 return;
@@ -380,7 +398,11 @@ public sealed class AppController : IDisposable
             _stateVersion++;
         }
 
-        PostToUi(() => _suggestionWindow.Hide());
+        PostToUi(() =>
+        {
+            _suggestionWindow.Hide();
+            _ghostPreviewWindow.HidePreview();
+        });
     }
 
     private bool HasSuggestions()
@@ -469,7 +491,66 @@ public sealed class AppController : IDisposable
 
     private void HandleSettingsChanged(AppSettings settings)
     {
-        PostToUi(() => _suggestionWindow.ShowPreview = settings.ShowContentPreview);
+        PostToUi(() =>
+        {
+            _suggestionWindow.ShowPreview = settings.ShowContentPreview;
+            if (!settings.ShowGhostPreview)
+            {
+                _ghostPreviewWindow.HidePreview();
+            }
+            else
+            {
+                RefreshGhostPreview();
+            }
+        });
+    }
+
+    private void RefreshGhostPreview()
+    {
+        PromptMatch? match;
+        IntPtr targetWindow;
+
+        lock (_stateGate)
+        {
+            if (!_suggestionsVisible || _activeMatches.Count == 0)
+            {
+                _ghostPreviewWindow.HidePreview();
+                return;
+            }
+
+            match = _activeMatches[Math.Clamp(_selectedIndex, 0, _activeMatches.Count - 1)];
+            targetWindow = _targetWindow;
+        }
+
+        ShowGhostPreview(match.Item.Content, targetWindow);
+    }
+
+    private void ShowGhostPreview(string content, IntPtr targetWindow)
+    {
+        if (!_settings.Current.ShowGhostPreview
+            || targetWindow == IntPtr.Zero
+            || NativeMethods.GetForegroundWindow() != targetWindow)
+        {
+            _ghostPreviewWindow.HidePreview();
+            return;
+        }
+
+        try
+        {
+            var caretPosition = _caretPositionService.GetPosition(targetWindow);
+            var hasControlBounds = _caretPositionService.TryGetTextControlBounds(
+                targetWindow,
+                out var controlBounds);
+            _ghostPreviewWindow.ShowPreview(
+                content,
+                caretPosition,
+                targetWindow,
+                hasControlBounds ? controlBounds : null);
+        }
+        catch
+        {
+            _ghostPreviewWindow.HidePreview();
+        }
     }
 
     private void ExitApplication()

@@ -12,6 +12,12 @@ public readonly record struct CaretPosition(
     double DpiScale,
     bool IsFallback);
 
+public readonly record struct TextControlBounds(
+    int Left,
+    int Top,
+    int Right,
+    int Bottom);
+
 public sealed class CaretPositionService
 {
     public CaretPosition GetPosition(IntPtr foregroundWindow)
@@ -113,6 +119,87 @@ public sealed class CaretPositionService
 
     // !SECTION UI Automation 光标定位
 
+    // SECTION UI Automation 输入控件边界
+
+    public bool TryGetTextControlBounds(
+        IntPtr foregroundWindow,
+        out TextControlBounds bounds)
+    {
+        bounds = default;
+        if (foregroundWindow == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            var currentElement = AutomationElement.FocusedElement;
+            while (currentElement is not null)
+            {
+                if (BelongsToWindow(currentElement, foregroundWindow)
+                    && currentElement.TryGetCurrentPattern(TextPattern.Pattern, out _)
+                    && TryGetElementBounds(currentElement, out bounds))
+                {
+                    return true;
+                }
+
+                currentElement = TreeWalker.ControlViewWalker.GetParent(currentElement);
+            }
+        }
+        catch
+        {
+            // 某些第三方控件在读取 UI Automation 属性时会抛出 COMException。
+        }
+
+        return TryGetNativeControlBounds(foregroundWindow, out bounds);
+    }
+
+    private static bool TryGetElementBounds(
+        AutomationElement element,
+        out TextControlBounds bounds)
+    {
+        bounds = default;
+
+        try
+        {
+            var rectangle = element.Current.BoundingRectangle;
+            if (rectangle.Width <= 0
+                || rectangle.Height <= 0
+                || double.IsNaN(rectangle.Left)
+                || double.IsNaN(rectangle.Top)
+                || double.IsNaN(rectangle.Right)
+                || double.IsNaN(rectangle.Bottom))
+            {
+                return false;
+            }
+
+            var left = (int)Math.Round(rectangle.Left);
+            var top = (int)Math.Round(rectangle.Top);
+            var right = Math.Max(left + 1, (int)Math.Round(rectangle.Right));
+            var bottom = Math.Max(top + 1, (int)Math.Round(rectangle.Bottom));
+            bounds = new TextControlBounds(left, top, right, bottom);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool BelongsToWindow(AutomationElement element, IntPtr expectedWindow)
+    {
+        var nativeHandle = element.Current.NativeWindowHandle;
+        if (nativeHandle == 0)
+        {
+            return true;
+        }
+
+        var rootWindow = NativeMethods.GetAncestor(nativeHandle, NativeMethods.GA_ROOT);
+        return rootWindow == IntPtr.Zero || rootWindow == expectedWindow;
+    }
+
+    // !SECTION UI Automation 输入控件边界
+
     // SECTION Win32 fallback 光标定位
 
     private static bool TryGetGuiThreadPosition(IntPtr foregroundWindow, out CaretPosition position)
@@ -150,6 +237,46 @@ public sealed class CaretPositionService
             topLeft.Y + height,
             1,
             true);
+        return true;
+    }
+
+    private static bool TryGetNativeControlBounds(
+        IntPtr foregroundWindow,
+        out TextControlBounds bounds)
+    {
+        bounds = default;
+        var threadId = NativeMethods.GetWindowThreadProcessId(foregroundWindow, out _);
+        var info = new NativeMethods.GuiThreadInfo
+        {
+            CbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.GuiThreadInfo>()
+        };
+
+        if (!NativeMethods.GetGUIThreadInfo(threadId, ref info))
+        {
+            return false;
+        }
+
+        var textWindow = info.HWndCaret != IntPtr.Zero
+            ? info.HWndCaret
+            : info.HWndFocus != IntPtr.Zero ? info.HWndFocus : foregroundWindow;
+        var rootWindow = NativeMethods.GetAncestor(textWindow, NativeMethods.GA_ROOT);
+        if (rootWindow != IntPtr.Zero && rootWindow != foregroundWindow)
+        {
+            return false;
+        }
+
+        if (!NativeMethods.GetWindowRect(textWindow, out var rectangle)
+            || rectangle.Right <= rectangle.Left
+            || rectangle.Bottom <= rectangle.Top)
+        {
+            return false;
+        }
+
+        bounds = new TextControlBounds(
+            rectangle.Left,
+            rectangle.Top,
+            rectangle.Right,
+            rectangle.Bottom);
         return true;
     }
 

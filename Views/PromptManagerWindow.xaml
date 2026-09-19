@@ -460,6 +460,29 @@
                                               Grid.Column="1"
                                               Style="{StaticResource ToggleSwitch}"
                                               IsChecked="{Binding IsListeningEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                               VerticalAlignment="Center"
+                                               Margin="24,0,3,0" />
+                                </Grid>
+                                <Border Height="1" Background="#F1F5F9" />
+                                <Grid Margin="0,10,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="输入框内幽灵文字"
+                                                   Foreground="#0F172A"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="在当前光标后显示选中 Prompt 的灰色预览。"
+                                                   Foreground="#64748B"
+                                                   FontSize="12"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="GhostPreviewCheckBox"
+                                              Grid.Column="1"
+                                              Style="{StaticResource ToggleSwitch}"
+                                              IsChecked="{Binding ShowGhostPreview, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               VerticalAlignment="Center"
                                               Margin="24,0,3,0" />
                                 </Grid>

@@ -55,7 +55,8 @@ public partial class SuggestionWindow : Window
         IReadOnlyList<PromptMatch> matches,
         int selectedIndex,
         IntPtr targetWindow,
-        CaretPositionService caretPositionService)
+        CaretPositionService caretPositionService,
+        bool preferAbovePreview)
     {
         Dispatcher.VerifyAccess();
 
@@ -72,7 +73,7 @@ public partial class SuggestionWindow : Window
         }
 
         UpdateLayout();
-        PositionWindow(caretPosition);
+        PositionWindow(caretPosition, preferAbovePreview);
     }
 
     public void UpdateSelection(int selectedIndex)
@@ -268,7 +269,7 @@ public partial class SuggestionWindow : Window
 
     // SECTION 无焦点定位与主题
 
-    private void PositionWindow(CaretPosition caretPosition)
+    private void PositionWindow(CaretPosition caretPosition, bool preferAbovePreview)
     {
         var scale = caretPosition.DpiScale <= 0 ? 1 : caretPosition.DpiScale;
         var screenPoint = new System.Drawing.Point(caretPosition.Left, caretPosition.Bottom);
@@ -276,7 +277,20 @@ public partial class SuggestionWindow : Window
         var width = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
         var height = Math.Max(1, (int)Math.Ceiling(ActualHeight * scale));
         var left = caretPosition.Left;
-        var top = caretPosition.Bottom + 8;
+        const int gap = 8;
+        var spaceAbove = caretPosition.Top - workArea.Top;
+        var spaceBelow = workArea.Bottom - caretPosition.Bottom;
+        var fitsAbove = spaceAbove >= height + gap;
+        var fitsBelow = spaceBelow >= height + gap;
+        var top = preferAbovePreview && fitsAbove
+            ? caretPosition.Top - height - gap
+            : fitsBelow
+                ? caretPosition.Bottom + gap
+                : fitsAbove
+                    ? caretPosition.Top - height - gap
+                    : spaceAbove > spaceBelow
+                        ? Math.Max(workArea.Top + 8, caretPosition.Top - height - gap)
+                        : Math.Min(caretPosition.Bottom + gap, workArea.Bottom - height - 8);
 
         if (left + width > workArea.Right - 8)
         {
