@@ -51,7 +51,7 @@ public sealed class AppController : IDisposable
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
         _ghostPreviewWindow = new GhostPreviewWindow();
 
-        _trayIcon = new TrayIconService(_startupService);
+        _trayIcon = new TrayIconService(_startupService, _settings.Current.ThemeMode);
         _promptManagerWindow = new PromptManagerWindow(
             _catalog,
             _settings,
@@ -748,6 +748,7 @@ public sealed class AppController : IDisposable
         PostToUi(() =>
         {
             AppThemeManager.Apply(settings.ThemeMode);
+            _trayIcon.ApplyTheme(settings.ThemeMode);
             _suggestionWindow.SetThemeMode(settings.ThemeMode);
             _suggestionWindow.SuggestionBoxWidth = settings.SuggestionBoxWidth;
             if (!settings.ShowContentPreview)
@@ -780,6 +781,7 @@ public sealed class AppController : IDisposable
         PostToUi(() =>
         {
             AppThemeManager.Apply(themeMode);
+            _trayIcon.ApplyTheme(themeMode);
             _suggestionWindow.SetThemeMode(themeMode);
         });
     }

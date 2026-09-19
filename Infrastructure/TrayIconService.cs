@@ -1,61 +1,38 @@
 using System.Drawing;
 using System.Windows.Forms;
+using TypeSense.Models;
 using TypeSense.Services;
+using TypeSense.Views;
 
 namespace TypeSense.Infrastructure;
 
 public sealed class TrayIconService : IDisposable
 {
+    // SECTION 托盘菜单与状态
+
     private readonly StartupService _startupService;
     private readonly Icon _icon;
     private readonly NotifyIcon _notifyIcon;
-    private readonly ToolStripMenuItem _pauseItem;
-    private readonly ToolStripMenuItem _enableItem;
-    private readonly ToolStripMenuItem _startupItem;
+    private TrayMenuWindow? _menuWindow;
+    private AppThemeMode _themeMode;
+    private bool _startupEnabled;
+    private bool _paused;
     private bool _disposed;
 
-    public TrayIconService(StartupService startupService)
+    public TrayIconService(StartupService startupService, AppThemeMode themeMode)
     {
         _startupService = startupService;
-
-        _pauseItem = new ToolStripMenuItem("暂停全局监听");
-        _pauseItem.Click += (_, _) => PauseRequested?.Invoke();
-
-        _enableItem = new ToolStripMenuItem("启用全局监听");
-        _enableItem.Click += (_, _) => EnableRequested?.Invoke();
-
-        _startupItem = new ToolStripMenuItem("开机启动")
-        {
-            CheckOnClick = true,
-            Checked = SafeIsStartupEnabled()
-        };
-        _startupItem.Click += HandleStartupClick;
-
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("打开 Prompt 管理器", null, (_, _) => OpenManagerRequested?.Invoke());
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(_pauseItem);
-        menu.Items.Add(_enableItem);
-        menu.Items.Add(_startupItem);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("退出", null, (_, _) => ExitRequested?.Invoke());
+        _themeMode = themeMode;
+        _startupEnabled = SafeIsStartupEnabled();
 
         _icon = new Icon(System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "logo.ico"));
         _notifyIcon = new NotifyIcon
         {
             Icon = _icon,
             Text = "TypeSense Prompt 补全",
-            ContextMenuStrip = menu,
             Visible = true
         };
-        _notifyIcon.MouseClick += (_, eventArgs) =>
-        {
-            if (eventArgs.Button == MouseButtons.Left)
-            {
-                OpenManagerRequested?.Invoke();
-            }
-        };
-        UpdatePaused(false);
+        _notifyIcon.MouseClick += HandleNotifyIconMouseClick;
     }
 
     public event Action? OpenManagerRequested;
@@ -66,15 +43,22 @@ public sealed class TrayIconService : IDisposable
 
     public event Action? ExitRequested;
 
+    public void ApplyTheme(AppThemeMode mode)
+    {
+        _themeMode = mode;
+        _menuWindow?.ApplyTheme(mode);
+    }
+
     public void UpdatePaused(bool paused)
     {
-        _pauseItem.Enabled = !paused;
-        _enableItem.Enabled = paused;
+        _paused = paused;
+        _menuWindow?.UpdatePaused(paused);
     }
 
     public void UpdateStartupState()
     {
-        _startupItem.Checked = SafeIsStartupEnabled();
+        _startupEnabled = SafeIsStartupEnabled();
+        _menuWindow?.UpdateStartupEnabled(_startupEnabled);
     }
 
     public void Dispose()
@@ -85,26 +69,97 @@ public sealed class TrayIconService : IDisposable
         }
 
         _disposed = true;
+        if (_menuWindow is { IsVisible: true } menuWindow)
+        {
+            menuWindow.Close();
+        }
+
+        _notifyIcon.MouseClick -= HandleNotifyIconMouseClick;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _icon.Dispose();
     }
 
-    private void HandleStartupClick(object? sender, EventArgs e)
+    private void HandleNotifyIconMouseClick(object? sender, MouseEventArgs eventArgs)
     {
+        if (eventArgs.Button == MouseButtons.Left)
+        {
+            OpenManagerRequested?.Invoke();
+        }
+        else if (eventArgs.Button == MouseButtons.Right)
+        {
+            ShowContextMenu();
+        }
+    }
+
+    private void ShowContextMenu()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (_menuWindow is { IsVisible: true } currentWindow)
+        {
+            currentWindow.Close();
+        }
+
+        _startupEnabled = SafeIsStartupEnabled();
+        var menuWindow = new TrayMenuWindow(_themeMode, _paused, _startupEnabled);
+        _menuWindow = menuWindow;
+        menuWindow.ManagerRequested += HandleManagerRequested;
+        menuWindow.ListeningToggleRequested += HandleListeningToggleRequested;
+        menuWindow.StartupToggleRequested += HandleStartupToggleRequested;
+        menuWindow.ExitRequested += HandleExitRequested;
+        menuWindow.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_menuWindow, menuWindow))
+            {
+                _menuWindow = null;
+            }
+        };
+        menuWindow.ShowAtScreenPoint(Cursor.Position);
+    }
+
+    private void HandleManagerRequested()
+    {
+        OpenManagerRequested?.Invoke();
+    }
+
+    private void HandleListeningToggleRequested()
+    {
+        if (_paused)
+        {
+            EnableRequested?.Invoke();
+        }
+        else
+        {
+            PauseRequested?.Invoke();
+        }
+    }
+
+    private void HandleStartupToggleRequested()
+    {
+        var enabled = !_startupEnabled;
         try
         {
-            _startupService.SetEnabled(_startupItem.Checked);
+            _startupService.SetEnabled(enabled);
+            _startupEnabled = enabled;
         }
         catch (Exception exception)
         {
-            _startupItem.Checked = SafeIsStartupEnabled();
+            _startupEnabled = SafeIsStartupEnabled();
             System.Windows.MessageBox.Show(
                 $"设置开机启动失败：{exception.Message}",
                 "TypeSense",
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Warning);
         }
+    }
+
+    private void HandleExitRequested()
+    {
+        ExitRequested?.Invoke();
     }
 
     private bool SafeIsStartupEnabled()
@@ -118,4 +173,6 @@ public sealed class TrayIconService : IDisposable
             return false;
         }
     }
+
+    // !SECTION 托盘菜单与状态
 }

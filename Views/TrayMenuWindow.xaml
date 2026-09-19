@@ -1,0 +1,205 @@
+<Window x:Class="TypeSense.Views.TrayMenuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="146"
+        Height="160"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ShowActivated="True"
+        Topmost="True"
+        Focusable="True"
+        FontFamily="Segoe UI"
+        FontSize="14"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        PreviewKeyDown="HandlePreviewKeyDown"
+        Deactivated="HandleWindowDeactivated">
+    <Window.Resources>
+        <Style x:Key="TrayMenuButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="7,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource TrayMenuTextBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ItemSurface"
+                                Margin="4,1"
+                                Background="Transparent"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemSurface"
+                                        Property="Background"
+                                        Value="{DynamicResource TrayMenuHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ItemSurface"
+                                        Property="Background"
+                                        Value="{DynamicResource TrayMenuPressedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="8">
+        <Border Width="130"
+                Height="144"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource TrayMenuSurfaceBrush}"
+                CornerRadius="9"
+                IsHitTestVisible="False">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12"
+                                  Direction="270"
+                                  Opacity="0.24"
+                                  ShadowDepth="2" />
+            </Border.Effect>
+        </Border>
+        <Border x:Name="MenuBorder"
+                Width="130"
+                Height="144"
+                Padding="4"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource TrayMenuSurfaceBrush}"
+                BorderBrush="{DynamicResource TrayMenuBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="9"
+                SnapsToDevicePixels="True">
+            <StackPanel>
+                <Button x:Name="ManagerButton"
+                        Style="{StaticResource TrayMenuButtonStyle}"
+                        Click="HandleManagerClick">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="2"
+                                   Text="指令管理"
+                                   Foreground="{DynamicResource TrayMenuTextBrush}"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+
+                <Border Height="1"
+                        Margin="8,3"
+                        Background="{DynamicResource TrayMenuBorderBrush}" />
+
+                <Button x:Name="ListeningButton"
+                        Style="{StaticResource TrayMenuButtonStyle}"
+                        Click="HandleListeningClick">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="14"
+                              Height="14"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center">
+                            <Border x:Name="ListeningCheckBorder"
+                                    Background="{DynamicResource TrayMenuCheckSurfaceBrush}"
+                                    BorderBrush="{DynamicResource TrayMenuCheckBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="3" />
+                            <Path x:Name="ListeningCheckmark"
+                                  Data="M 2,7 L 5.5,10.5 L 12,3.5"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stroke="{DynamicResource TrayMenuCheckmarkBrush}"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  StrokeStartLineCap="Round"
+                                  StrokeThickness="1.7"
+                                  Visibility="Collapsed" />
+                        </Grid>
+                        <TextBlock x:Name="ListeningText"
+                                   Grid.Column="2"
+                                   Foreground="{DynamicResource TrayMenuTextBrush}"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+
+                <Button x:Name="StartupButton"
+                        Style="{StaticResource TrayMenuButtonStyle}"
+                        Click="HandleStartupClick">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="14"
+                              Height="14"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center">
+                            <Border x:Name="StartupCheckBorder"
+                                    Background="{DynamicResource TrayMenuCheckSurfaceBrush}"
+                                    BorderBrush="{DynamicResource TrayMenuCheckBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="3" />
+                            <Path x:Name="StartupCheckmark"
+                                  Data="M 2,7 L 5.5,10.5 L 12,3.5"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stroke="{DynamicResource TrayMenuCheckmarkBrush}"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  StrokeStartLineCap="Round"
+                                  StrokeThickness="1.7"
+                                  Visibility="Collapsed" />
+                        </Grid>
+                        <TextBlock Grid.Column="2"
+                                   Text="开机启动"
+                                   Foreground="{DynamicResource TrayMenuTextBrush}"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+
+                <Border Height="1"
+                        Margin="8,3"
+                        Background="{DynamicResource TrayMenuBorderBrush}" />
+
+                <Button x:Name="ExitButton"
+                        Style="{StaticResource TrayMenuButtonStyle}"
+                        Click="HandleExitClick">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="2"
+                                   Text="退出程序"
+                                   Foreground="{DynamicResource TrayMenuTextBrush}"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
