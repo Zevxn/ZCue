@@ -16,8 +16,6 @@ public sealed class AppSettings
 
     public bool ShowContentPreview { get; set; } = true;
 
-    public bool ShowGhostPreview { get; set; } = true;
-
     public bool EnableNumberSelection { get; set; } = true;
 
     public bool EnableEnterConfirmation { get; set; } = true;
@@ -31,7 +29,6 @@ public sealed class AppSettings
         EnWakeThreshold = EnWakeThreshold,
         SuggestionBoxWidth = SuggestionBoxWidth,
         ShowContentPreview = ShowContentPreview,
-        ShowGhostPreview = ShowGhostPreview,
         EnableNumberSelection = EnableNumberSelection,
         EnableEnterConfirmation = EnableEnterConfirmation
     };

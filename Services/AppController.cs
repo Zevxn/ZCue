@@ -47,7 +47,6 @@ public sealed class AppController : IDisposable
         _foregroundMonitor.Tick += HandleForegroundMonitorTick;
         _suggestionWindow = new SuggestionWindow();
         _suggestionWindow.SetThemeMode(_settings.Current.ThemeMode);
-        _suggestionWindow.ShowPreview = _settings.Current.ShowContentPreview;
         _suggestionWindow.SuggestionBoxWidth = _settings.Current.SuggestionBoxWidth;
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
         _ghostPreviewWindow = new GhostPreviewWindow();
@@ -396,7 +395,7 @@ public sealed class AppController : IDisposable
                     currentIndex,
                     targetWindow,
                     _caretPositionService,
-                    _settings.Current.ShowGhostPreview);
+                    _settings.Current.ShowContentPreview);
                 ShowGhostPreview(matches[currentIndex].Item.Content, targetWindow);
                 _foregroundMonitor.Start();
             }
@@ -453,7 +452,7 @@ public sealed class AppController : IDisposable
                         selectedIndex,
                         targetWindow,
                         _caretPositionService,
-                        _settings.Current.ShowGhostPreview);
+                        _settings.Current.ShowContentPreview);
                     ShowGhostPreview(matches[selectedIndex].Item.Content, targetWindow);
                 }
                 catch
@@ -750,9 +749,8 @@ public sealed class AppController : IDisposable
         {
             AppThemeManager.Apply(settings.ThemeMode);
             _suggestionWindow.SetThemeMode(settings.ThemeMode);
-            _suggestionWindow.ShowPreview = settings.ShowContentPreview;
             _suggestionWindow.SuggestionBoxWidth = settings.SuggestionBoxWidth;
-            if (!settings.ShowGhostPreview)
+            if (!settings.ShowContentPreview)
             {
                 _ghostPreviewWindow.HidePreview();
             }
@@ -808,7 +806,7 @@ public sealed class AppController : IDisposable
 
     private void ShowGhostPreview(string content, IntPtr targetWindow)
     {
-        if (!_settings.Current.ShowGhostPreview
+        if (!_settings.Current.ShowContentPreview
             || targetWindow == IntPtr.Zero
             || NativeMethods.GetForegroundWindow() != targetWindow)
         {

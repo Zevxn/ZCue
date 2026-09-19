@@ -115,16 +115,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool ShowGhostPreview
-    {
-        get => _settings.Current.ShowGhostPreview;
-        set
-        {
-            _settings.Update(current => current.ShowGhostPreview = value);
-            OnPropertyChanged();
-        }
-    }
-
     public bool EnableNumberSelection
     {
         get => _settings.Current.EnableNumberSelection;
@@ -187,7 +177,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SuggestionBoxWidth));
         OnPropertyChanged(nameof(IsListeningEnabled));
         OnPropertyChanged(nameof(ShowContentPreview));
-        OnPropertyChanged(nameof(ShowGhostPreview));
         OnPropertyChanged(nameof(EnableNumberSelection));
         OnPropertyChanged(nameof(EnableEnterConfirmation));
         OnPropertyChanged(nameof(LaunchAtStartup));

@@ -22,7 +22,6 @@ public partial class SuggestionWindow : Window
     private int _selectedIndex;
     private bool _isLightTheme;
     private AppThemeMode _themeMode = AppThemeMode.System;
-    private bool _showPreview = true;
 
     public SuggestionWindow()
     {
@@ -48,25 +47,6 @@ public partial class SuggestionWindow : Window
         {
             RenderRows();
             UpdateLayout();
-        }
-    }
-
-    public bool ShowPreview
-    {
-        get => _showPreview;
-        set
-        {
-            if (_showPreview == value)
-            {
-                return;
-            }
-
-            _showPreview = value;
-            if (IsLoaded)
-            {
-                RenderRows();
-                UpdateLayout();
-            }
         }
     }
 
@@ -255,11 +235,6 @@ public partial class SuggestionWindow : Window
             Margin = new Thickness(8, 0, 0, 0),
             MinWidth = 0
         };
-        if (!_showPreview)
-        {
-            grid.ColumnDefinitions[2].Width = new GridLength(0);
-            previewBlock.Visibility = Visibility.Collapsed;
-        }
         Grid.SetColumn(previewBlock, 2);
         grid.Children.Add(previewBlock);
 
