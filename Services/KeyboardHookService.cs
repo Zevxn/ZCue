@@ -55,6 +55,8 @@ public sealed class KeyboardHookService : IDisposable
 
     public event Func<KeyboardInputEventArgs, KeyboardHookDecision>? KeyDown;
 
+    public event Action<int>? KeyUp;
+
     public event Action<int, int>? MouseButtonDown;
 
     public bool IsRunning
@@ -218,34 +220,54 @@ public sealed class KeyboardHookService : IDisposable
 
     private IntPtr HookCallback(int code, IntPtr wParam, IntPtr lParam)
     {
-        if (code >= 0 && (wParam.ToInt32() == NativeMethods.WM_KEYDOWN || wParam.ToInt32() == NativeMethods.WM_SYSKEYDOWN))
+        if (code >= 0)
         {
-            try
+            var message = wParam.ToInt32();
+            if (message is NativeMethods.WM_KEYDOWN or NativeMethods.WM_SYSKEYDOWN)
             {
-                var nativeData = Marshal.PtrToStructure<NativeMethods.KbdLlHookStruct>(lParam);
-                var isInjected = (nativeData.Flags & (NativeMethods.LLKHF_INJECTED | NativeMethods.LLKHF_LOWER_IL_INJECTED)) != 0;
-                var keyEvent = new KeyboardInputEventArgs
+                try
                 {
-                    VirtualKeyCode = unchecked((int)nativeData.VkCode),
-                    ScanCode = nativeData.ScanCode,
-                    Flags = nativeData.Flags,
-                    IsInjected = isInjected,
-                    Text = isInjected ? null : TryGetText(nativeData.VkCode, nativeData.ScanCode),
-                    IsCtrlDown = IsKeyDown(NativeMethods.VK_CONTROL) || IsKeyDown(0xA2) || IsKeyDown(0xA3),
-                    IsAltDown = IsKeyDown(NativeMethods.VK_MENU) || IsKeyDown(0xA4) || IsKeyDown(0xA5),
-                    IsShiftDown = IsKeyDown(NativeMethods.VK_SHIFT) || IsKeyDown(0xA0) || IsKeyDown(0xA1),
-                    IsWindowsKeyDown = IsKeyDown(NativeMethods.VK_LWIN) || IsKeyDown(NativeMethods.VK_RWIN)
-                };
+                    var nativeData = Marshal.PtrToStructure<NativeMethods.KbdLlHookStruct>(lParam);
+                    var isInjected = (nativeData.Flags & (NativeMethods.LLKHF_INJECTED | NativeMethods.LLKHF_LOWER_IL_INJECTED)) != 0;
+                    var keyEvent = new KeyboardInputEventArgs
+                    {
+                        VirtualKeyCode = unchecked((int)nativeData.VkCode),
+                        ScanCode = nativeData.ScanCode,
+                        Flags = nativeData.Flags,
+                        IsInjected = isInjected,
+                        Text = isInjected ? null : TryGetText(nativeData.VkCode, nativeData.ScanCode),
+                        IsCtrlDown = IsKeyDown(NativeMethods.VK_CONTROL) || IsKeyDown(0xA2) || IsKeyDown(0xA3),
+                        IsAltDown = IsKeyDown(NativeMethods.VK_MENU) || IsKeyDown(0xA4) || IsKeyDown(0xA5),
+                        IsShiftDown = IsKeyDown(NativeMethods.VK_SHIFT) || IsKeyDown(0xA0) || IsKeyDown(0xA1),
+                        IsWindowsKeyDown = IsKeyDown(NativeMethods.VK_LWIN) || IsKeyDown(NativeMethods.VK_RWIN)
+                    };
 
-                var decision = KeyDown?.Invoke(keyEvent) ?? KeyboardHookDecision.Pass;
-                if (decision == KeyboardHookDecision.Block)
+                    var decision = KeyDown?.Invoke(keyEvent) ?? KeyboardHookDecision.Pass;
+                    if (decision == KeyboardHookDecision.Block)
+                    {
+                        return (IntPtr)1;
+                    }
+                }
+                catch
                 {
-                    return (IntPtr)1;
+                    // Hook 线程不能因单个事件异常而中断。当前按键放行给目标应用。
                 }
             }
-            catch
+            else if (message is NativeMethods.WM_KEYUP or NativeMethods.WM_SYSKEYUP)
             {
-                // Hook 线程不能因单个事件异常而中断。当前按键放行给目标应用。
+                try
+                {
+                    var nativeData = Marshal.PtrToStructure<NativeMethods.KbdLlHookStruct>(lParam);
+                    var isInjected = (nativeData.Flags & (NativeMethods.LLKHF_INJECTED | NativeMethods.LLKHF_LOWER_IL_INJECTED)) != 0;
+                    if (!isInjected)
+                    {
+                        KeyUp?.Invoke(unchecked((int)nativeData.VkCode));
+                    }
+                }
+                catch
+                {
+                    // Hook 线程不能因单个事件异常而中断；松开事件始终放行。
+                }
             }
         }
 

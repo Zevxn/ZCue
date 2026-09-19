@@ -28,6 +28,7 @@ public sealed class AppController : IDisposable
 
     private IReadOnlyList<PromptMatch> _activeMatches = Array.Empty<PromptMatch>();
     private IntPtr _targetWindow;
+    private IntPtr _imeCompositionTarget;
     private int _selectedIndex;
     private long _stateVersion;
     private long _textSyncRequest;
@@ -63,6 +64,7 @@ public sealed class AppController : IDisposable
         _trayIcon.ExitRequested += ExitApplication;
 
         _keyboardHook.KeyDown += HandleKeyDown;
+        _keyboardHook.KeyUp += HandleKeyUp;
         _keyboardHook.MouseButtonDown += HandleMouseButtonDown;
         _settings.Changed += HandleSettingsChanged;
     }
@@ -94,6 +96,7 @@ public sealed class AppController : IDisposable
         _disposed = true;
         _settings.Changed -= HandleSettingsChanged;
         _keyboardHook.KeyDown -= HandleKeyDown;
+        _keyboardHook.KeyUp -= HandleKeyUp;
         _keyboardHook.MouseButtonDown -= HandleMouseButtonDown;
         _keyboardHook.Dispose();
         _foregroundMonitor.Stop();
@@ -132,8 +135,23 @@ public sealed class AppController : IDisposable
             return KeyboardHookDecision.Pass;
         }
 
-        if (HideSuggestionsIfImeComposing(foregroundWindow))
+        var isImeComposing = HideSuggestionsIfImeComposing(foregroundWindow);
+        if (IsShiftKey(input.VirtualKeyCode))
         {
+            return KeyboardHookDecision.Pass;
+        }
+
+        if (isImeComposing)
+        {
+            if (input.VirtualKeyCode == NativeMethods.VK_BACK)
+            {
+                _inputBuffer.Backspace();
+            }
+            else if (TryGetPinyinInput(input.VirtualKeyCode, out var pinyinInput))
+            {
+                _inputBuffer.Append(pinyinInput);
+            }
+
             ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
         }
@@ -211,15 +229,22 @@ public sealed class AppController : IDisposable
             return KeyboardHookDecision.Pass;
         }
 
-        if (!string.IsNullOrEmpty(input.Text))
+        var inputText = input.Text;
+        if (string.IsNullOrEmpty(inputText)
+            && TryGetPinyinInput(input.VirtualKeyCode, out var fallbackInput))
         {
-            if (input.Text.Any(char.IsWhiteSpace))
+            inputText = fallbackInput;
+        }
+
+        if (!string.IsNullOrEmpty(inputText))
+        {
+            if (inputText.Any(char.IsWhiteSpace))
             {
                 ClearSuggestions(resetBuffer: true);
             }
             else
             {
-                _inputBuffer.Append(input.Text);
+                _inputBuffer.Append(inputText);
             }
 
             ScheduleFocusedTextSync(foregroundWindow);
@@ -233,6 +258,30 @@ public sealed class AppController : IDisposable
         return KeyboardHookDecision.Pass;
     }
 
+    private void HandleKeyUp(int virtualKeyCode)
+    {
+        if (!IsShiftKey(virtualKeyCode) || IsPaused())
+        {
+            return;
+        }
+
+        var foregroundWindow = NativeMethods.GetForegroundWindow();
+        if (foregroundWindow == IntPtr.Zero)
+        {
+            return;
+        }
+
+        lock (_stateGate)
+        {
+            if (_targetWindow != foregroundWindow)
+            {
+                return;
+            }
+        }
+
+        ScheduleFocusedTextSync(foregroundWindow, preservePhysicalInputForShiftCommit: true);
+    }
+
     private void SwitchTargetWindowIfNeeded(IntPtr foregroundWindow)
     {
         var changed = false;
@@ -241,6 +290,7 @@ public sealed class AppController : IDisposable
             if (_targetWindow != IntPtr.Zero && _targetWindow != foregroundWindow)
             {
                 changed = true;
+                _imeCompositionTarget = IntPtr.Zero;
             }
 
             _targetWindow = foregroundWindow;
@@ -251,6 +301,44 @@ public sealed class AppController : IDisposable
             _inputBuffer.Reset();
             ClearSuggestions(resetBuffer: false);
         }
+    }
+
+    private bool IsImeCompositionObserved(IntPtr targetWindow)
+    {
+        lock (_stateGate)
+        {
+            return _imeCompositionTarget == targetWindow;
+        }
+    }
+
+    private void CompleteImeComposition(IntPtr targetWindow)
+    {
+        lock (_stateGate)
+        {
+            if (_imeCompositionTarget == targetWindow)
+            {
+                _imeCompositionTarget = IntPtr.Zero;
+            }
+        }
+    }
+
+    private static bool IsShiftKey(int virtualKeyCode)
+    {
+        return virtualKeyCode is NativeMethods.VK_SHIFT
+            or NativeMethods.VK_LSHIFT
+            or NativeMethods.VK_RSHIFT;
+    }
+
+    private static bool TryGetPinyinInput(int virtualKeyCode, out string input)
+    {
+        if (virtualKeyCode is >= NativeMethods.VK_A and <= NativeMethods.VK_Z)
+        {
+            input = char.ToLowerInvariant((char)virtualKeyCode).ToString();
+            return true;
+        }
+
+        input = string.Empty;
+        return false;
     }
 
     private void RecomputeSuggestions(IntPtr targetWindow)
@@ -427,9 +515,13 @@ public sealed class AppController : IDisposable
         }
     }
 
-    private void ClearSuggestions(bool resetBuffer)
+    private void ClearSuggestions(bool resetBuffer, bool cancelTextSync = true)
     {
-        CancelFocusedTextSync();
+        if (cancelTextSync)
+        {
+            CancelFocusedTextSync();
+        }
+
         if (resetBuffer)
         {
             _inputBuffer.Reset();
@@ -466,7 +558,12 @@ public sealed class AppController : IDisposable
             return false;
         }
 
-        ClearSuggestions(resetBuffer: true);
+        lock (_stateGate)
+        {
+            _imeCompositionTarget = targetWindow;
+        }
+
+        ClearSuggestions(resetBuffer: false, cancelTextSync: false);
         return true;
     }
 
@@ -524,7 +621,9 @@ public sealed class AppController : IDisposable
             && (input.VirtualKeyCode is NativeMethods.VK_V or NativeMethods.VK_X or NativeMethods.VK_Z);
     }
 
-    private void ScheduleFocusedTextSync(IntPtr targetWindow)
+    private void ScheduleFocusedTextSync(
+        IntPtr targetWindow,
+        bool preservePhysicalInputForShiftCommit = false)
     {
         var request = Interlocked.Increment(ref _textSyncRequest);
         PostAsyncToUi(async () =>
@@ -536,21 +635,87 @@ public sealed class AppController : IDisposable
                 return;
             }
 
-            if (HideSuggestionsIfImeComposing(targetWindow))
+            var observedComposition = false;
+            var suggestionsSuppressed = false;
+            var compositionDeadline = Environment.TickCount64 + 2000;
+            while (true)
+            {
+                if (_imeCompositionService.IsComposing(targetWindow))
+                {
+                    observedComposition = true;
+                    if (!suggestionsSuppressed || HasSuggestions())
+                    {
+                        HideSuggestionsIfImeComposing(targetWindow);
+                        suggestionsSuppressed = true;
+                    }
+
+                    if (Environment.TickCount64 >= compositionDeadline)
+                    {
+                        return;
+                    }
+
+                    await Task.Delay(25).ConfigureAwait(true);
+                    if (request != Volatile.Read(ref _textSyncRequest)
+                        || NativeMethods.GetForegroundWindow() != targetWindow)
+                    {
+                        return;
+                    }
+
+                    continue;
+                }
+
+                if (observedComposition || IsImeCompositionObserved(targetWindow))
+                {
+                    await Task.Delay(20).ConfigureAwait(true);
+                    if (request != Volatile.Read(ref _textSyncRequest)
+                        || NativeMethods.GetForegroundWindow() != targetWindow)
+                    {
+                        return;
+                    }
+
+                    if (_imeCompositionService.IsComposing(targetWindow))
+                    {
+                        observedComposition = true;
+                        continue;
+                    }
+                }
+
+                break;
+            }
+
+            if (request != Volatile.Read(ref _textSyncRequest)
+                || NativeMethods.GetForegroundWindow() != targetWindow)
             {
                 return;
             }
 
+            var imeCompositionObserved = IsImeCompositionObserved(targetWindow);
             if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
             {
-                _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
-                RecomputeSuggestions(targetWindow);
+                if (!preservePhysicalInputForShiftCommit
+                    || TextBeforeCaretMatchesCurrentToken(textBeforeCaret))
+                {
+                    _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
+                }
             }
-            else
+            else if (imeCompositionObserved && !preservePhysicalInputForShiftCommit)
             {
-                RecomputeSuggestions(targetWindow);
+                _inputBuffer.Reset();
+            }
+
+            RecomputeSuggestions(targetWindow);
+            if (imeCompositionObserved)
+            {
+                CompleteImeComposition(targetWindow);
             }
         });
+    }
+
+    private bool TextBeforeCaretMatchesCurrentToken(string textBeforeCaret)
+    {
+        var token = _inputBuffer.GetCurrentToken();
+        return token.Length == 0
+            || textBeforeCaret.EndsWith(token, StringComparison.OrdinalIgnoreCase);
     }
 
     private void CancelFocusedTextSync()
