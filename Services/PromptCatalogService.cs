@@ -144,6 +144,159 @@ public sealed class PromptCatalogService
         }
     }
 
+    public ImportResult Import(
+        IReadOnlyList<PromptItem> prompts,
+        IReadOnlyList<PromptCategory> categories)
+    {
+        ArgumentNullException.ThrowIfNull(prompts);
+        ArgumentNullException.ThrowIfNull(categories);
+
+        lock (_gate)
+        {
+            var categoryIdMap = new Dictionary<string, string>(StringComparer.Ordinal);
+            var addedCategoryCount = 0;
+            var mergedCategoryCount = 0;
+            var skippedCategoryCount = 0;
+
+            foreach (var category in categories)
+            {
+                if (category is null)
+                {
+                    skippedCategoryCount++;
+                    continue;
+                }
+
+                var sourceId = category.Id?.Trim() ?? string.Empty;
+                var name = category.Name?.Trim() ?? string.Empty;
+                if (sourceId.Length > 0 && categoryIdMap.ContainsKey(sourceId))
+                {
+                    skippedCategoryCount++;
+                    continue;
+                }
+
+                if (name.Length == 0)
+                {
+                    if (sourceId.Length > 0)
+                    {
+                        categoryIdMap[sourceId] = string.Empty;
+                    }
+
+                    skippedCategoryCount++;
+                    continue;
+                }
+
+                var targetCategory = _categories.FirstOrDefault(existing =>
+                    string.Equals(existing.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (targetCategory is null && sourceId.Length > 0)
+                {
+                    targetCategory = _categories.FirstOrDefault(existing =>
+                        string.Equals(existing.Id, sourceId, StringComparison.Ordinal)
+                        && string.Equals(existing.Name, name, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (targetCategory is not null)
+                {
+                    mergedCategoryCount++;
+                }
+                else
+                {
+                    var targetId = sourceId;
+                    if (targetId.Length == 0
+                        || _categories.Any(existing => string.Equals(
+                            existing.Id,
+                            targetId,
+                            StringComparison.Ordinal)))
+                    {
+                        targetId = $"cat_{Guid.NewGuid():N}";
+                    }
+
+                    targetCategory = new PromptCategory
+                    {
+                        Id = targetId,
+                        Name = name
+                    };
+                    _categories.Add(targetCategory);
+                    addedCategoryCount++;
+                }
+
+                if (sourceId.Length > 0)
+                {
+                    categoryIdMap[sourceId] = targetCategory.Id;
+                }
+            }
+
+            var promptIds = _items.Select(item => item.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            var addedPromptCount = 0;
+            var skippedPromptCount = 0;
+            foreach (var prompt in prompts)
+            {
+                if (prompt is null
+                    || string.IsNullOrWhiteSpace(prompt.Name)
+                    || string.IsNullOrWhiteSpace(prompt.Content))
+                {
+                    skippedPromptCount++;
+                    continue;
+                }
+
+                var copy = Normalize(prompt);
+                if (!promptIds.Add(copy.Id))
+                {
+                    skippedPromptCount++;
+                    continue;
+                }
+
+                var sourceCategoryId = prompt.CategoryId?.Trim() ?? string.Empty;
+                if (sourceCategoryId.Length == 0)
+                {
+                    copy.CategoryId = string.Empty;
+                }
+                else if (categoryIdMap.TryGetValue(sourceCategoryId, out var mappedCategoryId))
+                {
+                    copy.CategoryId = mappedCategoryId;
+                }
+                else if (_categories.Any(category => string.Equals(
+                    category.Id,
+                    sourceCategoryId,
+                    StringComparison.Ordinal)))
+                {
+                    copy.CategoryId = sourceCategoryId;
+                }
+                else
+                {
+                    copy.CategoryId = string.Empty;
+                }
+
+                if (copy.PinyinAliases.Count == 0)
+                {
+                    _pinyinAliasService.RefreshAliases(copy);
+                }
+
+                _items.Add(copy);
+                addedPromptCount++;
+            }
+
+            if (addedPromptCount > 0 || addedCategoryCount > 0)
+            {
+                PersistLocked();
+            }
+
+            return new ImportResult(
+                addedPromptCount,
+                addedCategoryCount,
+                mergedCategoryCount,
+                skippedPromptCount,
+                skippedCategoryCount);
+        }
+    }
+
+    public sealed record ImportResult(
+        int AddedPromptCount,
+        int AddedCategoryCount,
+        int MergedCategoryCount,
+        int SkippedPromptCount,
+        int SkippedCategoryCount);
+
     public bool ReorderItems(IReadOnlyList<string> orderedIds)
     {
         lock (_gate)

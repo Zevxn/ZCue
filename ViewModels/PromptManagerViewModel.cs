@@ -117,6 +117,19 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
         return deleted;
     }
 
+    public PromptCatalogService.ImportResult Import(
+        IReadOnlyList<PromptItem> prompts,
+        IReadOnlyList<PromptCategory> categories)
+    {
+        var result = _catalog.Import(prompts, categories);
+        if (result.AddedPromptCount > 0 || result.AddedCategoryCount > 0)
+        {
+            Reload(null);
+        }
+
+        return result;
+    }
+
     public bool MovePrompt(string draggedId, string targetId, bool insertAfter)
     {
         if (string.Equals(draggedId, targetId, StringComparison.Ordinal))

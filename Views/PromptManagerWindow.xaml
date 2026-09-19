@@ -676,11 +676,23 @@
                                        FontSize="13" />
                         </StackPanel>
                     </StackPanel>
-                    <Button Content="＋  新增指令"
-                            Style="{StaticResource PrimaryButton}"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            Click="HandleAddClick" />
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                        <Button Content="导入"
+                                Style="{StaticResource SecondaryButton}"
+                                ToolTip="从 JSON 文件导入提示词"
+                                Margin="0,0,8,0"
+                                Click="HandleImportClick" />
+                        <Button Content="导出"
+                                Style="{StaticResource SecondaryButton}"
+                                ToolTip="按分类导出提示词 JSON"
+                                Margin="0,0,8,0"
+                                Click="HandleExportClick" />
+                        <Button Content="＋  新增指令"
+                                Style="{StaticResource PrimaryButton}"
+                                Click="HandleAddClick" />
+                    </StackPanel>
                 </Grid>
 
                 <Grid Grid.Row="1"

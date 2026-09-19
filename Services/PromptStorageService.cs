@@ -69,14 +69,7 @@ public sealed class PromptStorageService
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-            var storedData = new StorageDocument
-            {
-                AllCommands = prompts.Select(FromPromptItem).ToList(),
-                AllCategories = categories.Select(category => category.Clone()).ToList()
-            };
-            var json = JsonSerializer.Serialize(storedData, _jsonOptions);
-            File.WriteAllText(_filePath, json);
+            WriteDocument(_filePath, prompts, categories);
         }
         catch
         {
@@ -85,6 +78,105 @@ public sealed class PromptStorageService
     }
 
     // !SECTION 加载与保存
+
+    // SECTION 外部文件导入与导出
+
+    public StorageSnapshot LoadImportFile(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        var json = File.ReadAllText(filePath);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            var commands = JsonSerializer.Deserialize<List<StoredCommand>>(json, _jsonOptions) ?? [];
+            return new StorageSnapshot(
+                commands.Where(command => command is not null)
+                    .Select(ToPromptItem)
+                    .ToArray(),
+                []);
+        }
+
+        if (root.ValueKind != JsonValueKind.Object
+            || !TryGetPropertyIgnoreCase(root, "allCommands", out var commandsElement)
+            || (commandsElement.ValueKind != JsonValueKind.Array
+                && commandsElement.ValueKind != JsonValueKind.Null))
+        {
+            throw new InvalidDataException("文件不是受支持的提示词 JSON 格式。");
+        }
+
+        if (TryGetPropertyIgnoreCase(root, "allCategories", out var categoriesElement)
+            && categoriesElement.ValueKind != JsonValueKind.Array
+            && categoriesElement.ValueKind != JsonValueKind.Null)
+        {
+            throw new InvalidDataException("文件中的分类数据格式无效。");
+        }
+
+        var storedData = JsonSerializer.Deserialize<StorageDocument>(json, _jsonOptions)
+            ?? throw new InvalidDataException("文件中没有可读取的提示词数据。");
+        return new StorageSnapshot(
+            (storedData.AllCommands ?? [])
+                .Where(command => command is not null)
+                .Select(ToPromptItem)
+                .ToArray(),
+            storedData.AllCategories ?? []);
+    }
+
+    public void ExportToFile(
+        string filePath,
+        IEnumerable<PromptItem> prompts,
+        IEnumerable<PromptCategory> categories)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        var fullPath = Path.GetFullPath(filePath);
+        if (string.Equals(fullPath, Path.GetFullPath(_filePath), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("不能将导出文件保存为 TypeSense 当前的数据文件。");
+        }
+
+        WriteDocument(fullPath, prompts, categories);
+    }
+
+    private void WriteDocument(
+        string filePath,
+        IEnumerable<PromptItem> prompts,
+        IEnumerable<PromptCategory> categories)
+    {
+        var directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var storedData = new StorageDocument
+        {
+            AllCommands = prompts.Select(FromPromptItem).ToList(),
+            AllCategories = categories.Select(category => category.Clone()).ToList()
+        };
+        var json = JsonSerializer.Serialize(storedData, _jsonOptions);
+        File.WriteAllText(filePath, json);
+    }
+
+    private static bool TryGetPropertyIgnoreCase(
+        JsonElement element,
+        string propertyName,
+        out JsonElement value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    // !SECTION 外部文件导入与导出
 
     // SECTION 插件数据映射
 

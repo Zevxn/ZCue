@@ -31,6 +31,7 @@ namespace TypeSense.Views;
 public partial class PromptManagerWindow : Window
 {
     private readonly PromptManagerViewModel _promptViewModel;
+    private readonly PromptStorageService _transferStorage = new();
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
     private readonly WpfCursor _grabCursor;
@@ -142,6 +143,147 @@ public partial class PromptManagerWindow : Window
     {
         _promptViewModel.SearchText = SearchTextBox.Text;
         UpdateEmptyState();
+    }
+
+    private void HandleImportClick(object sender, RoutedEventArgs e)
+    {
+        var fileDialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "导入提示词",
+            Filter = "JSON 文件 (*.json)|*.json|所有文件 (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (fileDialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        PromptStorageService.StorageSnapshot importData;
+        try
+        {
+            importData = _transferStorage.LoadImportFile(fileDialog.FileName);
+        }
+        catch (Exception error)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                $"无法导入该文件。\n{error.Message}",
+                "导入失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var confirmation = System.Windows.MessageBox.Show(
+            this,
+            $"文件中包含 {importData.Prompts.Count} 条提示词和 {importData.Categories.Count} 个分类。\n"
+            + "导入会保留现有提示词；相同 ID 的提示词将跳过，同名分类会合并，找不到对应分类的提示词会归入“无分类”。\n\n"
+            + "是否继续？",
+            "确认导入",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var result = _promptViewModel.Import(importData.Prompts, importData.Categories);
+        if (result.AddedPromptCount > 0 || result.AddedCategoryCount > 0)
+        {
+            _promptViewModel.SelectedCategoryId = "all";
+            SearchTextBox.Clear();
+        }
+
+        RenderCategoryButtons();
+        UpdateEmptyState();
+
+        var summary = $"新增提示词：{result.AddedPromptCount} 条\n"
+            + $"新增分类：{result.AddedCategoryCount} 个\n"
+            + $"合并到已有分类：{result.MergedCategoryCount} 个\n"
+            + $"跳过提示词：{result.SkippedPromptCount} 条\n"
+            + $"忽略无效分类：{result.SkippedCategoryCount} 个";
+        System.Windows.MessageBox.Show(
+            this,
+            summary,
+            "导入完成",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private void HandleExportClick(object sender, RoutedEventArgs e)
+    {
+        var prompts = _promptViewModel.Prompts.ToArray();
+        var categories = _promptViewModel.Categories.ToArray();
+        if (prompts.Length == 0 && categories.Length == 0)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                "当前没有可导出的提示词或分类。",
+                "无法导出",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var exportDialog = new PromptExportWindow(categories, prompts)
+        {
+            Owner = this
+        };
+        if (exportDialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var selectedCategoryIds = exportDialog.SelectedCategoryIds
+            .ToHashSet(StringComparer.Ordinal);
+        var promptsToExport = prompts
+            .Where(prompt => selectedCategoryIds.Contains(prompt.CategoryId ?? string.Empty))
+            .Select(prompt => prompt.Clone())
+            .ToArray();
+        var categoriesToExport = categories
+            .Where(category => selectedCategoryIds.Contains(category.Id))
+            .Select(category => category.Clone())
+            .ToArray();
+
+        var fileDialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "导出提示词",
+            Filter = "JSON 文件 (*.json)|*.json",
+            DefaultExt = ".json",
+            AddExtension = true,
+            OverwritePrompt = true,
+            FileName = $"提示词备份_{DateTime.Now:yyyy-MM-dd}.json"
+        };
+        if (fileDialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            _transferStorage.ExportToFile(
+                fileDialog.FileName,
+                promptsToExport,
+                categoriesToExport);
+        }
+        catch (Exception error)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                $"导出失败。\n{error.Message}",
+                "导出失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        System.Windows.MessageBox.Show(
+            this,
+            $"已导出 {promptsToExport.Length} 条提示词和 {categoriesToExport.Length} 个分类。",
+            "导出完成",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
     private void HandleAddClick(object sender, RoutedEventArgs e)
