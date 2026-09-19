@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
+using TypeSense.Infrastructure;
 using TypeSense.Models;
 using TypeSense.Services;
 using TypeSense.ViewModels;
@@ -54,6 +55,7 @@ public partial class PromptManagerWindow : Window
         Action? refreshStartupState = null)
     {
         InitializeComponent();
+        AppThemeManager.TrackWindow(this);
 
         _refreshStartupState = refreshStartupState;
         _promptViewModel = new PromptManagerViewModel(catalog);
@@ -97,10 +99,12 @@ public partial class PromptManagerWindow : Window
     {
         CommandsPage.Visibility = Visibility.Visible;
         SettingsPage.Visibility = Visibility.Collapsed;
-        CommandsNavigationButton.Background = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(219, 234, 254));
-        CommandsNavigationButton.Foreground = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(29, 78, 216));
+        CommandsNavigationButton.SetResourceReference(
+            System.Windows.Controls.Control.BackgroundProperty,
+            AppThemeManager.AccentSurfaceBrushKey);
+        CommandsNavigationButton.SetResourceReference(
+            System.Windows.Controls.Control.ForegroundProperty,
+            AppThemeManager.AccentTextBrushKey);
         SettingsNavigationButton.ClearValue(BackgroundProperty);
         SettingsNavigationButton.ClearValue(ForegroundProperty);
         _promptViewModel.Reload(_promptViewModel.SelectedPrompt?.Id);
@@ -111,10 +115,12 @@ public partial class PromptManagerWindow : Window
     {
         CommandsPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Visible;
-        SettingsNavigationButton.Background = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(219, 234, 254));
-        SettingsNavigationButton.Foreground = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(29, 78, 216));
+        SettingsNavigationButton.SetResourceReference(
+            System.Windows.Controls.Control.BackgroundProperty,
+            AppThemeManager.AccentSurfaceBrushKey);
+        SettingsNavigationButton.SetResourceReference(
+            System.Windows.Controls.Control.ForegroundProperty,
+            AppThemeManager.AccentTextBrushKey);
         CommandsNavigationButton.ClearValue(BackgroundProperty);
         CommandsNavigationButton.ClearValue(ForegroundProperty);
         _settingsViewModel.Refresh();
@@ -1008,15 +1014,15 @@ public partial class PromptManagerWindow : Window
         {
             var selected = button.Tag is string id
                 && string.Equals(id, _promptViewModel.SelectedCategoryId, StringComparison.Ordinal);
-            button.Background = selected
-                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(219, 234, 254))
-                : System.Windows.Media.Brushes.White;
-            button.Foreground = selected
-                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(29, 78, 216))
-                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(71, 85, 105));
-            button.BorderBrush = selected
-                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235))
-                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225));
+            button.SetResourceReference(
+                System.Windows.Controls.Control.BackgroundProperty,
+                selected ? AppThemeManager.AccentSurfaceBrushKey : AppThemeManager.SurfaceBrushKey);
+            button.SetResourceReference(
+                System.Windows.Controls.Control.ForegroundProperty,
+                selected ? AppThemeManager.AccentTextBrushKey : AppThemeManager.CategoryTextBrushKey);
+            button.SetResourceReference(
+                System.Windows.Controls.Control.BorderBrushProperty,
+                selected ? AppThemeManager.AccentBrushKey : AppThemeManager.FieldBorderBrushKey);
         }
     }
 
@@ -1027,10 +1033,17 @@ public partial class PromptManagerWindow : Window
             Text = currentName,
             FontSize = 14,
             Padding = new Thickness(10, 8, 10, 8),
-            BorderBrush = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(203, 213, 225)),
             BorderThickness = new Thickness(1)
         };
+        nameTextBox.SetResourceReference(
+            System.Windows.Controls.Control.BackgroundProperty,
+            AppThemeManager.SurfaceBrushKey);
+        nameTextBox.SetResourceReference(
+            System.Windows.Controls.Control.ForegroundProperty,
+            AppThemeManager.TextPrimaryBrushKey);
+        nameTextBox.SetResourceReference(
+            System.Windows.Controls.Control.BorderBrushProperty,
+            AppThemeManager.FieldBorderBrushKey);
         var saveButton = new WpfButton
         {
             Content = "保存",
@@ -1056,14 +1069,16 @@ public partial class PromptManagerWindow : Window
         buttons.Children.Add(saveButton);
 
         var content = new StackPanel { Margin = new Thickness(24) };
-        content.Children.Add(new TextBlock
+        var titleText = new TextBlock
         {
             Text = "分类名称",
-            Foreground = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(51, 65, 85)),
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 8)
-        });
+        };
+        titleText.SetResourceReference(
+            System.Windows.Controls.TextBlock.ForegroundProperty,
+            AppThemeManager.TextStrongBrushKey);
+        content.Children.Add(titleText);
         content.Children.Add(nameTextBox);
         content.Children.Add(buttons);
 
@@ -1076,10 +1091,12 @@ public partial class PromptManagerWindow : Window
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = this,
-            Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(248, 250, 252)),
             Content = content
         };
+        AppThemeManager.TrackWindow(dialog);
+        dialog.SetResourceReference(
+            Window.BackgroundProperty,
+            AppThemeManager.WindowBackgroundBrushKey);
         string? result = null;
         saveButton.Click += (_, _) =>
         {

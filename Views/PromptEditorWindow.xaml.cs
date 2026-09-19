@@ -1,4 +1,5 @@
 using System.Windows;
+using TypeSense.Infrastructure;
 using TypeSense.Models;
 
 namespace TypeSense.Views;
@@ -14,6 +15,7 @@ public partial class PromptEditorWindow : Window
         string? defaultCategoryId = null)
     {
         InitializeComponent();
+        AppThemeManager.TrackWindow(this);
 
         var categoryOptions = new List<PromptCategory>
         {

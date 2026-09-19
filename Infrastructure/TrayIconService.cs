@@ -48,7 +48,13 @@ public sealed class TrayIconService : IDisposable
             ContextMenuStrip = menu,
             Visible = true
         };
-        _notifyIcon.DoubleClick += (_, _) => OpenManagerRequested?.Invoke();
+        _notifyIcon.MouseClick += (_, eventArgs) =>
+        {
+            if (eventArgs.Button == MouseButtons.Left)
+            {
+                OpenManagerRequested?.Invoke();
+            }
+        };
         UpdatePaused(false);
     }
 

@@ -21,16 +21,35 @@ public partial class SuggestionWindow : Window
     private IntPtr _windowHandle;
     private int _selectedIndex;
     private bool _isLightTheme;
+    private AppThemeMode _themeMode = AppThemeMode.System;
     private bool _showPreview = true;
 
     public SuggestionWindow()
     {
         InitializeComponent();
-        _isLightTheme = DetectLightTheme();
         ApplyTheme();
     }
 
     public event Action<int>? SelectionRequested;
+
+    public void SetThemeMode(AppThemeMode mode)
+    {
+        var isLightTheme = !AppThemeManager.IsDarkTheme(mode);
+        if (_themeMode == mode && _isLightTheme == isLightTheme)
+        {
+            return;
+        }
+
+        var wasLightTheme = _isLightTheme;
+        _themeMode = mode;
+        ApplyTheme();
+
+        if (wasLightTheme != _isLightTheme && IsLoaded && _matches.Count > 0)
+        {
+            RenderRows();
+            UpdateLayout();
+        }
+    }
 
     public bool ShowPreview
     {
@@ -352,7 +371,7 @@ public partial class SuggestionWindow : Window
 
     private void ApplyTheme()
     {
-        _isLightTheme = DetectLightTheme();
+        _isLightTheme = !AppThemeManager.IsDarkTheme(_themeMode);
         RootBorder.Background = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromArgb(248, 255, 255, 255))
             : new SolidColorBrush(MediaColor.FromArgb(248, 31, 41, 55));
@@ -366,20 +385,6 @@ public partial class SuggestionWindow : Window
             Opacity = _isLightTheme ? 0.22 : 0.45,
             Color = MediaColor.FromRgb(0, 0, 0)
         };
-    }
-
-    private static bool DetectLightTheme()
-    {
-        try
-        {
-            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
-                "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
-            return Convert.ToInt32(key?.GetValue("AppsUseLightTheme") ?? 1) != 0;
-        }
-        catch
-        {
-            return true;
-        }
     }
 
     // !SECTION 无焦点定位与主题

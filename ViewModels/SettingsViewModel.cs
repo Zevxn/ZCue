@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using TypeSense.Models;
 using TypeSense.Services;
 
 namespace TypeSense.ViewModels;
@@ -28,6 +29,21 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public event Action<string>? ErrorOccurred;
 
     // SECTION 设置属性
+
+    public AppThemeMode ThemeMode
+    {
+        get => _settings.Current.ThemeMode;
+        set
+        {
+            if (_settings.Current.ThemeMode == value)
+            {
+                return;
+            }
+
+            _settings.Update(current => current.ThemeMode = value);
+            OnPropertyChanged();
+        }
+    }
 
     public bool EnablePinyinWake
     {
@@ -163,6 +179,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public void Refresh()
     {
+        OnPropertyChanged(nameof(ThemeMode));
         OnPropertyChanged(nameof(EnablePinyinWake));
         OnPropertyChanged(nameof(CnWakeThreshold));
         OnPropertyChanged(nameof(PinWakeThreshold));

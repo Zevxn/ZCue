@@ -16,7 +16,7 @@
             Background="Transparent"
             ClipToBounds="True">
         <TextBlock x:Name="GhostText"
-                   Foreground="#9CA3AF"
+                   Foreground="{DynamicResource ThemeGhostTextBrush}"
                    Opacity="0.68"
                    FontFamily="Segoe UI"
                    FontSize="14"

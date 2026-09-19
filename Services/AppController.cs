@@ -39,12 +39,14 @@ public sealed class AppController : IDisposable
     public AppController(Dispatcher dispatcher)
     {
         _dispatcher = dispatcher;
+        AppThemeManager.Apply(_settings.Current.ThemeMode);
         _foregroundMonitor = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
         {
             Interval = TimeSpan.FromMilliseconds(120)
         };
         _foregroundMonitor.Tick += HandleForegroundMonitorTick;
         _suggestionWindow = new SuggestionWindow();
+        _suggestionWindow.SetThemeMode(_settings.Current.ThemeMode);
         _suggestionWindow.ShowPreview = _settings.Current.ShowContentPreview;
         _suggestionWindow.SuggestionBoxWidth = _settings.Current.SuggestionBoxWidth;
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
@@ -67,6 +69,7 @@ public sealed class AppController : IDisposable
         _keyboardHook.KeyUp += HandleKeyUp;
         _keyboardHook.MouseButtonDown += HandleMouseButtonDown;
         _settings.Changed += HandleSettingsChanged;
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += HandleSystemPreferenceChanged;
     }
 
     public void Start()
@@ -98,6 +101,7 @@ public sealed class AppController : IDisposable
         _keyboardHook.KeyDown -= HandleKeyDown;
         _keyboardHook.KeyUp -= HandleKeyUp;
         _keyboardHook.MouseButtonDown -= HandleMouseButtonDown;
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged -= HandleSystemPreferenceChanged;
         _keyboardHook.Dispose();
         _foregroundMonitor.Stop();
         _foregroundMonitor.Tick -= HandleForegroundMonitorTick;
@@ -744,6 +748,8 @@ public sealed class AppController : IDisposable
     {
         PostToUi(() =>
         {
+            AppThemeManager.Apply(settings.ThemeMode);
+            _suggestionWindow.SetThemeMode(settings.ThemeMode);
             _suggestionWindow.ShowPreview = settings.ShowContentPreview;
             _suggestionWindow.SuggestionBoxWidth = settings.SuggestionBoxWidth;
             if (!settings.ShowGhostPreview)
@@ -754,6 +760,29 @@ public sealed class AppController : IDisposable
             {
                 RefreshGhostPreview();
             }
+        });
+    }
+
+    private void HandleSystemPreferenceChanged(
+        object? sender,
+        Microsoft.Win32.UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category != Microsoft.Win32.UserPreferenceCategory.Color
+            && e.Category != Microsoft.Win32.UserPreferenceCategory.General)
+        {
+            return;
+        }
+
+        var themeMode = _settings.Current.ThemeMode;
+        if (themeMode != AppThemeMode.System)
+        {
+            return;
+        }
+
+        PostToUi(() =>
+        {
+            AppThemeManager.Apply(themeMode);
+            _suggestionWindow.SetThemeMode(themeMode);
         });
     }
 

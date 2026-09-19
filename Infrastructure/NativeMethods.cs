@@ -52,6 +52,8 @@ internal static class NativeMethods
     internal const int VK_X = 0x58;
     internal const int VK_Z = 0x5A;
     internal const uint GCS_COMPSTR = 0x0008;
+    internal const int DWMWA_USE_IMMERSIVE_DARK_MODE_LEGACY = 19;
+    internal const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
     internal const int GWL_EXSTYLE = -20;
     internal const uint GA_ROOT = 2;
@@ -65,6 +67,17 @@ internal static class NativeMethods
     internal const uint SWP_NOACTIVATE = 0x0010;
     internal const uint SWP_SHOWWINDOW = 0x0040;
     internal static readonly IntPtr HWND_TOPMOST = new(-1);
+
+    // SECTION DWM 窗口外观
+
+    [DllImport("dwmapi.dll")]
+    internal static extern int DwmSetWindowAttribute(
+        IntPtr windowHandle,
+        int attribute,
+        ref int attributeValue,
+        uint attributeSize);
+
+    // !SECTION DWM 窗口外观
 
     // SECTION 低级输入 Hook 与消息循环
 

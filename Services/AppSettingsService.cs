@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using TypeSense.Models;
 
 namespace TypeSense.Services;
@@ -11,7 +12,8 @@ public sealed class AppSettingsService
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        WriteIndented = true
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
     };
     private AppSettings _current;
 
@@ -71,6 +73,11 @@ public sealed class AppSettingsService
 
     private static AppSettings Normalize(AppSettings settings)
     {
+        if (!Enum.IsDefined(typeof(AppThemeMode), settings.ThemeMode))
+        {
+            settings.ThemeMode = AppThemeMode.System;
+        }
+
         settings.CnWakeThreshold = Math.Clamp(settings.CnWakeThreshold, 1, 5);
         settings.PinWakeThreshold = Math.Clamp(settings.PinWakeThreshold, 1, 5);
         settings.EnWakeThreshold = Math.Clamp(settings.EnWakeThreshold, 1, 5);
