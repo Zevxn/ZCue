@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <Resource Include="assets\logo.png" />
+    <Resource Include="assets\cursors\grab.cur" />
+    <Resource Include="assets\cursors\grabbing.cur" />
     <None Update="assets\logo.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

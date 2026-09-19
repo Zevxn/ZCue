@@ -13,6 +13,7 @@
         UseLayoutRounding="True">
     <Window.Resources>
         <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="0" />
@@ -22,6 +23,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
+                                Cursor="{TemplateBinding Cursor}"
                                 CornerRadius="7"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
@@ -31,12 +33,16 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ThemeAccentHoverBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeTextStrongBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
@@ -46,6 +52,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
+                                Cursor="{TemplateBinding Cursor}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="7"
@@ -56,13 +63,14 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
-        <Style x:Key="FieldTextBox" TargetType="TextBox">
+        <Style x:Key="FieldTextBox" TargetType="TextBox" BasedOn="{StaticResource RoundedTextBoxBase}">
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimaryBrush}" />
-            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="10,8" />
         </Style>
     </Window.Resources>
@@ -144,6 +152,7 @@
             </Grid.ColumnDefinitions>
 
             <CheckBox x:Name="EnabledCheckBox"
+                      Style="{StaticResource ThemedCheckBox}"
                       Grid.Column="0"
                       Content="启用这条指令"
                       IsChecked="True"

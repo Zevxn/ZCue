@@ -13,6 +13,7 @@
         UseLayoutRounding="True">
     <Window.Resources>
         <Style x:Key="NavigationButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
@@ -23,6 +24,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
+                                Cursor="{TemplateBinding Cursor}"
                                 CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter VerticalAlignment="Center"
@@ -32,6 +34,9 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ThemeHoverSurfaceBrush}" />
                     <Setter Property="Foreground" Value="{DynamicResource ThemeAccentTextBrush}" />
@@ -39,6 +44,7 @@
             </Style.Triggers>
         </Style>
         <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="0" />
@@ -48,6 +54,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
+                                Cursor="{TemplateBinding Cursor}"
                                 CornerRadius="7"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
@@ -57,12 +64,16 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ThemeAccentHoverBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeTextStrongBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
@@ -72,6 +83,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
+                                Cursor="{TemplateBinding Cursor}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="6"
@@ -83,6 +95,9 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ThemeAccentSubtleBrush}" />
                     <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentBorderBrush}" />
@@ -90,6 +105,7 @@
             </Style.Triggers>
         </Style>
         <Style x:Key="CategoryPill" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeCategoryTextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
@@ -101,6 +117,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
+                                Cursor="{TemplateBinding Cursor}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="16"
@@ -111,6 +128,11 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="CategoryBadge" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource ThemeBadgeBackgroundBrush}" />
@@ -126,6 +148,9 @@
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
             <Setter Property="Foreground" Value="{DynamicResource ThemeDangerTextBrush}" />
             <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ThemeDangerHoverBrush}" />
                     <Setter Property="BorderBrush" Value="{DynamicResource ThemeDangerBorderBrush}" />
@@ -136,17 +161,23 @@
             <Setter Property="Width" Value="44" />
             <Setter Property="Height" Value="26" />
             <Setter Property="Focusable" Value="True" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
                         <Border x:Name="SwitchTrack"
                                 Background="{DynamicResource ThemeToggleTrackBrush}"
+                                BorderBrush="{DynamicResource ThemeFieldBorderBrush}"
+                                BorderThickness="1"
                                 CornerRadius="13"
-                                Padding="3">
+                                Cursor="Hand"
+                                Padding="2">
                             <Ellipse x:Name="SwitchThumb"
                                      Width="20"
                                      Height="20"
                                      Fill="White"
+                                     Cursor="Hand"
                                      HorizontalAlignment="Left" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -154,31 +185,153 @@
                                 <Setter TargetName="SwitchTrack"
                                         Property="Background"
                                         Value="{DynamicResource ThemeAccentBrush}" />
+                                <Setter TargetName="SwitchTrack"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBrush}" />
                                 <Setter TargetName="SwitchThumb"
                                         Property="HorizontalAlignment"
                                         Value="Right" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="SwitchTrack"
-                                        Property="Opacity"
-                                        Value="0.88" />
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="SwitchTrack"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="No" />
                                 <Setter TargetName="SwitchTrack"
                                         Property="Opacity"
                                         Value="0.5" />
+                                <Setter TargetName="SwitchTrack" Property="Cursor" Value="No" />
+                                <Setter TargetName="SwitchThumb" Property="Cursor" Value="No" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="FieldTextBox" TargetType="TextBox">
+        <Style x:Key="SliderTrackRepeatButton" TargetType="{x:Type RepeatButton}">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type RepeatButton}">
+                        <Border Background="{TemplateBinding Background}"
+                                Height="4"
+                                VerticalAlignment="Center"
+                                CornerRadius="2" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SettingsSlider" TargetType="{x:Type Slider}">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="{DynamicResource ThemeToggleTrackBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Slider}">
+                        <Grid x:Name="SliderRoot"
+                              MinHeight="26"
+                              Cursor="Hand"
+                              SnapsToDevicePixels="True">
+                            <Border Height="4"
+                                    Margin="8,0"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center"
+                                    IsHitTestVisible="False" />
+                            <Track x:Name="PART_Track"
+                                   Margin="8,0"
+                                   Orientation="{TemplateBinding Orientation}"
+                                   IsDirectionReversed="{TemplateBinding IsDirectionReversed}"
+                                   Focusable="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}"
+                                                  Background="{TemplateBinding Foreground}"
+                                                  Style="{StaticResource SliderTrackRepeatButton}" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="16" Height="16" Focusable="False">
+                                        <Thumb.Style>
+                                            <Style TargetType="{x:Type Thumb}">
+                                                <Setter Property="Cursor" Value="Hand" />
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Cursor" Value="No" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Thumb.Style>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="{x:Type Thumb}">
+                                                <Border x:Name="SliderThumbBorder"
+                                                        Background="{DynamicResource ThemeSurfaceBrush}"
+                                                        BorderBrush="{DynamicResource ThemeAccentBrush}"
+                                                        BorderThickness="2"
+                                                        CornerRadius="8" />
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="SliderThumbBorder"
+                                                                Property="Background"
+                                                                Value="{DynamicResource ThemeAccentSubtleBrush}" />
+                                                        <Setter TargetName="SliderThumbBorder"
+                                                                Property="BorderBrush"
+                                                                Value="{DynamicResource ThemeAccentHoverBrush}" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="SliderThumbBorder"
+                                                                Property="Background"
+                                                                Value="{DynamicResource ThemeAccentSurfaceBrush}" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}"
+                                                  Background="{TemplateBinding Background}"
+                                                  Style="{StaticResource SliderTrackRepeatButton}" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                            <Border x:Name="SliderFocusRing"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    IsHitTestVisible="False" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="SliderFocusRing"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
+                                <Setter Property="Cursor" Value="No" />
+                                <Setter TargetName="SliderRoot" Property="Cursor" Value="No" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="FieldTextBox" TargetType="TextBox" BasedOn="{StaticResource RoundedTextBoxBase}">
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimaryBrush}" />
-            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="11,8" />
         </Style>
         <Style TargetType="ListViewItem">
@@ -186,7 +339,26 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,0,8" />
             <Setter Property="Focusable" Value="True" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <EventSetter Event="MouseDoubleClick" Handler="HandlePromptDoubleClick" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Enabled}" Value="False">
+                    <Setter Property="Opacity" Value="0.58" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="RowActionPanel" TargetType="StackPanel">
             <Setter Property="Opacity" Value="0" />
@@ -380,7 +552,8 @@
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="{DynamicResource ThemeSurfaceBrush}"
+                                <Border x:Name="PromptRowCard"
+                                        Background="{DynamicResource ThemeSurfaceBrush}"
                                         BorderBrush="{DynamicResource ThemeBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="10"
@@ -397,7 +570,8 @@
                                         <TextBlock Grid.Column="0"
                                                    Text="⋮⋮"
                                                    Tag="PromptDragHandle"
-                                                   Cursor="SizeAll"
+                                                   Cursor="Hand"
+                                                   Loaded="HandlePromptDragHandleLoaded"
                                                    Foreground="{DynamicResource ThemeTextMutedBrush}"
                                                    FontSize="17"
                                                    VerticalAlignment="Center"
@@ -436,6 +610,7 @@
                                                        VerticalAlignment="Center"
                                                        Margin="0,0,14,0" />
                                             <CheckBox IsChecked="{Binding Enabled, Mode=OneWay}"
+                                                      Style="{StaticResource ThemedCheckBox}"
                                                       Click="HandleEnabledClick"
                                                       ToolTip="启用/禁用"
                                                       VerticalAlignment="Center"
@@ -452,6 +627,26 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
+                                                 Value="True">
+                                        <Setter TargetName="PromptRowCard"
+                                                Property="Background"
+                                                Value="{DynamicResource ThemeAccentSurfaceBrush}" />
+                                        <Setter TargetName="PromptRowCard"
+                                                Property="BorderBrush"
+                                                Value="{DynamicResource ThemeAccentBorderBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
+                                                 Value="True">
+                                        <Setter TargetName="PromptRowCard"
+                                                Property="Background"
+                                                Value="{DynamicResource ThemeHoverSurfaceBrush}" />
+                                        <Setter TargetName="PromptRowCard"
+                                                Property="BorderBrush"
+                                                Value="{DynamicResource ThemeAccentBorderBrush}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
@@ -679,6 +874,7 @@
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,8,0" />
                                         <Slider Width="150"
+                                                Style="{StaticResource SettingsSlider}"
                                                 Minimum="1"
                                                 Maximum="5"
                                                 TickFrequency="1"
@@ -714,6 +910,7 @@
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,8,0" />
                                         <Slider Width="150"
+                                                Style="{StaticResource SettingsSlider}"
                                                 Minimum="1"
                                                 Maximum="5"
                                                 TickFrequency="1"
@@ -749,6 +946,7 @@
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,8,0" />
                                         <Slider Width="150"
+                                                Style="{StaticResource SettingsSlider}"
                                                 Minimum="1"
                                                 Maximum="5"
                                                 TickFrequency="1"
@@ -784,6 +982,7 @@
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,8,0" />
                                         <Slider Width="150"
+                                                Style="{StaticResource SettingsSlider}"
                                                 Minimum="200"
                                                 Maximum="1000"
                                                 TickFrequency="10"

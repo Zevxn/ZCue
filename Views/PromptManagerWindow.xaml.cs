@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,6 +13,8 @@ using TypeSense.Services;
 using TypeSense.ViewModels;
 using WpfButton = System.Windows.Controls.Button;
 using WpfCheckBox = System.Windows.Controls.CheckBox;
+using WpfCursor = System.Windows.Input.Cursor;
+using WpfCursors = System.Windows.Input.Cursors;
 using WpfDataObject = System.Windows.DataObject;
 using WpfDragEventArgs = System.Windows.DragEventArgs;
 using WpfDragDropEffects = System.Windows.DragDropEffects;
@@ -30,6 +33,8 @@ public partial class PromptManagerWindow : Window
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
+    private readonly WpfCursor _grabCursor;
+    private readonly WpfCursor _grabbingCursor;
     private bool _allowClose;
     private WpfPoint _promptDragStartPoint;
     private WpfPoint _promptDragGrabOffset;
@@ -45,6 +50,7 @@ public partial class PromptManagerWindow : Window
     private double _dragPreviewSourceOpacity;
     private WpfImage? _dragPreviewImage;
     private System.Windows.Threading.DispatcherTimer? _dragPreviewTimer;
+    private FrameworkElement? _pressedDragCursorElement;
 
     public PromptManagerWindow(
         PromptCatalogService catalog,
@@ -55,6 +61,10 @@ public partial class PromptManagerWindow : Window
         Action? refreshStartupState = null)
     {
         InitializeComponent();
+        _grabCursor = LoadCursor("grab.cur");
+        _grabbingCursor = LoadCursor("grabbing.cur");
+        PreviewMouseLeftButtonUp += (_, _) => ResetPressedDragCursor();
+        Deactivated += (_, _) => ResetPressedDragCursor();
         AppThemeManager.TrackWindow(this);
 
         _refreshStartupState = refreshStartupState;
@@ -219,8 +229,14 @@ public partial class PromptManagerWindow : Window
         _promptDragStartPoint = e.GetPosition(PromptListView);
         _pendingPromptDragId = null;
 
-        if (e.OriginalSource is not DependencyObject source
-            || FindAncestor<TextBlock>(source) is not { Tag: "PromptDragHandle" }
+        if (e.OriginalSource is not DependencyObject source)
+        {
+            return;
+        }
+
+        var dragHandle = FindAncestor<TextBlock>(source);
+        if (dragHandle is null
+            || dragHandle.Tag is not "PromptDragHandle"
             || FindAncestor<WpfButton>(source) is not null
             || FindAncestor<WpfCheckBox>(source) is not null)
         {
@@ -230,6 +246,7 @@ public partial class PromptManagerWindow : Window
         var container = ItemsControl.ContainerFromElement(PromptListView, source) as WpfListViewItem;
         if (container?.DataContext is PromptItem item)
         {
+            SetPressedDragCursor(dragHandle);
             _pendingPromptDragId = item.Id;
             _promptDragGrabOffset = e.GetPosition(container);
         }
@@ -271,6 +288,7 @@ public partial class PromptManagerWindow : Window
         }
         finally
         {
+            ResetPressedDragCursor();
             EndDragPreview();
             if (!_promptReorderCommitted && _promptDragOriginalOrder is not null)
             {
@@ -376,6 +394,38 @@ public partial class PromptManagerWindow : Window
     private void HandleDragGiveFeedback(object sender, WpfGiveFeedbackEventArgs e)
     {
         UpdateDragPreviewPosition();
+        e.UseDefaultCursors = false;
+        Mouse.SetCursor(_grabbingCursor);
+    }
+
+    private void HandlePromptDragHandleLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBlock dragHandle)
+        {
+            dragHandle.Cursor = _grabCursor;
+        }
+    }
+
+    private void SetPressedDragCursor(FrameworkElement element)
+    {
+        ResetPressedDragCursor();
+        _pressedDragCursorElement = element;
+        element.Cursor = _grabbingCursor;
+        Mouse.OverrideCursor = _grabbingCursor;
+    }
+
+    private void ResetPressedDragCursor()
+    {
+        if (_pressedDragCursorElement is not null)
+        {
+            _pressedDragCursorElement.Cursor = _grabCursor;
+            _pressedDragCursorElement = null;
+        }
+
+        if (ReferenceEquals(Mouse.OverrideCursor, _grabbingCursor))
+        {
+            Mouse.OverrideCursor = null;
+        }
     }
 
     private void BeginDragPreview(UIElement source, WpfPoint pointerOffset)
@@ -624,6 +674,26 @@ public partial class PromptManagerWindow : Window
         }
     }
 
+    private static WpfCursor LoadCursor(string fileName)
+    {
+        try
+        {
+            var cursorUri = new Uri($"pack://application:,,,/assets/cursors/{fileName}", UriKind.Absolute);
+            var cursorResource = System.Windows.Application.GetResourceStream(cursorUri);
+            if (cursorResource is null)
+            {
+                return WpfCursors.Hand;
+            }
+
+            using var stream = cursorResource.Stream;
+        return new WpfCursor(stream);
+        }
+        catch (Exception error) when (error is ArgumentException or IOException or InvalidOperationException or Win32Exception)
+        {
+            return WpfCursors.Hand;
+        }
+    }
+
     // SECTION 分类栏渲染与对话框
 
     private void RenderCategoryButtons()
@@ -664,6 +734,9 @@ public partial class PromptManagerWindow : Window
             Content = name,
             Tag = categoryId,
             Style = (Style)FindResource("CategoryPill"),
+            Cursor = categoryId.Length > 0 && categoryId != "all"
+                ? _grabCursor
+                : WpfCursors.Hand,
             ToolTip = categoryId.Length > 0 && categoryId != "all"
                 ? $"{name}（拖动可排序）"
                 : name,
@@ -690,6 +763,7 @@ public partial class PromptManagerWindow : Window
         _categoryDragStartPoint = e.GetPosition(CategoryPanel);
         if (sender is WpfButton button)
         {
+            SetPressedDragCursor(button);
             _categoryDragGrabOffset = e.GetPosition(button);
         }
     }
@@ -723,6 +797,7 @@ public partial class PromptManagerWindow : Window
         }
         finally
         {
+            ResetPressedDragCursor();
             EndDragPreview();
             if (!_categoryReorderCommitted && _categoryDragOriginalOrder is not null)
             {
@@ -1033,7 +1108,8 @@ public partial class PromptManagerWindow : Window
             Text = currentName,
             FontSize = 14,
             Padding = new Thickness(10, 8, 10, 8),
-            BorderThickness = new Thickness(1)
+            BorderThickness = new Thickness(1),
+            Style = (Style)FindResource("RoundedTextBoxBase")
         };
         nameTextBox.SetResourceReference(
             System.Windows.Controls.Control.BackgroundProperty,

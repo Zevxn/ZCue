@@ -191,7 +191,7 @@ public partial class SuggestionWindow : Window
             CornerRadius = new CornerRadius(7),
             Padding = new Thickness(10, 9, 10, 9),
             Margin = new Thickness(0, 1, 0, 1),
-            Cursor = System.Windows.Input.Cursors.Arrow
+            Cursor = System.Windows.Input.Cursors.Hand
         };
 
         var grid = new Grid();

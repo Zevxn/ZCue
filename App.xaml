@@ -100,6 +100,7 @@
             </Setter>
         </Style>
         <Style x:Key="FieldComboBox" TargetType="{x:Type ComboBox}">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimaryBrush}" />
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
@@ -110,6 +111,7 @@
                     <ControlTemplate TargetType="{x:Type ComboBox}">
                         <Grid>
                             <ToggleButton x:Name="DropDownToggle"
+                                          Cursor="Hand"
                                           Background="{TemplateBinding Background}"
                                           BorderBrush="{TemplateBinding BorderBrush}"
                                           BorderThickness="{TemplateBinding BorderThickness}"
@@ -122,6 +124,7 @@
                                                 Background="{TemplateBinding Background}"
                                                 BorderBrush="{TemplateBinding BorderBrush}"
                                                 BorderThickness="{TemplateBinding BorderThickness}"
+                                                Cursor="Hand"
                                                 CornerRadius="6">
                                             <Path Data="M 0 0 L 4 4 L 8 0"
                                                   Stroke="{DynamicResource ThemeTextSecondaryBrush}"
@@ -142,6 +145,11 @@
                                                 <Setter TargetName="ToggleBorder"
                                                         Property="BorderBrush"
                                                         Value="{DynamicResource ThemeAccentBorderBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="ToggleBorder"
+                                                        Property="Cursor"
+                                                        Value="No" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -179,6 +187,8 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="DropDownToggle" Property="Opacity" Value="0.55" />
+                                <Setter Property="Cursor" Value="No" />
+                                <Setter TargetName="DropDownToggle" Property="Cursor" Value="No" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -186,6 +196,7 @@
             </Setter>
         </Style>
         <Style x:Key="ThemeComboBoxItem" TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimaryBrush}" />
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
             <Setter Property="Padding" Value="8,6" />
@@ -194,6 +205,7 @@
                     <ControlTemplate TargetType="{x:Type ComboBoxItem}">
                         <Border x:Name="ItemBorder"
                                 Background="{TemplateBinding Background}"
+                                Cursor="Hand"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Content" VerticalAlignment="Center" />
                         </Border>
@@ -206,11 +218,161 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.55" />
+                                <Setter Property="Cursor" Value="No" />
+                                <Setter TargetName="ItemBorder" Property="Cursor" Value="No" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <Style x:Key="RoundedTextBoxBase" TargetType="{x:Type TextBox}">
+            <Setter Property="Cursor" Value="IBeam" />
+            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CaretBrush" Value="{DynamicResource ThemeTextPrimaryBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border x:Name="TextBoxBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          Background="Transparent"
+                                          Cursor="IBeam"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
+                                          VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="TextBoxBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.58" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ThemedCheckBox" TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextStrongBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid x:Name="CheckBoxRoot"
+                              Background="Transparent"
+                              Cursor="Hand">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0"
+                                  Width="16"
+                                  Height="16"
+                                  VerticalAlignment="Center">
+                                <Border x:Name="CheckBoxBorder"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4" />
+                                <Path x:Name="CheckMark"
+                                      Data="M 3,8 L 6,11 L 13,4"
+                                      Width="16"
+                                      Height="16"
+                                      Stretch="None"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Stroke="White"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Visibility="Collapsed"
+                                      IsHitTestVisible="False" />
+                            </Grid>
+                            <ContentPresenter x:Name="ContentPresenter"
+                                              Grid.Column="1"
+                                              ContentSource="Content"
+                                              Margin="8,0,0,0"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasContent" Value="False">
+                                <Setter TargetName="ContentPresenter" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckBoxBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource ThemeAccentBrush}" />
+                                <Setter TargetName="CheckBoxBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBrush}" />
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsChecked" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="CheckBoxBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource ThemeAccentSubtleBrush}" />
+                                <Setter TargetName="CheckBoxBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBorderBrush}" />
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsChecked" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="CheckBoxBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource ThemeAccentHoverBrush}" />
+                                <Setter TargetName="CheckBoxBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentHoverBrush}" />
+                            </MultiTrigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="CheckBoxBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
+                                <Setter Property="Cursor" Value="No" />
+                                <Setter TargetName="CheckBoxRoot" Property="Cursor" Value="No" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type MenuItem}">
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Cursor" Value="No" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Application.Resources>
 </Application>
