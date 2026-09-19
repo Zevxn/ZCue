@@ -81,12 +81,11 @@ public partial class PromptEditorWindow : Window
 
     private void ShowValidationMessage(string message, UIElement focusElement)
     {
-        System.Windows.MessageBox.Show(
+        AppDialogWindow.ShowMessage(
             this,
-            message,
             "无法保存指令",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            message,
+            AppDialogTone.Information);
         focusElement.Focus();
     }
 }

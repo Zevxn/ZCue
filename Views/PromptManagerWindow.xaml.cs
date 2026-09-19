@@ -231,13 +231,13 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        var confirmation = System.Windows.MessageBox.Show(
+        var confirmation = AppDialogWindow.Confirm(
             this,
-            $"确定删除选中的 {selectedIds.Length} 条提示词吗？\n删除后无法恢复。",
             "批量删除提示词",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-        if (confirmation == MessageBoxResult.Yes)
+            $"确定删除选中的 {selectedIds.Length} 条提示词吗？\n删除后无法恢复。",
+            "删除",
+            isDestructive: true);
+        if (confirmation)
         {
             _promptViewModel.DeleteMany(selectedIds);
             UpdateEmptyState();
@@ -271,24 +271,22 @@ public partial class PromptManagerWindow : Window
         }
         catch (Exception error)
         {
-            System.Windows.MessageBox.Show(
+            AppDialogWindow.ShowMessage(
                 this,
-                $"无法导入该文件。\n{error.Message}",
                 "导入失败",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                $"无法导入该文件。\n{error.Message}",
+                AppDialogTone.Warning);
             return;
         }
 
-        var confirmation = System.Windows.MessageBox.Show(
+        var confirmation = AppDialogWindow.Confirm(
             this,
+            "确认导入",
             $"文件中包含 {importData.Prompts.Count} 条提示词和 {importData.Categories.Count} 个分类。\n"
             + "导入会保留现有提示词；相同 ID 的提示词将跳过，同名分类会合并，找不到对应分类的提示词会归入“无分类”。\n\n"
             + "是否继续？",
-            "确认导入",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-        if (confirmation != MessageBoxResult.Yes)
+            "导入");
+        if (!confirmation)
         {
             return;
         }
@@ -308,12 +306,10 @@ public partial class PromptManagerWindow : Window
             + $"合并到已有分类：{result.MergedCategoryCount} 个\n"
             + $"跳过提示词：{result.SkippedPromptCount} 条\n"
             + $"忽略无效分类：{result.SkippedCategoryCount} 个";
-        System.Windows.MessageBox.Show(
+        AppDialogWindow.ShowMessage(
             this,
-            summary,
             "导入完成",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            summary);
     }
 
     private void HandleExportClick(object sender, RoutedEventArgs e)
@@ -322,12 +318,11 @@ public partial class PromptManagerWindow : Window
         var categories = _promptViewModel.Categories.ToArray();
         if (prompts.Length == 0 && categories.Length == 0)
         {
-            System.Windows.MessageBox.Show(
+            AppDialogWindow.ShowMessage(
                 this,
-                "当前没有可导出的提示词或分类。",
                 "无法导出",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "当前没有可导出的提示词或分类。",
+                AppDialogTone.Information);
             return;
         }
 
@@ -374,21 +369,18 @@ public partial class PromptManagerWindow : Window
         }
         catch (Exception error)
         {
-            System.Windows.MessageBox.Show(
+            AppDialogWindow.ShowMessage(
                 this,
-                $"导出失败。\n{error.Message}",
                 "导出失败",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                $"导出失败。\n{error.Message}",
+                AppDialogTone.Warning);
             return;
         }
 
-        System.Windows.MessageBox.Show(
+        AppDialogWindow.ShowMessage(
             this,
-            $"已导出 {promptsToExport.Length} 条提示词和 {categoriesToExport.Length} 个分类。",
             "导出完成",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            $"已导出 {promptsToExport.Length} 条提示词和 {categoriesToExport.Length} 个分类。");
     }
 
     private void HandleAddClick(object sender, RoutedEventArgs e)
@@ -434,13 +426,13 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        var result = System.Windows.MessageBox.Show(
+        var result = AppDialogWindow.Confirm(
             this,
-            $"确定删除“{item.Name}”吗？\n删除后无法恢复。",
             "删除指令",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-        if (result == MessageBoxResult.Yes)
+            $"确定删除“{item.Name}”吗？\n删除后无法恢复。",
+            "删除",
+            isDestructive: true);
+        if (result)
         {
             _promptViewModel.Delete(item.Id);
             UpdateEmptyState();
@@ -483,10 +475,7 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        var dragHandle = FindAncestor<TextBlock>(source);
-        if (dragHandle is null
-            || dragHandle.Tag is not "PromptDragHandle"
-            || FindAncestor<WpfButton>(source) is not null
+        if (FindAncestor<WpfButton>(source) is not null
             || FindAncestor<WpfCheckBox>(source) is not null)
         {
             return;
@@ -495,7 +484,7 @@ public partial class PromptManagerWindow : Window
         var container = ItemsControl.ContainerFromElement(PromptListView, source) as WpfListViewItem;
         if (container?.DataContext is PromptItem item)
         {
-            SetPressedDragCursor(dragHandle);
+            SetPressedDragCursor(container);
             _pendingPromptDragId = item.Id;
             _promptDragGrabOffset = e.GetPosition(container);
         }
@@ -668,11 +657,11 @@ public partial class PromptManagerWindow : Window
         Mouse.SetCursor(_grabbingCursor);
     }
 
-    private void HandlePromptDragHandleLoaded(object sender, RoutedEventArgs e)
+    private void HandlePromptRowCardLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is TextBlock dragHandle)
+        if (sender is FrameworkElement promptRow)
         {
-            dragHandle.Cursor = _grabCursor;
+            promptRow.Cursor = _grabCursor;
         }
     }
 
@@ -855,12 +844,11 @@ public partial class PromptManagerWindow : Window
 
         if (_promptViewModel.AddCategory(name) is null)
         {
-            System.Windows.MessageBox.Show(
+            AppDialogWindow.ShowMessage(
                 this,
-                "分类名称不能为空。",
                 "无法创建分类",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "分类名称不能为空。",
+                AppDialogTone.Information);
             return;
         }
 
@@ -882,12 +870,11 @@ public partial class PromptManagerWindow : Window
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            System.Windows.MessageBox.Show(
+            AppDialogWindow.ShowMessage(
                 this,
-                "分类名称不能为空。",
                 "无法重命名分类",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "分类名称不能为空。",
+                AppDialogTone.Information);
             return;
         }
 
@@ -902,13 +889,13 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        var result = System.Windows.MessageBox.Show(
+        var result = AppDialogWindow.Confirm(
             this,
-            $"删除分类“{category.Name}”后，其中的提示词会保留并变为无分类。确定删除吗？",
             "删除分类",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-        if (result == MessageBoxResult.Yes)
+            $"删除分类“{category.Name}”后，其中的提示词会保留并变为无分类。确定删除吗？",
+            "删除",
+            isDestructive: true);
+        if (result)
         {
             _promptViewModel.DeleteCategory(category.Id);
             RenderCategoryButtons();
@@ -919,7 +906,9 @@ public partial class PromptManagerWindow : Window
     private void HandlePromptDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (sender is WpfListViewItem { DataContext: PromptItem item }
-            && e.OriginalSource is not WpfButton)
+            && e.OriginalSource is DependencyObject source
+            && FindAncestor<WpfButton>(source) is null
+            && FindAncestor<WpfCheckBox>(source) is null)
         {
             OpenEditor(item);
         }
@@ -1528,12 +1517,11 @@ public partial class PromptManagerWindow : Window
 
     private void HandleSettingsError(string message)
     {
-        System.Windows.MessageBox.Show(
+        AppDialogWindow.ShowMessage(
             this,
-            message,
             "TypeSense",
-            MessageBoxButton.OK,
-            MessageBoxImage.Warning);
+            message,
+            AppDialogTone.Warning);
         _settingsViewModel.Refresh();
         _refreshStartupState?.Invoke();
     }

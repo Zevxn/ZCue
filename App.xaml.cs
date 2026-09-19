@@ -1,4 +1,5 @@
 using TypeSense.Services;
+using TypeSense.Views;
 
 namespace TypeSense;
 
@@ -18,11 +19,11 @@ public partial class App : System.Windows.Application
         }
         catch (Exception exception)
         {
-            System.Windows.MessageBox.Show(
-                $"TypeSense 启动失败：{exception.Message}",
+            AppDialogWindow.ShowMessage(
+                null,
                 "TypeSense",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Error);
+                $"TypeSense 启动失败：{exception.Message}",
+                AppDialogTone.Error);
             Shutdown(-1);
         }
     }

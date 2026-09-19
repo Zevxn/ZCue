@@ -177,11 +177,11 @@ public sealed class TrayIconService : IDisposable
         catch (Exception exception)
         {
             _startupEnabled = SafeIsStartupEnabled();
-            System.Windows.MessageBox.Show(
-                $"设置开机启动失败：{exception.Message}",
+            AppDialogWindow.ShowMessage(
+                null,
                 "TypeSense",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning);
+                $"设置开机启动失败：{exception.Message}",
+                AppDialogTone.Warning);
         }
     }
 

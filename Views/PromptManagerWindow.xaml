@@ -804,7 +804,8 @@
                                             BorderThickness="1"
                                             CornerRadius="10"
                                             Height="56"
-                                            Padding="14,9">
+                                            Padding="14,9"
+                                            Loaded="HandlePromptRowCardLoaded">
                                         <Grid VerticalAlignment="Center">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="22" />
@@ -814,9 +815,6 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0"
                                                        Text="⋮⋮"
-                                                       Tag="PromptDragHandle"
-                                                       Cursor="Hand"
-                                                       Loaded="HandlePromptDragHandleLoaded"
                                                        Foreground="{DynamicResource ThemeTextMutedBrush}"
                                                        FontSize="17"
                                                        VerticalAlignment="Center"
