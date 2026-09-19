@@ -16,17 +16,26 @@ public partial class TrayMenuWindow : Window
 
     private System.Drawing.Point _screenPoint;
 
-    public TrayMenuWindow(AppThemeMode themeMode, bool paused, bool startupEnabled)
+    public TrayMenuWindow(
+        AppThemeMode themeMode,
+        bool paused,
+        bool startupEnabled,
+        string applicationFilterActionText,
+        bool applicationFilterActionEnabled)
     {
         InitializeComponent();
         AppThemeManager.TrackWindow(this);
         ApplyTheme(themeMode);
         UpdatePaused(paused);
         UpdateStartupEnabled(startupEnabled);
+        ApplicationFilterText.Text = applicationFilterActionText;
+        ApplicationFilterButton.IsEnabled = applicationFilterActionEnabled;
         Loaded += HandleLoaded;
     }
 
     public event Action? ManagerRequested;
+
+    public event Action? ApplicationFilterActionRequested;
 
     public event Action? ListeningToggleRequested;
 
@@ -128,6 +137,11 @@ public partial class TrayMenuWindow : Window
     private void HandleListeningClick(object sender, RoutedEventArgs e)
     {
         InvokeAndClose(ListeningToggleRequested);
+    }
+
+    private void HandleApplicationFilterClick(object sender, RoutedEventArgs e)
+    {
+        InvokeAndClose(ApplicationFilterActionRequested);
     }
 
     private void HandleStartupClick(object sender, RoutedEventArgs e)

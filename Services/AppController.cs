@@ -13,6 +13,7 @@ public sealed class AppController : IDisposable
     private readonly InputBufferService _inputBuffer = new();
     private readonly PromptCatalogService _catalog = new();
     private readonly AppSettingsService _settings = new();
+    private readonly ApplicationFilterService _applicationFilter;
     private readonly StartupService _startupService = new();
     private readonly PromptMatchService _matchService = new();
     private readonly CaretPositionService _caretPositionService = new();
@@ -39,10 +40,11 @@ public sealed class AppController : IDisposable
     public AppController(Dispatcher dispatcher)
     {
         _dispatcher = dispatcher;
+        _applicationFilter = new ApplicationFilterService(_settings);
         AppThemeManager.Apply(_settings.Current.ThemeMode);
         _foregroundMonitor = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
         {
-            Interval = TimeSpan.FromMilliseconds(120)
+            Interval = TimeSpan.FromMilliseconds(60)
         };
         _foregroundMonitor.Tick += HandleForegroundMonitorTick;
         _suggestionWindow = new SuggestionWindow();
@@ -51,10 +53,14 @@ public sealed class AppController : IDisposable
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
         _ghostPreviewWindow = new GhostPreviewWindow();
 
-        _trayIcon = new TrayIconService(_startupService, _settings.Current.ThemeMode);
+        _trayIcon = new TrayIconService(
+            _startupService,
+            _applicationFilter,
+            _settings.Current.ThemeMode);
         _promptManagerWindow = new PromptManagerWindow(
             _catalog,
             _settings,
+            _applicationFilter,
             _startupService,
             () => !IsPaused(),
             enabled => SetPaused(!enabled),
@@ -97,6 +103,7 @@ public sealed class AppController : IDisposable
 
         _disposed = true;
         _settings.Changed -= HandleSettingsChanged;
+        _applicationFilter.Dispose();
         _keyboardHook.KeyDown -= HandleKeyDown;
         _keyboardHook.KeyUp -= HandleKeyUp;
         _keyboardHook.MouseButtonDown -= HandleMouseButtonDown;
@@ -126,6 +133,11 @@ public sealed class AppController : IDisposable
         }
 
         SwitchTargetWindowIfNeeded(foregroundWindow);
+        if (!_applicationFilter.IsApplicationAllowed(foregroundWindow))
+        {
+            ClearSuggestions(resetBuffer: true);
+            return KeyboardHookDecision.Pass;
+        }
 
         if (input.HasSystemModifier)
         {
@@ -282,6 +294,12 @@ public sealed class AppController : IDisposable
             }
         }
 
+        if (!_applicationFilter.IsApplicationAllowed(foregroundWindow))
+        {
+            ClearSuggestions(resetBuffer: true);
+            return;
+        }
+
         ScheduleFocusedTextSync(foregroundWindow, preservePhysicalInputForShiftCommit: true);
     }
 
@@ -346,6 +364,13 @@ public sealed class AppController : IDisposable
 
     private void RecomputeSuggestions(IntPtr targetWindow)
     {
+        if (NativeMethods.GetForegroundWindow() != targetWindow
+            || !_applicationFilter.IsApplicationAllowed(targetWindow))
+        {
+            ClearSuggestions(resetBuffer: true);
+            return;
+        }
+
         var token = _inputBuffer.GetCurrentToken();
         var matches = _matchService.Match(
             token,
@@ -379,6 +404,13 @@ public sealed class AppController : IDisposable
         {
             if (!IsCurrentVersion(version))
             {
+                return;
+            }
+
+            if (NativeMethods.GetForegroundWindow() != targetWindow
+                || !_applicationFilter.IsApplicationAllowed(targetWindow))
+            {
+                ClearSuggestions(resetBuffer: true);
                 return;
             }
 
@@ -435,6 +467,13 @@ public sealed class AppController : IDisposable
         {
             if (!IsCurrentVersion(version))
             {
+                return;
+            }
+
+            if (NativeMethods.GetForegroundWindow() != targetWindow
+                || !_applicationFilter.IsApplicationAllowed(targetWindow))
+            {
+                ClearSuggestions(resetBuffer: true);
                 return;
             }
 
@@ -512,6 +551,7 @@ public sealed class AppController : IDisposable
 
     private void HandleMouseButtonDown(int x, int y)
     {
+        _ = _applicationFilter.GetForegroundProcessName();
         if (HasSuggestions() && !_suggestionWindow.ContainsScreenPoint(x, y))
         {
             ClearSuggestions(resetBuffer: true);
@@ -608,7 +648,10 @@ public sealed class AppController : IDisposable
             targetWindow = _targetWindow;
         }
 
-        if (targetWindow == IntPtr.Zero || NativeMethods.GetForegroundWindow() != targetWindow)
+        var foregroundWindow = NativeMethods.GetForegroundWindow();
+        if (targetWindow == IntPtr.Zero
+            || foregroundWindow != targetWindow
+            || !_applicationFilter.IsApplicationAllowed(foregroundWindow))
         {
             ClearSuggestions(resetBuffer: true);
         }
@@ -736,6 +779,7 @@ public sealed class AppController : IDisposable
 
     private void OpenPromptManager()
     {
+        _ = _applicationFilter.GetForegroundProcessName();
         PostToUi(() =>
         {
             _promptManagerWindow.Show();
@@ -745,6 +789,11 @@ public sealed class AppController : IDisposable
 
     private void HandleSettingsChanged(AppSettings settings)
     {
+        if (!_applicationFilter.IsApplicationAllowed(NativeMethods.GetForegroundWindow()))
+        {
+            ClearSuggestions(resetBuffer: true);
+        }
+
         PostToUi(() =>
         {
             AppThemeManager.Apply(settings.ThemeMode);

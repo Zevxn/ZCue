@@ -44,6 +44,7 @@ public sealed class AppSettingsService
         lock (_gate)
         {
             update(_current);
+            Normalize(_current);
             SaveLocked();
             snapshot = _current.Clone();
         }
@@ -82,7 +83,36 @@ public sealed class AppSettingsService
         settings.PinWakeThreshold = Math.Clamp(settings.PinWakeThreshold, 1, 5);
         settings.EnWakeThreshold = Math.Clamp(settings.EnWakeThreshold, 1, 5);
         settings.SuggestionBoxWidth = Math.Clamp(settings.SuggestionBoxWidth, 200, 1000);
+        if (!Enum.IsDefined(typeof(ApplicationFilterMode), settings.FilterMode))
+        {
+            settings.FilterMode = ApplicationFilterMode.Blacklist;
+        }
+
+        settings.Blacklist = NormalizeProcessNames(settings.Blacklist);
+        settings.Whitelist = NormalizeProcessNames(settings.Whitelist);
         return settings;
+    }
+
+    private static List<string> NormalizeProcessNames(List<string>? names)
+    {
+        var normalized = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var name in names ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var fileName = Path.GetFileName(name.Trim());
+            if (!string.IsNullOrWhiteSpace(fileName) && seen.Add(fileName))
+            {
+                normalized.Add(fileName);
+            }
+        }
+
+        return normalized;
     }
 
     private void SaveLocked()

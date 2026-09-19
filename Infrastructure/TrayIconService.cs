@@ -11,6 +11,7 @@ public sealed class TrayIconService : IDisposable
     // SECTION 托盘菜单与状态
 
     private readonly StartupService _startupService;
+    private readonly ApplicationFilterService _applicationFilter;
     private readonly Icon _icon;
     private readonly NotifyIcon _notifyIcon;
     private TrayMenuWindow? _menuWindow;
@@ -19,9 +20,13 @@ public sealed class TrayIconService : IDisposable
     private bool _paused;
     private bool _disposed;
 
-    public TrayIconService(StartupService startupService, AppThemeMode themeMode)
+    public TrayIconService(
+        StartupService startupService,
+        ApplicationFilterService applicationFilter,
+        AppThemeMode themeMode)
     {
         _startupService = startupService;
+        _applicationFilter = applicationFilter;
         _themeMode = themeMode;
         _startupEnabled = SafeIsStartupEnabled();
 
@@ -105,9 +110,27 @@ public sealed class TrayIconService : IDisposable
         }
 
         _startupEnabled = SafeIsStartupEnabled();
-        var menuWindow = new TrayMenuWindow(_themeMode, _paused, _startupEnabled);
+        _ = _applicationFilter.GetForegroundProcessName();
+        var currentApplication = _applicationFilter.GetLastExternalProcessName();
+        var mode = _applicationFilter.FilterMode;
+        var isListed = mode == ApplicationFilterMode.Blacklist
+            ? _applicationFilter.IsBlacklisted(currentApplication)
+            : _applicationFilter.IsWhitelisted(currentApplication);
+        var filterActionText = currentApplication is null
+            ? "无法识别当前应用"
+            : mode == ApplicationFilterMode.Blacklist
+                ? isListed ? "从黑名单移除当前应用" : "将当前应用加入黑名单"
+                : isListed ? "从白名单移除当前应用" : "将当前应用加入白名单";
+
+        var menuWindow = new TrayMenuWindow(
+            _themeMode,
+            _paused,
+            _startupEnabled,
+            filterActionText,
+            currentApplication is not null);
         _menuWindow = menuWindow;
         menuWindow.ManagerRequested += HandleManagerRequested;
+        menuWindow.ApplicationFilterActionRequested += HandleApplicationFilterActionRequested;
         menuWindow.ListeningToggleRequested += HandleListeningToggleRequested;
         menuWindow.StartupToggleRequested += HandleStartupToggleRequested;
         menuWindow.ExitRequested += HandleExitRequested;
@@ -124,6 +147,11 @@ public sealed class TrayIconService : IDisposable
     private void HandleManagerRequested()
     {
         OpenManagerRequested?.Invoke();
+    }
+
+    private void HandleApplicationFilterActionRequested()
+    {
+        _applicationFilter.ToggleLastExternalApplication(out _);
     }
 
     private void HandleListeningToggleRequested()

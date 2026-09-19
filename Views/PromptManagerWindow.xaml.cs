@@ -55,6 +55,7 @@ public partial class PromptManagerWindow : Window
     public PromptManagerWindow(
         PromptCatalogService catalog,
         AppSettingsService settings,
+        ApplicationFilterService applicationFilter,
         StartupService startupService,
         Func<bool> isListeningEnabled,
         Action<bool> setListeningEnabled,
@@ -71,6 +72,7 @@ public partial class PromptManagerWindow : Window
         _promptViewModel = new PromptManagerViewModel(catalog);
         _settingsViewModel = new SettingsViewModel(
             settings,
+            applicationFilter,
             startupService,
             isListeningEnabled,
             setListeningEnabled);
@@ -656,6 +658,39 @@ public partial class PromptManagerWindow : Window
     }
 
     // !SECTION 拖拽排序与分类筛选
+
+    // SECTION 应用范围设置
+
+    private void AddCurrentApplicationClick(object sender, RoutedEventArgs e)
+    {
+        _settingsViewModel.AddLastExternalApplication();
+    }
+
+    private void SelectApplicationClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择应用程序",
+            Filter = "应用程序 (*.exe)|*.exe",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            _settingsViewModel.AddApplication(Path.GetFileName(dialog.FileName));
+        }
+    }
+
+    private void RemoveApplicationClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as WpfButton)?.Tag is string processName)
+        {
+            _settingsViewModel.RemoveApplication(processName);
+        }
+    }
+
+    // !SECTION 应用范围设置
 
     // !SECTION 页面导航与列表交互
 

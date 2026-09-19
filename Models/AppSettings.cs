@@ -20,6 +20,12 @@ public sealed class AppSettings
 
     public bool EnableEnterConfirmation { get; set; } = true;
 
+    public ApplicationFilterMode FilterMode { get; set; } = ApplicationFilterMode.Blacklist;
+
+    public List<string> Blacklist { get; set; } = [];
+
+    public List<string> Whitelist { get; set; } = [];
+
     public AppSettings Clone() => new()
     {
         ThemeMode = ThemeMode,
@@ -30,6 +36,9 @@ public sealed class AppSettings
         SuggestionBoxWidth = SuggestionBoxWidth,
         ShowContentPreview = ShowContentPreview,
         EnableNumberSelection = EnableNumberSelection,
-        EnableEnterConfirmation = EnableEnterConfirmation
+        EnableEnterConfirmation = EnableEnterConfirmation,
+        FilterMode = FilterMode,
+        Blacklist = Blacklist is null ? [] : [.. Blacklist],
+        Whitelist = Whitelist is null ? [] : [.. Whitelist]
     };
 }

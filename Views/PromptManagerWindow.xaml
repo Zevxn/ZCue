@@ -595,16 +595,36 @@
                                FontWeight="SemiBold"
                                Margin="14,0,0,9" />
                     <Button x:Name="CommandsNavigationButton"
-                            Content="▦   指令管理"
                             Style="{StaticResource NavigationButton}"
                             Background="{DynamicResource ThemeAccentSurfaceBrush}"
                             Foreground="{DynamicResource ThemeAccentTextBrush}"
-                            Click="ShowCommandsPage" />
+                            Click="ShowCommandsPage">
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="▦"
+                                       Width="18"
+                                       TextAlignment="Center"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="指令管理"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="SettingsNavigationButton"
-                            Content="⚙   软件设置"
                             Style="{StaticResource NavigationButton}"
                             Margin="0,4,0,0"
-                            Click="ShowSettingsPage" />
+                            Click="ShowSettingsPage">
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="⚙"
+                                       Width="18"
+                                       TextAlignment="Center"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="软件设置"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <Border Grid.Row="2"
@@ -1177,6 +1197,124 @@
                                                 VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="应用范围"
+                                   Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Margin="2,24,0,9" />
+                        <Border Background="{DynamicResource ThemeSurfaceBrush}"
+                                BorderBrush="{DynamicResource ThemeBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="18,12">
+                            <StackPanel>
+                                <TextBlock Text="工作模式"
+                                           Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,7" />
+                                <RadioButton Content="黑名单模式"
+                                             GroupName="ApplicationFilterMode"
+                                             IsChecked="{Binding IsBlacklistMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                             FontSize="13" />
+                                <TextBlock Text="默认在所有应用中启用，名单中的应用除外。"
+                                           Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="22,3,0,10" />
+                                <Border Height="1" Background="{DynamicResource ThemeDividerBrush}" />
+                                <RadioButton Content="白名单模式"
+                                             GroupName="ApplicationFilterMode"
+                                             IsChecked="{Binding IsWhitelistMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                             FontSize="13"
+                                             Margin="0,10,0,0" />
+                                <TextBlock Text="默认在所有应用中禁用，仅名单中的应用会启用。"
+                                           Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="22,3,0,14" />
+                                <Border Height="1" Background="{DynamicResource ThemeDividerBrush}" />
+                                <TextBlock Text="{Binding CurrentApplicationListTitle}"
+                                           Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Margin="0,14,0,9" />
+                                <Border Background="{DynamicResource ThemeWindowBackgroundBrush}"
+                                        BorderBrush="{DynamicResource ThemeDividerBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="7"
+                                        Padding="10,6">
+                                    <ScrollViewer MaxHeight="160"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <Grid>
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CurrentApplicationNames.Count}" Value="0">
+                                                            <Setter Property="MinHeight" Value="64" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <ItemsControl ItemsSource="{Binding CurrentApplicationNames}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,3">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding}"
+                                                                       Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <Button Grid.Column="1"
+                                                                    Tag="{Binding}"
+                                                                    Content="删除"
+                                                                    Style="{StaticResource DangerButton}"
+                                                                    FontSize="12"
+                                                                    Padding="9,5"
+                                                                    Margin="8,0,0,0"
+                                                                    Click="RemoveApplicationClick" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="当前名单为空"
+                                                       Foreground="{DynamicResource ThemeTextMutedBrush}"
+                                                       FontSize="12"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       IsHitTestVisible="False">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CurrentApplicationNames.Count}" Value="0">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </ScrollViewer>
+                                </Border>
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Right"
+                                            Margin="0,12,0,2">
+                                    <Button Content="添加当前应用"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Click="AddCurrentApplicationClick"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="选择程序"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Click="SelectApplicationClick" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

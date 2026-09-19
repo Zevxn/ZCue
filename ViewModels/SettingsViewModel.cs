@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using TypeSense.Models;
 using TypeSense.Services;
@@ -8,27 +9,84 @@ namespace TypeSense.ViewModels;
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly AppSettingsService _settings;
+    private readonly ApplicationFilterService _applicationFilter;
     private readonly StartupService _startupService;
     private readonly Func<bool> _isListeningEnabled;
     private readonly Action<bool> _setListeningEnabled;
 
     public SettingsViewModel(
         AppSettingsService settings,
+        ApplicationFilterService applicationFilter,
         StartupService startupService,
         Func<bool> isListeningEnabled,
         Action<bool> setListeningEnabled)
     {
         _settings = settings;
+        _applicationFilter = applicationFilter;
         _startupService = startupService;
         _isListeningEnabled = isListeningEnabled;
         _setListeningEnabled = setListeningEnabled;
+        RefreshCurrentApplicationNames();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public event Action<string>? ErrorOccurred;
 
+    public ObservableCollection<string> CurrentApplicationNames { get; } = [];
+
     // SECTION 设置属性
+
+    public ApplicationFilterMode FilterMode
+    {
+        get => _settings.Current.FilterMode;
+        set
+        {
+            if (!Enum.IsDefined(typeof(ApplicationFilterMode), value))
+            {
+                value = ApplicationFilterMode.Blacklist;
+            }
+
+            if (_settings.Current.FilterMode == value)
+            {
+                return;
+            }
+
+            _settings.Update(current => current.FilterMode = value);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsBlacklistMode));
+            OnPropertyChanged(nameof(IsWhitelistMode));
+            OnPropertyChanged(nameof(CurrentApplicationListTitle));
+            RefreshCurrentApplicationNames();
+        }
+    }
+
+    public bool IsBlacklistMode
+    {
+        get => FilterMode == ApplicationFilterMode.Blacklist;
+        set
+        {
+            if (value)
+            {
+                FilterMode = ApplicationFilterMode.Blacklist;
+            }
+        }
+    }
+
+    public bool IsWhitelistMode
+    {
+        get => FilterMode == ApplicationFilterMode.Whitelist;
+        set
+        {
+            if (value)
+            {
+                FilterMode = ApplicationFilterMode.Whitelist;
+            }
+        }
+    }
+
+    public string CurrentApplicationListTitle =>
+        FilterMode == ApplicationFilterMode.Blacklist ? "黑名单" : "白名单";
 
     public AppThemeMode ThemeMode
     {
@@ -165,10 +223,56 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     // !SECTION 设置属性
 
+    // SECTION 应用范围名单
+
+    public void AddLastExternalApplication()
+    {
+        var processName = _applicationFilter.GetLastExternalProcessName();
+        if (string.IsNullOrWhiteSpace(processName))
+        {
+            ErrorOccurred?.Invoke("无法识别最近使用的应用。请先在目标应用中操作，再打开设置添加。");
+            return;
+        }
+
+        AddApplication(processName);
+    }
+
+    public void AddApplication(string? processName)
+    {
+        _applicationFilter.AddToCurrentList(processName);
+        RefreshCurrentApplicationNames();
+    }
+
+    public void RemoveApplication(string? processName)
+    {
+        _applicationFilter.RemoveFromCurrentList(processName);
+        RefreshCurrentApplicationNames();
+    }
+
+    private void RefreshCurrentApplicationNames()
+    {
+        var settings = _settings.Current;
+        var names = settings.FilterMode == ApplicationFilterMode.Blacklist
+            ? settings.Blacklist
+            : settings.Whitelist;
+
+        CurrentApplicationNames.Clear();
+        foreach (var name in names)
+        {
+            CurrentApplicationNames.Add(name);
+        }
+    }
+
+    // !SECTION 应用范围名单
+
     // SECTION 设置刷新
 
     public void Refresh()
     {
+        OnPropertyChanged(nameof(FilterMode));
+        OnPropertyChanged(nameof(IsBlacklistMode));
+        OnPropertyChanged(nameof(IsWhitelistMode));
+        OnPropertyChanged(nameof(CurrentApplicationListTitle));
         OnPropertyChanged(nameof(ThemeMode));
         OnPropertyChanged(nameof(EnablePinyinWake));
         OnPropertyChanged(nameof(CnWakeThreshold));
@@ -180,6 +284,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(EnableNumberSelection));
         OnPropertyChanged(nameof(EnableEnterConfirmation));
         OnPropertyChanged(nameof(LaunchAtStartup));
+        RefreshCurrentApplicationNames();
     }
 
     // !SECTION 设置刷新

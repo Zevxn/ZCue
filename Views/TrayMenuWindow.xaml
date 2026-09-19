@@ -1,8 +1,8 @@
 <Window x:Class="TypeSense.Views.TrayMenuWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Width="146"
-        Height="160"
+        Width="240"
+        Height="200"
         WindowStyle="None"
         ResizeMode="NoResize"
         AllowsTransparency="True"
@@ -62,8 +62,8 @@
     </Window.Resources>
 
     <Grid Margin="8">
-        <Border Width="130"
-                Height="144"
+        <Border Width="224"
+                Height="184"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Background="{DynamicResource TrayMenuSurfaceBrush}"
@@ -77,8 +77,8 @@
             </Border.Effect>
         </Border>
         <Border x:Name="MenuBorder"
-                Width="130"
-                Height="144"
+                Width="224"
+                Height="184"
                 Padding="4"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
@@ -101,6 +101,23 @@
                                    Text="指令管理"
                                    Foreground="{DynamicResource TrayMenuTextBrush}"
                                    VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+
+                <Button x:Name="ApplicationFilterButton"
+                        Style="{StaticResource TrayMenuButtonStyle}"
+                        Click="HandleApplicationFilterClick">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="ApplicationFilterText"
+                                   Grid.Column="2"
+                                   Foreground="{DynamicResource TrayMenuTextBrush}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
                     </Grid>
                 </Button>
 
