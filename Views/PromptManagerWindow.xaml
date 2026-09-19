@@ -676,7 +676,8 @@
                                        FontSize="13" />
                         </StackPanel>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal"
+                    <StackPanel x:Name="HeaderActionsPanel"
+                                Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center">
                         <Button Content="导入"
@@ -693,6 +694,43 @@
                                 Style="{StaticResource PrimaryButton}"
                                 Click="HandleAddClick" />
                     </StackPanel>
+                    <Border x:Name="BatchActionsBar"
+                            Background="{DynamicResource ThemeAccentSurfaceBrush}"
+                            BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="10,7"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="BatchSelectionSummary"
+                                       Text="已选 0 项"
+                                       Foreground="{DynamicResource ThemeAccentTextBrush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="2"
+                                        Orientation="Horizontal">
+                                <Button Content="归类到…"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="0,0,7,0"
+                                        Click="HandleBatchAssignCategoryClick" />
+                                <Button Content="删除所选"
+                                        Style="{StaticResource DangerButton}"
+                                        Margin="0,0,7,0"
+                                        Click="HandleBatchDeleteClick" />
+                                <Button Content="清除选择"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="HandleClearSelectionClick" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </Grid>
 
                 <Grid Grid.Row="1"
@@ -721,6 +759,7 @@
                         BorderBrush="{DynamicResource ThemeBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
+                        Height="46"
                         Margin="0,12,0,16"
                         Padding="12,0">
                     <DockPanel LastChildFill="True">
@@ -729,12 +768,13 @@
                                    Foreground="{DynamicResource ThemeTextMutedBrush}"
                                    FontSize="22"
                                    VerticalAlignment="Center"
-                                   Margin="0,0,9,2" />
+                                   Margin="0,0,9,0" />
                         <TextBox x:Name="SearchTextBox"
                                  Style="{StaticResource FieldTextBox}"
                                  BorderThickness="0"
                                  Background="Transparent"
                                  Padding="0"
+                                 VerticalContentAlignment="Center"
                                  ToolTip="搜索指令名称、缩写或内容"
                                  TextChanged="HandleSearchTextChanged" />
                     </DockPanel>
@@ -744,6 +784,8 @@
                     <ListView x:Name="PromptListView"
                               ItemsSource="{Binding FilteredPrompts}"
                               SelectedItem="{Binding SelectedPrompt, Mode=TwoWay}"
+                              SelectionMode="Extended"
+                              SelectionChanged="HandlePromptSelectionChanged"
                               Background="Transparent"
                               BorderThickness="0"
                               AllowDrop="True"
@@ -808,7 +850,8 @@
                                           HorizontalAlignment="Right"
                                           VerticalAlignment="Stretch"
                                           Margin="0,1,1,1">
-                                        <Border Background="{DynamicResource ThemeHoverSurfaceBrush}"
+                                        <Border x:Name="RowActionSurface"
+                                                Background="{DynamicResource ThemeSurfaceBrush}"
                                                 CornerRadius="0,9,9,0">
                                             <Border.OpacityMask>
                                                 <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
@@ -869,23 +912,23 @@
                                     </Grid>
                                 </Grid>
                                 <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
+                                                 Value="True">
+                                        <Setter TargetName="PromptRowCard"
+                                                Property="BorderBrush"
+                                                Value="{DynamicResource ThemeAccentBrush}" />
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                                                  Value="True">
                                         <Setter TargetName="PromptRowCard"
                                                 Property="Background"
-                                                Value="{DynamicResource ThemeAccentSurfaceBrush}" />
-                                        <Setter TargetName="PromptRowCard"
-                                                Property="BorderBrush"
-                                                Value="{DynamicResource ThemeAccentBorderBrush}" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
-                                                 Value="True">
-                                        <Setter TargetName="PromptRowCard"
+                                                Value="{DynamicResource ThemeSelectionSurfaceBrush}" />
+                                        <Setter TargetName="RowActionSurface"
                                                 Property="Background"
-                                                Value="{DynamicResource ThemeHoverSurfaceBrush}" />
+                                                Value="{DynamicResource ThemeSelectionSurfaceBrush}" />
                                         <Setter TargetName="PromptRowCard"
                                                 Property="BorderBrush"
-                                                Value="{DynamicResource ThemeAccentBorderBrush}" />
+                                                Value="{DynamicResource ThemeAccentBrush}" />
                                     </DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>

@@ -24,6 +24,7 @@ public static class AppThemeManager
     public const string AccentHoverBrushKey = "ThemeAccentHoverBrush";
     public const string AccentTextBrushKey = "ThemeAccentTextBrush";
     public const string AccentSurfaceBrushKey = "ThemeAccentSurfaceBrush";
+    public const string SelectionSurfaceBrushKey = "ThemeSelectionSurfaceBrush";
     public const string AccentSubtleBrushKey = "ThemeAccentSubtleBrush";
     public const string AccentBorderBrushKey = "ThemeAccentBorderBrush";
     public const string SuccessBrushKey = "ThemeSuccessBrush";
@@ -56,6 +57,7 @@ public static class AppThemeManager
             [AccentHoverBrushKey] = ("#1D4ED8", "#1D4ED8"),
             [AccentTextBrushKey] = ("#1D4ED8", "#93C5FD"),
             [AccentSurfaceBrushKey] = ("#DBEAFE", "#1E293B"),
+            [SelectionSurfaceBrushKey] = ("#DBEAFE", "#243B60"),
             [AccentSubtleBrushKey] = ("#EFF6FF", "#334155"),
             [AccentBorderBrushKey] = ("#93C5FD", "#475569"),
             [SuccessBrushKey] = ("#059669", "#34D399"),

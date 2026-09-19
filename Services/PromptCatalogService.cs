@@ -144,6 +144,27 @@ public sealed class PromptCatalogService
         }
     }
 
+    public int DeleteMany(IReadOnlyCollection<string> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        var idSet = ids.ToHashSet(StringComparer.Ordinal);
+        if (idSet.Count == 0)
+        {
+            return 0;
+        }
+
+        lock (_gate)
+        {
+            var removedCount = _items.RemoveAll(item => idSet.Contains(item.Id));
+            if (removedCount > 0)
+            {
+                PersistLocked();
+            }
+
+            return removedCount;
+        }
+    }
+
     public ImportResult Import(
         IReadOnlyList<PromptItem> prompts,
         IReadOnlyList<PromptCategory> categories)
@@ -408,6 +429,45 @@ public sealed class PromptCatalogService
             item.CategoryId = normalizedCategoryId;
             PersistLocked();
             return true;
+        }
+    }
+
+    public int AssignCategory(IReadOnlyCollection<string> promptIds, string? categoryId)
+    {
+        ArgumentNullException.ThrowIfNull(promptIds);
+        var idSet = promptIds.ToHashSet(StringComparer.Ordinal);
+        if (idSet.Count == 0)
+        {
+            return 0;
+        }
+
+        var normalizedCategoryId = categoryId ?? string.Empty;
+        lock (_gate)
+        {
+            if (normalizedCategoryId.Length > 0
+                && !_categories.Any(category => category.Id == normalizedCategoryId))
+            {
+                return 0;
+            }
+
+            var changedCount = 0;
+            foreach (var item in _items.Where(item => idSet.Contains(item.Id)))
+            {
+                if (item.CategoryId == normalizedCategoryId)
+                {
+                    continue;
+                }
+
+                item.CategoryId = normalizedCategoryId;
+                changedCount++;
+            }
+
+            if (changedCount > 0)
+            {
+                PersistLocked();
+            }
+
+            return changedCount;
         }
     }
 

@@ -117,6 +117,17 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
         return deleted;
     }
 
+    public int DeleteMany(IReadOnlyCollection<string> ids)
+    {
+        var deletedCount = _catalog.DeleteMany(ids);
+        if (deletedCount > 0)
+        {
+            Reload(null);
+        }
+
+        return deletedCount;
+    }
+
     public PromptCatalogService.ImportResult Import(
         IReadOnlyList<PromptItem> prompts,
         IReadOnlyList<PromptCategory> categories)
@@ -251,6 +262,17 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
 
         Reload(SelectedPrompt?.Id);
         return true;
+    }
+
+    public int AssignCategory(IReadOnlyCollection<string> promptIds, string categoryId)
+    {
+        var changedCount = _catalog.AssignCategory(promptIds, categoryId);
+        if (changedCount > 0)
+        {
+            Reload(null);
+        }
+
+        return changedCount;
     }
 
     public bool ReorderCategories(IReadOnlyList<string> orderedIds)

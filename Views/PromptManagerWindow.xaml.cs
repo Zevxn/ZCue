@@ -84,7 +84,11 @@ public partial class PromptManagerWindow : Window
         RenderCategoryButtons();
         SettingsPage.DataContext = _settingsViewModel;
         Closing += HandleClosing;
-        Loaded += (_, _) => UpdateEmptyState();
+        Loaded += (_, _) =>
+        {
+            UpdateEmptyState();
+            UpdateBatchSelectionState();
+        };
     }
 
     public void CloseWithoutHiding()
@@ -143,6 +147,107 @@ public partial class PromptManagerWindow : Window
     {
         _promptViewModel.SearchText = SearchTextBox.Text;
         UpdateEmptyState();
+    }
+
+    private void HandlePromptSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateBatchSelectionState();
+    }
+
+    private void UpdateBatchSelectionState()
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        var selectedCount = PromptListView.SelectedItems.Count;
+        var hasBatchSelection = selectedCount > 1;
+        BatchSelectionSummary.Text = $"已选 {selectedCount} 项";
+        BatchActionsBar.Visibility = hasBatchSelection
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        HeaderActionsPanel.Visibility = hasBatchSelection
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    private string[] GetSelectedPromptIds() => PromptListView.SelectedItems
+        .OfType<PromptItem>()
+        .Select(prompt => prompt.Id)
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
+
+    private void HandleBatchAssignCategoryClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not WpfButton button || GetSelectedPromptIds().Length < 2)
+        {
+            return;
+        }
+
+        var menu = new ContextMenu
+        {
+            Style = (Style)FindResource("CategoryContextMenu"),
+            PlacementTarget = button,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
+        };
+        AddBatchCategoryMenuItem(menu, "无分类", string.Empty);
+        foreach (var category in _promptViewModel.Categories)
+        {
+            AddBatchCategoryMenuItem(menu, category.Name, category.Id);
+        }
+
+        menu.IsOpen = true;
+    }
+
+    private void AddBatchCategoryMenuItem(ContextMenu menu, string name, string categoryId)
+    {
+        var item = new MenuItem
+        {
+            Header = name,
+            Tag = categoryId,
+            Style = (Style)FindResource("CategoryContextMenuItem")
+        };
+        item.Click += HandleBatchAssignCategoryMenuClick;
+        menu.Items.Add(item);
+    }
+
+    private void HandleBatchAssignCategoryMenuClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string categoryId })
+        {
+            return;
+        }
+
+        _promptViewModel.AssignCategory(GetSelectedPromptIds(), categoryId);
+        UpdateEmptyState();
+    }
+
+    private void HandleBatchDeleteClick(object sender, RoutedEventArgs e)
+    {
+        var selectedIds = GetSelectedPromptIds();
+        if (selectedIds.Length < 2)
+        {
+            return;
+        }
+
+        var confirmation = System.Windows.MessageBox.Show(
+            this,
+            $"确定删除选中的 {selectedIds.Length} 条提示词吗？\n删除后无法恢复。",
+            "批量删除提示词",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirmation == MessageBoxResult.Yes)
+        {
+            _promptViewModel.DeleteMany(selectedIds);
+            UpdateEmptyState();
+        }
+    }
+
+    private void HandleClearSelectionClick(object sender, RoutedEventArgs e)
+    {
+        PromptListView.SelectedItems.Clear();
+        PromptListView.Focus();
     }
 
     private void HandleImportClick(object sender, RoutedEventArgs e)
@@ -420,7 +525,28 @@ public partial class PromptManagerWindow : Window
             .Select(prompt => prompt.Id)
             .ToArray();
         _promptReorderCommitted = false;
-        var data = new WpfDataObject("TypeSense.PromptId", promptId);
+        var selectedPromptIds = GetSelectedPromptIds();
+        if (!selectedPromptIds.Contains(promptId, StringComparer.Ordinal))
+        {
+            PromptListView.SelectedItems.Clear();
+            if (FindPromptContainer(promptId) is { } draggedContainer)
+            {
+                draggedContainer.IsSelected = true;
+            }
+
+            selectedPromptIds = [promptId];
+        }
+
+        var data = new WpfDataObject();
+        if (selectedPromptIds.Length > 1)
+        {
+            data.SetData("TypeSense.PromptIds", selectedPromptIds);
+        }
+        else
+        {
+            data.SetData("TypeSense.PromptId", promptId);
+        }
+
         if (FindPromptContainer(promptId) is { } sourceContainer)
         {
             BeginDragPreview(sourceContainer, _promptDragGrabOffset);
@@ -1001,7 +1127,12 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        if (e.Data.GetData("TypeSense.PromptId") is string)
+        if (e.Data.GetData("TypeSense.PromptIds") is string[] promptIds
+            && promptIds.Length > 0)
+        {
+            e.Effects = WpfDragDropEffects.Move;
+        }
+        else if (e.Data.GetData("TypeSense.PromptId") is string)
         {
             e.Effects = WpfDragDropEffects.Move;
         }
@@ -1026,6 +1157,16 @@ public partial class PromptManagerWindow : Window
     {
         if (sender is not WpfButton { Tag: string targetCategoryId })
         {
+            return;
+        }
+
+        if (e.Data.GetData("TypeSense.PromptIds") is string[] promptIds
+            && promptIds.Length > 0)
+        {
+            _promptViewModel.AssignCategory(promptIds, targetCategoryId);
+            UpdateEmptyState();
+            e.Effects = WpfDragDropEffects.Move;
+            e.Handled = true;
             return;
         }
 
