@@ -199,6 +199,7 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimaryBrush}" />
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Padding" Value="8,6" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -207,7 +208,11 @@
                                 Background="{TemplateBinding Background}"
                                 Cursor="Hand"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter ContentSource="Content" VerticalAlignment="Center" />
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
+                                              ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                              VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">

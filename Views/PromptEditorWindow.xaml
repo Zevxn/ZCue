@@ -71,7 +71,7 @@
         </Style>
         <Style x:Key="FieldTextBox" TargetType="TextBox" BasedOn="{StaticResource RoundedTextBoxBase}">
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Padding" Value="0,8,10,8" />
         </Style>
     </Window.Resources>
 
@@ -111,6 +111,7 @@
             <TextBox x:Name="NameTextBox"
                      Grid.Row="1"
                      Margin="0,7,0,14"
+                     Height="52"
                      Style="{StaticResource FieldTextBox}"
                      MaxLength="80" />
 
@@ -122,10 +123,22 @@
             <ComboBox x:Name="CategoryComboBox"
                       Grid.Row="3"
                       Margin="0,0,0,14"
+                      HorizontalAlignment="Stretch"
+                      Height="52"
+                      FontSize="14"
                       Style="{StaticResource FieldComboBox}"
                       ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
-                      DisplayMemberPath="Name"
-                      SelectedValuePath="Id" />
+                      SelectedValuePath="Id">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="14"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap"
+                                   VerticalAlignment="Center" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <TextBlock Grid.Row="4"
                        Margin="0,0,0,6"
