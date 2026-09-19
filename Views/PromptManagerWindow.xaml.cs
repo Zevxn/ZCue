@@ -705,17 +705,22 @@ public partial class PromptManagerWindow : Window
         foreach (var category in _promptViewModel.Categories)
         {
             var button = CreateCategoryButton(category.Id, category.Name);
-            var contextMenu = new ContextMenu();
+            var contextMenu = new ContextMenu
+            {
+                Style = (Style)FindResource("CategoryContextMenu")
+            };
             var renameItem = new MenuItem
             {
                 Header = "重命名",
-                Tag = category
+                Tag = category,
+                Style = (Style)FindResource("CategoryContextMenuItem")
             };
             renameItem.Click += HandleRenameCategoryClick;
             var deleteItem = new MenuItem
             {
                 Header = "删除分类",
-                Tag = category
+                Tag = category,
+                Style = (Style)FindResource("CategoryContextMenuDangerItem")
             };
             deleteItem.Click += HandleDeleteCategoryClick;
             contextMenu.Items.Add(renameItem);
@@ -1162,8 +1167,9 @@ public partial class PromptManagerWindow : Window
         {
             Title = title,
             Width = 360,
-            Height = 190,
             MinWidth = 320,
+            MinHeight = 220,
+            SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = this,
