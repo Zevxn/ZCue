@@ -7,21 +7,26 @@ public sealed class PromptMatchService
     private readonly record struct AliasSearchMatch(
         int SearchStart,
         int SearchLength,
+        int WordCount,
         bool IsExact,
         bool UsedAlternateInitial);
 
     public IReadOnlyList<PromptMatch> Match(
         string triggerText,
         IEnumerable<PromptItem> promptItems,
-        int maxResults = 9)
+        int maxResults = 9,
+        AppSettings? settings = null)
     {
         if (string.IsNullOrWhiteSpace(triggerText) || maxResults <= 0)
         {
             return Array.Empty<PromptMatch>();
         }
 
-        var minimumMatchLength = GetMinimumMatchLength(triggerText);
-        if (triggerText.Length < minimumMatchLength)
+        settings ??= new AppSettings();
+        var chineseThreshold = Math.Clamp(settings.CnWakeThreshold, 1, 5);
+        var pinyinThreshold = Math.Clamp(settings.PinWakeThreshold, 1, 5);
+        var inputThreshold = GetMinimumMatchLength(triggerText, settings);
+        if (triggerText.Length < inputThreshold)
         {
             return Array.Empty<PromptMatch>();
         }
@@ -35,16 +40,16 @@ public sealed class PromptMatchService
                 continue;
             }
 
-            var aliases = item.PinyinAliases;
-            if (aliases.Count == 0)
-            {
-                continue;
-            }
             PromptMatch? bestMatch = null;
-            for (var start = 0; start <= triggerText.Length - minimumMatchLength; start++)
+            for (var start = 0; start <= triggerText.Length - inputThreshold; start++)
             {
                 var candidateText = triggerText[start..];
-                var candidateMatch = MatchSingle(item, candidateText, aliases);
+                var candidateMatch = MatchSingle(
+                    item,
+                    candidateText,
+                    chineseThreshold,
+                    pinyinThreshold,
+                    settings.EnablePinyinWake);
                 if (candidateMatch is not null
                     && (bestMatch is null || IsBetterMatch(candidateMatch, bestMatch)))
                 {
@@ -73,7 +78,9 @@ public sealed class PromptMatchService
     private static PromptMatch? MatchSingle(
         PromptItem item,
         string triggerText,
-        IReadOnlyList<PromptAlias> aliases)
+        int chineseThreshold,
+        int pinyinThreshold,
+        bool enablePinyinWake)
     {
         var normalizedInput = triggerText.Trim().ToLowerInvariant();
         if (normalizedInput.Length == 0)
@@ -82,50 +89,53 @@ public sealed class PromptMatchService
         }
 
         PromptMatch? bestMatch = null;
-        foreach (var alias in aliases)
+        if (enablePinyinWake && normalizedInput.Length >= pinyinThreshold)
         {
-            var input = alias.Kind == PromptAliasKind.FullPinyin
-                ? PinyinAliasService.NormalizeInput(normalizedInput)
-                : normalizedInput;
-            if (input.Length == 0)
+            foreach (var alias in item.PinyinAliases)
             {
-                continue;
-            }
+                var input = alias.Kind == PromptAliasKind.FullPinyin
+                    ? PinyinAliasService.NormalizeInput(normalizedInput)
+                    : normalizedInput;
+                if (input.Length == 0)
+                {
+                    continue;
+                }
 
-            var aliasMatch = alias.Kind == PromptAliasKind.FullPinyin
-                ? FindFullPinyinMatch(alias, input)
-                : FindSubstringMatch(alias, input);
-            if (aliasMatch is null)
-            {
-                continue;
-            }
+                var aliasMatch = alias.Kind == PromptAliasKind.FullPinyin
+                    ? FindFullPinyinMatch(alias, input)
+                    : FindSubstringMatch(alias, input);
+                if (aliasMatch is null || aliasMatch.Value.WordCount < chineseThreshold)
+                {
+                    continue;
+                }
 
-            if (alias.Kind == PromptAliasKind.FullPinyin
-                && !alias.IsPrimary
-                && aliasMatch.Value.UsedAlternateInitial)
-            {
-                continue;
-            }
+                if (alias.Kind == PromptAliasKind.FullPinyin
+                    && !alias.IsPrimary
+                    && aliasMatch.Value.UsedAlternateInitial)
+                {
+                    continue;
+                }
 
-            var quality = GetAliasQuality(
-                alias,
-                aliasMatch.Value.SearchStart,
-                aliasMatch.Value.IsExact);
-            var highlight = alias.MapToName(
-                aliasMatch.Value.SearchStart,
-                aliasMatch.Value.SearchLength,
-                item.Name.Length);
-            var match = new PromptMatch(
-                item,
-                triggerText,
-                triggerText.Length,
-                quality,
-                ToMatchKind(alias.Kind, aliasMatch.Value.SearchStart),
-                highlight.Start,
-                highlight.Length);
-            if (bestMatch is null || IsBetterMatch(match, bestMatch))
-            {
-                bestMatch = match;
+                var quality = GetAliasQuality(
+                    alias,
+                    aliasMatch.Value.SearchStart,
+                    aliasMatch.Value.IsExact);
+                var highlight = alias.MapToName(
+                    aliasMatch.Value.SearchStart,
+                    aliasMatch.Value.SearchLength,
+                    item.Name.Length);
+                var match = new PromptMatch(
+                    item,
+                    triggerText,
+                    triggerText.Length,
+                    quality,
+                    ToMatchKind(alias.Kind, aliasMatch.Value.SearchStart),
+                    highlight.Start,
+                    highlight.Length);
+                if (bestMatch is null || IsBetterMatch(match, bestMatch))
+                {
+                    bestMatch = match;
+                }
             }
         }
 
@@ -158,6 +168,7 @@ public sealed class PromptMatchService
             : new AliasSearchMatch(
                 aliasStart,
                 input.Length,
+                CountMatchedWords(alias, aliasStart, input.Length),
                 aliasStart == 0 && input.Length == alias.SearchText.Length,
                 false);
     }
@@ -223,6 +234,7 @@ public sealed class PromptMatchService
                 return new AliasSearchMatch(
                     matchStart,
                     matchedSearchEnd - matchStart,
+                    lastSegmentIndex - startSegmentIndex + 1,
                     isExact,
                     usedAlternateInitial);
             }
@@ -265,9 +277,19 @@ public sealed class PromptMatchService
         };
     }
 
-    private static int GetMinimumMatchLength(string triggerText)
+    private static int CountMatchedWords(PromptAlias alias, int searchStart, int searchLength)
     {
-        return IsChineseCharacter(triggerText[^1]) ? 1 : 2;
+        var searchEnd = searchStart + searchLength;
+        return alias.Segments.Count(segment => segment.SearchStart < searchEnd
+            && segment.SearchStart + segment.SearchLength > searchStart);
+    }
+
+    private static int GetMinimumMatchLength(string triggerText, AppSettings settings)
+    {
+        var threshold = IsChineseCharacter(triggerText[^1])
+            ? settings.CnWakeThreshold
+            : settings.EnWakeThreshold;
+        return Math.Clamp(threshold, 1, 5);
     }
 
     private static bool IsChineseCharacter(char value)

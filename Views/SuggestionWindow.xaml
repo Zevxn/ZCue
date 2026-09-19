@@ -9,9 +9,10 @@
         Background="Transparent"
         Topmost="True"
         Focusable="False"
-        SizeToContent="WidthAndHeight"
-        MinWidth="420"
-        MaxWidth="560"
+        SizeToContent="Height"
+        Width="320"
+        MinWidth="200"
+        MaxWidth="1000"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
     <Border x:Name="RootBorder"

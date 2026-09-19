@@ -2,6 +2,16 @@ namespace TypeSense.Models;
 
 public sealed class AppSettings
 {
+    public bool EnablePinyinWake { get; set; } = true;
+
+    public int CnWakeThreshold { get; set; } = 2;
+
+    public int PinWakeThreshold { get; set; } = 2;
+
+    public int EnWakeThreshold { get; set; } = 2;
+
+    public int SuggestionBoxWidth { get; set; } = 320;
+
     public bool ShowContentPreview { get; set; } = true;
 
     public bool ShowGhostPreview { get; set; } = true;
@@ -12,6 +22,11 @@ public sealed class AppSettings
 
     public AppSettings Clone() => new()
     {
+        EnablePinyinWake = EnablePinyinWake,
+        CnWakeThreshold = CnWakeThreshold,
+        PinWakeThreshold = PinWakeThreshold,
+        EnWakeThreshold = EnWakeThreshold,
+        SuggestionBoxWidth = SuggestionBoxWidth,
         ShowContentPreview = ShowContentPreview,
         ShowGhostPreview = ShowGhostPreview,
         EnableNumberSelection = EnableNumberSelection,

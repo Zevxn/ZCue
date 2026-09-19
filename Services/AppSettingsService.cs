@@ -58,15 +58,24 @@ public sealed class AppSettingsService
 
         try
         {
-            return JsonSerializer.Deserialize<AppSettings>(
-                       File.ReadAllText(_filePath),
-                       _jsonOptions)
-                   ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(
+                File.ReadAllText(_filePath),
+                _jsonOptions);
+            return Normalize(settings ?? new AppSettings());
         }
         catch
         {
             return new AppSettings();
         }
+    }
+
+    private static AppSettings Normalize(AppSettings settings)
+    {
+        settings.CnWakeThreshold = Math.Clamp(settings.CnWakeThreshold, 1, 5);
+        settings.PinWakeThreshold = Math.Clamp(settings.PinWakeThreshold, 1, 5);
+        settings.EnWakeThreshold = Math.Clamp(settings.EnWakeThreshold, 1, 5);
+        settings.SuggestionBoxWidth = Math.Clamp(settings.SuggestionBoxWidth, 200, 1000);
+        return settings;
     }
 
     private void SaveLocked()

@@ -51,6 +51,25 @@ public partial class SuggestionWindow : Window
         }
     }
 
+    public int SuggestionBoxWidth
+    {
+        get => (int)Math.Round(Width);
+        set
+        {
+            var width = Math.Clamp(value, 200, 1000);
+            if (Math.Abs(Width - width) < 0.5)
+            {
+                return;
+            }
+
+            Width = width;
+            if (IsLoaded)
+            {
+                UpdateLayout();
+            }
+        }
+    }
+
     public void ShowSuggestions(
         IReadOnlyList<PromptMatch> matches,
         int selectedIndex,

@@ -44,6 +44,7 @@ public sealed class AppController : IDisposable
         _foregroundMonitor.Tick += HandleForegroundMonitorTick;
         _suggestionWindow = new SuggestionWindow();
         _suggestionWindow.ShowPreview = _settings.Current.ShowContentPreview;
+        _suggestionWindow.SuggestionBoxWidth = _settings.Current.SuggestionBoxWidth;
         _suggestionWindow.SelectionRequested += HandleMouseSelection;
         _ghostPreviewWindow = new GhostPreviewWindow();
 
@@ -249,7 +250,10 @@ public sealed class AppController : IDisposable
     private void RecomputeSuggestions(IntPtr targetWindow)
     {
         var token = _inputBuffer.GetCurrentToken();
-        var matches = _matchService.Match(token, _catalog.GetEnabledItems());
+        var matches = _matchService.Match(
+            token,
+            _catalog.GetEnabledItems(),
+            settings: _settings.Current);
         long version;
 
         lock (_stateGate)
@@ -535,6 +539,7 @@ public sealed class AppController : IDisposable
         PostToUi(() =>
         {
             _suggestionWindow.ShowPreview = settings.ShowContentPreview;
+            _suggestionWindow.SuggestionBoxWidth = settings.SuggestionBoxWidth;
             if (!settings.ShowGhostPreview)
             {
                 _ghostPreviewWindow.HidePreview();

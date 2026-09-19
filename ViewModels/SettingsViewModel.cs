@@ -29,6 +29,56 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     // SECTION 设置属性
 
+    public bool EnablePinyinWake
+    {
+        get => _settings.Current.EnablePinyinWake;
+        set
+        {
+            _settings.Update(current => current.EnablePinyinWake = value);
+            OnPropertyChanged();
+        }
+    }
+
+    public int CnWakeThreshold
+    {
+        get => _settings.Current.CnWakeThreshold;
+        set
+        {
+            _settings.Update(current => current.CnWakeThreshold = Math.Clamp(value, 1, 5));
+            OnPropertyChanged();
+        }
+    }
+
+    public int PinWakeThreshold
+    {
+        get => _settings.Current.PinWakeThreshold;
+        set
+        {
+            _settings.Update(current => current.PinWakeThreshold = Math.Clamp(value, 1, 5));
+            OnPropertyChanged();
+        }
+    }
+
+    public int EnWakeThreshold
+    {
+        get => _settings.Current.EnWakeThreshold;
+        set
+        {
+            _settings.Update(current => current.EnWakeThreshold = Math.Clamp(value, 1, 5));
+            OnPropertyChanged();
+        }
+    }
+
+    public int SuggestionBoxWidth
+    {
+        get => _settings.Current.SuggestionBoxWidth;
+        set
+        {
+            _settings.Update(current => current.SuggestionBoxWidth = Math.Clamp(value, 200, 1000));
+            OnPropertyChanged();
+        }
+    }
+
     public bool IsListeningEnabled
     {
         get => _isListeningEnabled();
@@ -113,6 +163,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public void Refresh()
     {
+        OnPropertyChanged(nameof(EnablePinyinWake));
+        OnPropertyChanged(nameof(CnWakeThreshold));
+        OnPropertyChanged(nameof(PinWakeThreshold));
+        OnPropertyChanged(nameof(EnWakeThreshold));
+        OnPropertyChanged(nameof(SuggestionBoxWidth));
         OnPropertyChanged(nameof(IsListeningEnabled));
         OnPropertyChanged(nameof(ShowContentPreview));
         OnPropertyChanged(nameof(ShowGhostPreview));
