@@ -17,6 +17,7 @@ public sealed class AppController : IDisposable
     private readonly PromptMatchService _matchService = new();
     private readonly CaretPositionService _caretPositionService = new();
     private readonly FocusedTextService _focusedTextService = new();
+    private readonly ImeCompositionService _imeCompositionService = new();
     private readonly TextInsertionService _textInsertionService = new();
     private readonly KeyboardHookService _keyboardHook = new();
     private readonly TrayIconService _trayIcon;
@@ -131,6 +132,12 @@ public sealed class AppController : IDisposable
             return KeyboardHookDecision.Pass;
         }
 
+        if (HideSuggestionsIfImeComposing(foregroundWindow))
+        {
+            ScheduleFocusedTextSync(foregroundWindow);
+            return KeyboardHookDecision.Pass;
+        }
+
         if (input.VirtualKeyCode == NativeMethods.VK_ESCAPE)
         {
             if (HasSuggestions())
@@ -213,7 +220,6 @@ public sealed class AppController : IDisposable
             else
             {
                 _inputBuffer.Append(input.Text);
-                RecomputeSuggestions(foregroundWindow);
             }
 
             ScheduleFocusedTextSync(foregroundWindow);
@@ -280,7 +286,12 @@ public sealed class AppController : IDisposable
 
         PostToUi(() =>
         {
-            if (!IsCurrentVersion(version) || !HasSuggestions())
+            if (!IsCurrentVersion(version))
+            {
+                return;
+            }
+
+            if (HideSuggestionsIfImeComposing(targetWindow) || !HasSuggestions())
             {
                 return;
             }
@@ -331,7 +342,17 @@ public sealed class AppController : IDisposable
 
         PostToUi(() =>
         {
-            if (IsCurrentVersion(version) && HasSuggestions())
+            if (!IsCurrentVersion(version))
+            {
+                return;
+            }
+
+            if (HideSuggestionsIfImeComposing(targetWindow))
+            {
+                return;
+            }
+
+            if (HasSuggestions())
             {
                 try
                 {
@@ -438,6 +459,17 @@ public sealed class AppController : IDisposable
         }
     }
 
+    private bool HideSuggestionsIfImeComposing(IntPtr targetWindow)
+    {
+        if (!_imeCompositionService.IsComposing(targetWindow))
+        {
+            return false;
+        }
+
+        ClearSuggestions(resetBuffer: true);
+        return true;
+    }
+
     private bool IsValidMatchIndex(int index)
     {
         lock (_stateGate)
@@ -504,9 +536,18 @@ public sealed class AppController : IDisposable
                 return;
             }
 
+            if (HideSuggestionsIfImeComposing(targetWindow))
+            {
+                return;
+            }
+
             if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
             {
                 _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
+                RecomputeSuggestions(targetWindow);
+            }
+            else
+            {
                 RecomputeSuggestions(targetWindow);
             }
         });

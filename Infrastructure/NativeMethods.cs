@@ -47,6 +47,7 @@ internal static class NativeMethods
     internal const int VK_V = 0x56;
     internal const int VK_X = 0x58;
     internal const int VK_Z = 0x5A;
+    internal const uint GCS_COMPSTR = 0x0008;
 
     internal const int GWL_EXSTYLE = -20;
     internal const uint GA_ROOT = 2;
@@ -186,6 +187,24 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    // SECTION 输入法组合状态
+
+    [DllImport("imm32.dll")]
+    internal static extern IntPtr ImmGetContext(IntPtr hWnd);
+
+    [DllImport("imm32.dll", EntryPoint = "ImmGetCompositionStringW")]
+    internal static extern int ImmGetCompositionString(
+        IntPtr inputContext,
+        uint index,
+        IntPtr buffer,
+        uint bufferLength);
+
+    [DllImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ImmReleaseContext(IntPtr hWnd, IntPtr inputContext);
+
+    // !SECTION 输入法组合状态
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct Rect
