@@ -10,11 +10,17 @@
     <AssemblyName>TypeSense</AssemblyName>
     <RootNamespace>TypeSense</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\logo.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="PinYinConverterCore" Version="1.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="assets\logo.png" />
+    <None Update="assets\logo.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

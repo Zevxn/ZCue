@@ -7,6 +7,7 @@ namespace TypeSense.Infrastructure;
 public sealed class TrayIconService : IDisposable
 {
     private readonly StartupService _startupService;
+    private readonly Icon _icon;
     private readonly NotifyIcon _notifyIcon;
     private readonly ToolStripMenuItem _pauseItem;
     private readonly ToolStripMenuItem _enableItem;
@@ -39,9 +40,10 @@ public sealed class TrayIconService : IDisposable
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => ExitRequested?.Invoke());
 
+        _icon = new Icon(System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "logo.ico"));
         _notifyIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = _icon,
             Text = "TypeSense Prompt 补全",
             ContextMenuStrip = menu,
             Visible = true
@@ -79,6 +81,7 @@ public sealed class TrayIconService : IDisposable
         _disposed = true;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _icon.Dispose();
     }
 
     private void HandleStartupClick(object? sender, EventArgs e)
