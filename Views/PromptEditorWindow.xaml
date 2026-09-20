@@ -73,6 +73,11 @@
             <Setter Property="FontSize" Value="14" />
             <Setter Property="Padding" Value="3,8,10,8" />
         </Style>
+        <Style x:Key="PromptEditorCategoryComboBoxItem"
+               TargetType="{x:Type ComboBoxItem}"
+               BasedOn="{StaticResource ThemeComboBoxItem}">
+            <Setter Property="Height" Value="40" />
+        </Style>
     </Window.Resources>
 
     <Grid Margin="28">
@@ -111,7 +116,9 @@
             <TextBox x:Name="NameTextBox"
                      Grid.Row="1"
                      Margin="0,7,0,14"
-                     Height="52"
+                     Height="40"
+                     Padding="3,4,10,4"
+                     VerticalContentAlignment="Center"
                      Style="{StaticResource FieldTextBox}"
                      MaxLength="80" />
 
@@ -124,10 +131,11 @@
                       Grid.Row="3"
                       Margin="0,0,0,14"
                       HorizontalAlignment="Stretch"
-                      Height="52"
+                      Height="40"
                       FontSize="14"
+                      MaxDropDownHeight="320"
                       Style="{StaticResource FieldComboBox}"
-                      ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
+                      ItemContainerStyle="{StaticResource PromptEditorCategoryComboBoxItem}"
                       SelectedValuePath="Id">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
