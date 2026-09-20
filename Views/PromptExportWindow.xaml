@@ -235,7 +235,8 @@
                                 <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                           Style="{StaticResource ExportCheckBox}"
                                           FontSize="16"
-                                          Margin="2,7">
+                                          Margin="2,3"
+                                          Padding="4,7">
                                     <Grid MinWidth="320">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />

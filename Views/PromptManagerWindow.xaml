@@ -976,7 +976,8 @@
                                Margin="0,7,0,0" />
                 </StackPanel>
 
-                <ScrollViewer Grid.Row="1"
+                <ScrollViewer x:Name="SettingsScrollViewer"
+                              Grid.Row="1"
                               Margin="0,26,0,0"
                               Padding="0,0,14,0"
                               VerticalScrollBarVisibility="Auto"
@@ -1302,7 +1303,8 @@
                                         Padding="10,6">
                                     <ScrollViewer MaxHeight="160"
                                                   VerticalScrollBarVisibility="Auto"
-                                                  HorizontalScrollBarVisibility="Disabled">
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  PreviewMouseWheel="HandleApplicationListPreviewMouseWheel">
                                         <Grid>
                                             <Grid.Style>
                                                 <Style TargetType="Grid">

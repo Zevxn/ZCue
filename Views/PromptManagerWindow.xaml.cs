@@ -918,6 +918,23 @@ public partial class PromptManagerWindow : Window
 
     // SECTION 应用范围设置
 
+    private void HandleApplicationListPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer applicationListScrollViewer
+            || applicationListScrollViewer.ScrollableHeight > 0
+            || SettingsScrollViewer.ScrollableHeight <= 0)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        SettingsScrollViewer.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+        {
+            RoutedEvent = Mouse.MouseWheelEvent,
+            Source = SettingsScrollViewer
+        });
+    }
+
     private void AddCurrentApplicationClick(object sender, RoutedEventArgs e)
     {
         _settingsViewModel.AddLastExternalApplication();
