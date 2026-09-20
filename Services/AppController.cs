@@ -136,6 +136,12 @@ public sealed class AppController : IDisposable
         SwitchTargetWindowIfNeeded(foregroundWindow);
         if (!_applicationFilter.IsApplicationAllowed(foregroundWindow))
         {
+            if (input.VirtualKeyCode == NativeMethods.VK_TAB)
+            {
+                PostToUi(() => TextInsertionDiagnostics.Write(
+                    $"Tab passed: foreground application is filtered, hwnd=0x{foregroundWindow.ToInt64():X}."));
+            }
+
             ClearSuggestions(resetBuffer: true);
             return KeyboardHookDecision.Pass;
         }
@@ -157,14 +163,21 @@ public sealed class AppController : IDisposable
             return KeyboardHookDecision.Pass;
         }
 
-        var isImeComposing = HideSuggestionsIfImeComposing(foregroundWindow);
+        var imeInputActive = HideSuggestionsIfImeComposing(foregroundWindow);
         if (IsShiftKey(input.VirtualKeyCode))
         {
             return KeyboardHookDecision.Pass;
         }
 
-        if (isImeComposing)
+        if (imeInputActive)
         {
+            if (input.VirtualKeyCode == NativeMethods.VK_ESCAPE)
+            {
+                ClearSuggestions(resetBuffer: true);
+                CompleteImeComposition(foregroundWindow);
+                return KeyboardHookDecision.Pass;
+            }
+
             if (input.VirtualKeyCode == NativeMethods.VK_BACK)
             {
                 _inputBuffer.Backspace();
@@ -246,6 +259,12 @@ public sealed class AppController : IDisposable
 
         if (input.VirtualKeyCode is NativeMethods.VK_RETURN or NativeMethods.VK_TAB or NativeMethods.VK_SPACE)
         {
+            if (input.VirtualKeyCode == NativeMethods.VK_TAB)
+            {
+                PostToUi(() => TextInsertionDiagnostics.Write(
+                    $"Tab passed: no visible candidate, hwnd=0x{foregroundWindow.ToInt64():X}."));
+            }
+
             ClearSuggestions(resetBuffer: true);
             ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
@@ -374,7 +393,9 @@ public sealed class AppController : IDisposable
         return false;
     }
 
-    private void RecomputeSuggestions(IntPtr targetWindow)
+    private void RecomputeSuggestions(
+        IntPtr targetWindow,
+        bool inferCommittedImeText = false)
     {
         if (NativeMethods.GetForegroundWindow() != targetWindow
             || !_applicationFilter.IsApplicationAllowed(targetWindow))
@@ -384,10 +405,31 @@ public sealed class AppController : IDisposable
         }
 
         var token = _inputBuffer.GetCurrentToken();
+        var enabledItems = _catalog.GetEnabledItems();
         var matches = _matchService.Match(
             token,
-            _catalog.GetEnabledItems(),
+            enabledItems,
             settings: _settings.Current);
+        if (inferCommittedImeText)
+        {
+            var inferredMatch = matches.FirstOrDefault(match =>
+                match.MatchKind is PromptMatchKind.PinyinFull or PromptMatchKind.PinyinInitial
+                && match.HighlightLength > 0
+                && match.HighlightStart >= 0
+                && match.HighlightStart + match.HighlightLength <= match.Item.Name.Length);
+            if (inferredMatch is not null)
+            {
+                token = inferredMatch.Item.Name.Substring(
+                    inferredMatch.HighlightStart,
+                    inferredMatch.HighlightLength);
+                _inputBuffer.ReplaceFromTextBeforeCaret(token);
+                matches = _matchService.Match(
+                    token,
+                    enabledItems,
+                    settings: _settings.Current);
+            }
+        }
+
         long version;
 
         lock (_stateGate)
@@ -434,13 +476,13 @@ public sealed class AppController : IDisposable
             try
             {
                 var currentIndex = GetSelectedIndex();
+                var caretPosition = _caretPositionService.GetPosition(targetWindow);
                 _suggestionWindow.ShowSuggestions(
                     matches,
                     currentIndex,
-                    targetWindow,
-                    _caretPositionService,
+                    caretPosition,
                     _settings.Current.ShowContentPreview);
-                ShowGhostPreview(matches[currentIndex].Item.Content, targetWindow);
+                ShowGhostPreview(matches[currentIndex].Item.Content, targetWindow, caretPosition);
                 _foregroundMonitor.Start();
             }
             catch
@@ -498,13 +540,13 @@ public sealed class AppController : IDisposable
             {
                 try
                 {
+                    var caretPosition = _caretPositionService.GetPosition(targetWindow);
                     _suggestionWindow.ShowSuggestions(
                         matches,
                         selectedIndex,
-                        targetWindow,
-                        _caretPositionService,
+                        caretPosition,
                         _settings.Current.ShowContentPreview);
-                    ShowGhostPreview(matches[selectedIndex].Item.Content, targetWindow);
+                    ShowGhostPreview(matches[selectedIndex].Item.Content, targetWindow, caretPosition);
                 }
                 catch
                 {
@@ -524,6 +566,10 @@ public sealed class AppController : IDisposable
         {
             if (!_suggestionsVisible || index < 0 || index >= _activeMatches.Count)
             {
+                var visible = _suggestionsVisible;
+                var matchCount = _activeMatches.Count;
+                PostToUi(() => TextInsertionDiagnostics.Write(
+                    $"Selection ignored: visible={visible}, index={index}, matches={matchCount}."));
                 return;
             }
 
@@ -542,17 +588,24 @@ public sealed class AppController : IDisposable
 
         PostAsyncToUi(async () =>
         {
+            TextInsertionDiagnostics.Write(
+                $"Selection queued: hwnd=0x{targetWindow.ToInt64():X}, deleteLength={selectedMatch.MatchLength}, textLength={selectedMatch.Item.Content.Length}, multiline={selectedMatch.Item.Content.Contains('\n') || selectedMatch.Item.Content.Contains('\r')}.");
             _suggestionWindow.Hide();
             _ghostPreviewWindow.HidePreview();
-            if (NativeMethods.GetForegroundWindow() != targetWindow)
+            var foregroundWindow = NativeMethods.GetForegroundWindow();
+            if (foregroundWindow != targetWindow)
             {
+                TextInsertionDiagnostics.Write(
+                    $"Selection aborted: foreground changed, target=0x{targetWindow.ToInt64():X}, foreground=0x{foregroundWindow.ToInt64():X}.");
                 return;
             }
 
-            await _textInsertionService.ReplaceAsync(
+            var inserted = await _textInsertionService.ReplaceAsync(
                 targetWindow,
                 selectedMatch.MatchLength,
-                selectedMatch.Item.Content);
+                selectedMatch.Item.Content,
+                _suggestionWindow.NativeHandle);
+            TextInsertionDiagnostics.Write($"Selection completed: inserted={inserted}.");
         });
     }
 
@@ -608,7 +661,8 @@ public sealed class AppController : IDisposable
 
     private bool HideSuggestionsIfImeComposing(IntPtr targetWindow)
     {
-        if (!_imeCompositionService.IsComposing(targetWindow))
+        if (!_imeCompositionService.IsComposing(targetWindow)
+            && !_imeCompositionService.HasVisibleCandidateWindow())
         {
             return false;
         }
@@ -699,7 +753,8 @@ public sealed class AppController : IDisposable
             var compositionDeadline = Environment.TickCount64 + 2000;
             while (true)
             {
-                if (_imeCompositionService.IsComposing(targetWindow))
+                if (_imeCompositionService.IsComposing(targetWindow)
+                    || _imeCompositionService.HasVisibleCandidateWindow())
                 {
                     observedComposition = true;
                     if (!suggestionsSuppressed || HasSuggestions())
@@ -732,7 +787,8 @@ public sealed class AppController : IDisposable
                         return;
                     }
 
-                    if (_imeCompositionService.IsComposing(targetWindow))
+                    if (_imeCompositionService.IsComposing(targetWindow)
+                        || _imeCompositionService.HasVisibleCandidateWindow())
                     {
                         observedComposition = true;
                         continue;
@@ -753,21 +809,34 @@ public sealed class AppController : IDisposable
                 await WaitForVoiceInputSettleAsync(request, targetWindow).ConfigureAwait(true);
             }
 
-            var imeCompositionObserved = IsImeCompositionObserved(targetWindow);
+            var imeCompositionObserved = observedComposition
+                || IsImeCompositionObserved(targetWindow);
+            if (_imeCompositionService.HasVisibleCandidateWindow())
+            {
+                HideSuggestionsIfImeComposing(targetWindow);
+                return;
+            }
+
+            var inferCommittedImeText = false;
             if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
             {
-                if (!preservePhysicalInputForShiftCommit
-                    || TextBeforeCaretMatchesCurrentToken(textBeforeCaret))
+                var matchesPhysicalInput = TextBeforeCaretMatchesCurrentToken(textBeforeCaret);
+                var shouldReplaceBuffer = preservePhysicalInputForShiftCommit
+                    ? matchesPhysicalInput
+                    : matchesPhysicalInput || imeCompositionObserved || waitForVoiceInputSettle;
+                if (shouldReplaceBuffer)
                 {
                     _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
                 }
             }
             else if (imeCompositionObserved && !preservePhysicalInputForShiftCommit)
             {
-                _inputBuffer.Reset();
+                // VS Code 的 Chromium 编辑器不暴露可靠的光标文本。保留组合期间收集的
+                // 拼音触发串，并按其对应的中文名称字符数删除已上屏文本。
+                inferCommittedImeText = true;
             }
 
-            RecomputeSuggestions(targetWindow);
+            RecomputeSuggestions(targetWindow, inferCommittedImeText);
             if (imeCompositionObserved)
             {
                 CompleteImeComposition(targetWindow);
@@ -920,10 +989,14 @@ public sealed class AppController : IDisposable
             targetWindow = _targetWindow;
         }
 
-        ShowGhostPreview(match.Item.Content, targetWindow);
+        var caretPosition = _caretPositionService.GetPosition(targetWindow);
+        ShowGhostPreview(match.Item.Content, targetWindow, caretPosition);
     }
 
-    private void ShowGhostPreview(string content, IntPtr targetWindow)
+    private void ShowGhostPreview(
+        string content,
+        IntPtr targetWindow,
+        CaretPosition caretPosition)
     {
         if (!_settings.Current.ShowContentPreview
             || targetWindow == IntPtr.Zero
@@ -935,7 +1008,6 @@ public sealed class AppController : IDisposable
 
         try
         {
-            var caretPosition = _caretPositionService.GetPosition(targetWindow);
             var hasControlBounds = _caretPositionService.TryGetTextControlBounds(
                 targetWindow,
                 out var controlBounds);

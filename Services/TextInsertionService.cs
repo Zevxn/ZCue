@@ -1,98 +1,338 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using TypeSense.Infrastructure;
 using WpfClipboard = System.Windows.Clipboard;
 using WpfDataObject = System.Windows.IDataObject;
-using WpfTextDataFormat = System.Windows.TextDataFormat;
 
 namespace TypeSense.Services;
 
 public sealed class TextInsertionService
 {
-    public async Task<bool> ReplaceAsync(IntPtr targetWindow, int deleteLength, string replacement)
+    private const int ClipboardPasteLengthThreshold = 32;
+    private const int ClipboardRetryCount = 5;
+    private const int ClipboardRetryDelayMilliseconds = 25;
+    private const int ClipboardWriteRetryCount = 20;
+    private const int ClipboardReadDelayAfterPasteMilliseconds = 150;
+
+    public async Task<bool> ReplaceAsync(
+        IntPtr targetWindow,
+        int deleteLength,
+        string replacement,
+        IntPtr clipboardOwnerWindow)
     {
-        if (targetWindow == IntPtr.Zero || NativeMethods.GetForegroundWindow() != targetWindow)
-        {
-            return false;
-        }
-
         var text = replacement ?? string.Empty;
+        var foregroundWindow = NativeMethods.GetForegroundWindow();
+        TextInsertionDiagnostics.Write(
+            $"Replace start: target=0x{targetWindow.ToInt64():X}, foreground=0x{foregroundWindow.ToInt64():X}, deleteLength={deleteLength}, textLength={text.Length}, multiline={text.Contains('\n') || text.Contains('\r')}.");
 
-        if (deleteLength > 0 && !SendBackspaces(deleteLength))
+        try
         {
-            return false;
-        }
+            if (targetWindow == IntPtr.Zero || foregroundWindow != targetWindow)
+            {
+                TextInsertionDiagnostics.Write("Replace aborted: target is not foreground.");
+                return false;
+            }
 
-        // 首选 Unicode 键盘包，避免在确认热路径上读取被其他程序占用的剪贴板。
-        if (SendUnicodeText(text))
+            if (ShouldUseClipboardPaste(text))
+            {
+                TextInsertionDiagnostics.Write("Replace route: clipboard paste.");
+                var clipboardPasteSucceeded = await PasteTextAsync(
+                    targetWindow,
+                    clipboardOwnerWindow,
+                    deleteLength,
+                    text).ConfigureAwait(true);
+                TextInsertionDiagnostics.Write($"Replace finished through clipboard: success={clipboardPasteSucceeded}.");
+                return clipboardPasteSucceeded;
+            }
+
+            TextInsertionDiagnostics.Write("Replace route: Unicode SendInput.");
+
+            if (deleteLength > 0 && !SendBackspaces(deleteLength))
+            {
+                TextInsertionDiagnostics.Write("Replace aborted: SendInput failed to delete trigger text.");
+                return false;
+            }
+
+            // 短文本优先用 Unicode 键盘包；多行和长文本已优先走剪贴板粘贴。
+            if (SendUnicodeText(text))
+            {
+                return true;
+            }
+
+            // 少数程序不处理 VK_PACKET，再退回剪贴板粘贴方案。
+            var fallbackPasteSucceeded = await PasteTextAsync(
+                targetWindow,
+                clipboardOwnerWindow,
+                0,
+                text).ConfigureAwait(true);
+            TextInsertionDiagnostics.Write($"Replace finished through clipboard fallback: success={fallbackPasteSucceeded}.");
+            return fallbackPasteSucceeded;
+        }
+        catch (Exception exception)
         {
-            return true;
+            TextInsertionDiagnostics.Write(
+                $"Replace threw: type={exception.GetType().Name}, hresult=0x{exception.HResult:X8}.");
+            throw;
         }
-
-        // 少数程序不处理 VK_PACKET，再退回剪贴板粘贴方案。
-        return await PasteTextAsync(targetWindow, text).ConfigureAwait(true);
     }
 
-    private static async Task<bool> PasteTextAsync(IntPtr targetWindow, string replacement)
+    private static bool ShouldUseClipboardPaste(string text)
+    {
+        return text.Length >= ClipboardPasteLengthThreshold
+            || text.Contains('\r')
+            || text.Contains('\n')
+            || text.Contains('\u2028')
+            || text.Contains('\u2029');
+    }
+
+    // SECTION 剪贴板文本粘贴
+
+    private static async Task<bool> PasteTextAsync(
+        IntPtr targetWindow,
+        IntPtr clipboardOwnerWindow,
+        int deleteLength,
+        string replacement)
     {
         if (!IsTargetForeground(targetWindow))
         {
+            TextInsertionDiagnostics.Write("Clipboard paste aborted: target was not foreground before clipboard capture.");
             return false;
         }
 
-        var originalClipboard = TryGetClipboardData(out var clipboardCaptured);
+        var (clipboardCaptured, originalClipboard) = await TryGetClipboardDataAsync().ConfigureAwait(true);
+        TextInsertionDiagnostics.Write($"Clipboard capture: success={clipboardCaptured}.");
         var clipboardChanged = false;
 
         try
         {
-            try
+            var (clipboardWriteSucceeded, clipboardWasChanged) = await TrySetClipboardTextAsync(
+                NormalizeClipboardLineEndings(replacement),
+                clipboardOwnerWindow).ConfigureAwait(true);
+            clipboardChanged = clipboardWasChanged;
+            if (!clipboardWriteSucceeded)
             {
-                WpfClipboard.SetText(replacement, WpfTextDataFormat.UnicodeText);
-                clipboardChanged = true;
-            }
-            catch (ExternalException)
-            {
-                return false;
-            }
-            catch (InvalidOperationException)
-            {
+                TextInsertionDiagnostics.Write("Clipboard paste aborted: failed to set Unicode clipboard text.");
                 return false;
             }
 
-            if (!IsTargetForeground(targetWindow) || !SendPaste())
+            if (!IsTargetForeground(targetWindow))
             {
+                TextInsertionDiagnostics.Write("Clipboard paste aborted: foreground changed before deleting trigger text.");
                 return false;
             }
 
-            // 给目标应用一个短暂时间读取剪贴板，再恢复用户原有内容。
-            await Task.Delay(80).ConfigureAwait(true);
+            if (deleteLength > 0 && !SendBackspaces(deleteLength))
+            {
+                TextInsertionDiagnostics.Write("Clipboard paste aborted: SendInput failed to delete trigger text.");
+                return false;
+            }
+
+            if (!IsTargetForeground(targetWindow))
+            {
+                TextInsertionDiagnostics.Write("Clipboard paste aborted: foreground changed before Ctrl+V.");
+                return false;
+            }
+
+            if (!SendPaste())
+            {
+                TextInsertionDiagnostics.Write("Clipboard paste aborted: SendInput failed to send Ctrl+V.");
+                return false;
+            }
+
+            // 留出时间让目标应用读取剪贴板，再恢复用户原有内容。
+            await Task.Delay(ClipboardReadDelayAfterPasteMilliseconds).ConfigureAwait(true);
+            TextInsertionDiagnostics.Write("Clipboard paste completed.");
             return true;
         }
         finally
         {
             if (clipboardChanged && clipboardCaptured)
             {
-                try
+                await RestoreClipboardAsync(originalClipboard).ConfigureAwait(true);
+            }
+            // 原剪贴板读取失败时仍完成粘贴；此时无法安全恢复之前的剪贴板内容。
+        }
+    }
+
+    private static async Task<(bool Captured, WpfDataObject? Data)> TryGetClipboardDataAsync()
+    {
+        for (var attempt = 0; attempt < ClipboardRetryCount; attempt++)
+        {
+            try
+            {
+                return (true, WpfClipboard.GetDataObject());
+            }
+            catch (ExternalException)
+            {
+                // 剪贴板可能正被其他程序短暂占用，稍后重试。
+            }
+            catch (InvalidOperationException)
+            {
+                // 剪贴板可能正被其他程序短暂占用，稍后重试。
+            }
+
+            if (attempt + 1 < ClipboardRetryCount)
+            {
+                await Task.Delay(ClipboardRetryDelayMilliseconds).ConfigureAwait(true);
+            }
+        }
+
+        TextInsertionDiagnostics.Write("Clipboard capture failed after retries.");
+        return (false, null);
+    }
+
+    private static async Task<(bool Succeeded, bool ClipboardChanged)> TrySetClipboardTextAsync(
+        string text,
+        IntPtr clipboardOwnerWindow)
+    {
+        var clipboardChanged = false;
+        for (var attempt = 0; attempt < ClipboardWriteRetryCount; attempt++)
+        {
+            if (TrySetNativeClipboardText(text, clipboardOwnerWindow, out var errorCode, out var changedThisAttempt))
+            {
+                return (true, true);
+            }
+            clipboardChanged |= changedThisAttempt;
+
+            TextInsertionDiagnostics.Write(
+                $"Native clipboard write attempt {attempt + 1} failed: win32Error={errorCode}.");
+
+            if (attempt + 1 < ClipboardWriteRetryCount)
+            {
+                await Task.Delay(ClipboardRetryDelayMilliseconds).ConfigureAwait(true);
+            }
+        }
+
+        TextInsertionDiagnostics.Write("Native clipboard text write failed after retries.");
+        return (false, clipboardChanged);
+    }
+
+    private static bool TrySetNativeClipboardText(
+        string text,
+        IntPtr clipboardOwnerWindow,
+        out int errorCode,
+        out bool clipboardChanged)
+    {
+        errorCode = 0;
+        clipboardChanged = false;
+        if (clipboardOwnerWindow == IntPtr.Zero)
+        {
+            errorCode = -1;
+            return false;
+        }
+
+        var unicodeText = Encoding.Unicode.GetBytes(text + '\0');
+        var clipboardMemory = NativeMethods.GlobalAlloc(
+            NativeMethods.GMEM_MOVEABLE | NativeMethods.GMEM_ZEROINIT,
+            new UIntPtr((uint)unicodeText.Length));
+        if (clipboardMemory == IntPtr.Zero)
+        {
+            errorCode = Marshal.GetLastWin32Error();
+            return false;
+        }
+
+        var clipboardOwnsMemory = false;
+        try
+        {
+            var memoryPointer = NativeMethods.GlobalLock(clipboardMemory);
+            if (memoryPointer == IntPtr.Zero)
+            {
+                errorCode = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            try
+            {
+                Marshal.Copy(unicodeText, 0, memoryPointer, unicodeText.Length);
+            }
+            finally
+            {
+                NativeMethods.GlobalUnlock(clipboardMemory);
+            }
+
+            if (!NativeMethods.OpenClipboard(clipboardOwnerWindow))
+            {
+                errorCode = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            try
+            {
+                if (!NativeMethods.EmptyClipboard())
                 {
-                    if (originalClipboard is null)
-                    {
-                        WpfClipboard.Clear();
-                    }
-                    else
-                    {
-                        WpfClipboard.SetDataObject(originalClipboard, true);
-                    }
+                    errorCode = Marshal.GetLastWin32Error();
+                    return false;
                 }
-                catch (ExternalException)
+                clipboardChanged = true;
+
+                if (NativeMethods.SetClipboardData(NativeMethods.CF_UNICODETEXT, clipboardMemory) == IntPtr.Zero)
                 {
-                    // 剪贴板被其他进程占用时，不能影响已完成的文本替换。
+                    errorCode = Marshal.GetLastWin32Error();
+                    return false;
                 }
-                catch (InvalidOperationException)
-                {
-                    // 剪贴板被其他进程占用时，不能影响已完成的文本替换。
-                }
+
+                clipboardOwnsMemory = true;
+                return true;
+            }
+            finally
+            {
+                NativeMethods.CloseClipboard();
+            }
+        }
+        finally
+        {
+            if (!clipboardOwnsMemory)
+            {
+                NativeMethods.GlobalFree(clipboardMemory);
             }
         }
     }
+
+    private static async Task RestoreClipboardAsync(WpfDataObject? originalClipboard)
+    {
+        for (var attempt = 0; attempt < ClipboardRetryCount; attempt++)
+        {
+            try
+            {
+                if (originalClipboard is null)
+                {
+                    WpfClipboard.Clear();
+                }
+                else
+                {
+                    WpfClipboard.SetDataObject(originalClipboard, true);
+                }
+
+                return;
+            }
+            catch (ExternalException)
+            {
+                // 剪贴板被其他进程占用时，稍后重试恢复。
+            }
+            catch (InvalidOperationException)
+            {
+                // 剪贴板被其他进程占用时，稍后重试恢复。
+            }
+
+            if (attempt + 1 < ClipboardRetryCount)
+            {
+                await Task.Delay(ClipboardRetryDelayMilliseconds).ConfigureAwait(true);
+            }
+        }
+
+        TextInsertionDiagnostics.Write("Clipboard restore failed after retries.");
+    }
+
+    private static string NormalizeClipboardLineEndings(string text)
+    {
+        return text.Replace("\r\n", "\n")
+            .Replace('\r', '\n')
+            .Replace('\u2028', '\n')
+            .Replace('\u2029', '\n')
+            .Replace("\n", "\r\n");
+    }
+
+    // !SECTION 剪贴板文本粘贴
 
     // SECTION SendInput 文本注入
 
@@ -189,30 +429,17 @@ public sealed class TextInsertionService
             (uint)nativeInputs.Length,
             nativeInputs,
             Marshal.SizeOf<NativeMethods.Input>());
-        return sent == nativeInputs.Length;
+        if (sent == nativeInputs.Length)
+        {
+            return true;
+        }
+
+        TextInsertionDiagnostics.Write(
+            $"SendInput incomplete: requested={nativeInputs.Length}, sent={sent}, lastError={Marshal.GetLastWin32Error()}.");
+        return false;
     }
 
     // !SECTION SendInput 文本注入
-
-    private static WpfDataObject? TryGetClipboardData(out bool captured)
-    {
-        try
-        {
-            var data = WpfClipboard.GetDataObject();
-            captured = true;
-            return data;
-        }
-        catch (ExternalException)
-        {
-            captured = false;
-            return null;
-        }
-        catch (InvalidOperationException)
-        {
-            captured = false;
-            return null;
-        }
-    }
 
     private static bool IsTargetForeground(IntPtr targetWindow)
     {

@@ -31,7 +31,7 @@ namespace TypeSense.Views;
 
 public partial class PromptManagerWindow : Window
 {
-    private const string GitHubUrl = "https://github.com";
+    private const string GitHubUrl = "https://github.com/Zevxn/TypeSense";
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly PromptStorageService _transferStorage = new();
     private readonly SettingsViewModel _settingsViewModel;

@@ -1,10 +1,46 @@
 using TypeSense.Infrastructure;
+using System.Text;
 
 namespace TypeSense.Services;
 
 public sealed class ImeCompositionService
 {
+    public bool HasVisibleCandidateWindow()
+    {
+        var found = false;
+        NativeMethods.EnumWindows((window, _) =>
+        {
+            if (!NativeMethods.IsWindowVisible(window)
+                || !NativeMethods.GetWindowRect(window, out var rectangle)
+                || rectangle.Right <= rectangle.Left
+                || rectangle.Bottom <= rectangle.Top)
+            {
+                return true;
+            }
+
+            var className = new StringBuilder(256);
+            NativeMethods.GetClassName(window, className, className.Capacity);
+            var name = className.ToString();
+            if (name.Equals("OimeDirectUIWindow", StringComparison.Ordinal)
+                || name.Contains("CandidateUI", StringComparison.OrdinalIgnoreCase))
+            {
+                found = true;
+                return false;
+            }
+
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+
     public bool IsComposing(IntPtr targetWindow)
+    {
+        return CheckFocusedWindowOrTarget(targetWindow, IsComposingOn);
+    }
+
+    private static bool CheckFocusedWindowOrTarget(
+        IntPtr targetWindow,
+        Func<IntPtr, bool> checkWindow)
     {
         if (targetWindow == IntPtr.Zero)
         {
@@ -28,8 +64,8 @@ public sealed class ImeCompositionService
                 }
             }
 
-            return IsComposingOn(focusedWindow)
-                || focusedWindow != targetWindow && IsComposingOn(targetWindow);
+            return checkWindow(focusedWindow)
+                || focusedWindow != targetWindow && checkWindow(targetWindow);
         }
         catch
         {

@@ -66,7 +66,7 @@ public static class AppThemeManager
             [DangerTextBrushKey] = ("#DC2626", "#F87171"),
             [DangerHoverBrushKey] = ("#FEF2F2", "#450A0A"),
             [DangerBorderBrushKey] = ("#FCA5A5", "#7F1D1D"),
-            [GhostTextBrushKey] = ("#9CA3AF", "#64748B"),
+            [GhostTextBrushKey] = ("#9CA3AF", "#7A8AA2"),
             [ScrollTrackBrushKey] = ("Transparent", "Transparent"),
             [ScrollThumbBrushKey] = ("#CBD5E1", "#475569"),
             [ScrollThumbHoverBrushKey] = ("#94A3B8", "#64748B")

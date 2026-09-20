@@ -24,14 +24,14 @@ public sealed class CaretPositionService
     {
         var dpiScale = GetDpiScale(foregroundWindow);
 
-        if (TryGetUiAutomationPosition(out var automationPosition))
-        {
-            return automationPosition with { DpiScale = dpiScale };
-        }
-
         if (TryGetGuiThreadPosition(foregroundWindow, out var guiPosition))
         {
             return guiPosition with { DpiScale = dpiScale, IsFallback = true };
+        }
+
+        if (TryGetUiAutomationPosition(out var automationPosition))
+        {
+            return automationPosition with { DpiScale = dpiScale };
         }
 
         if (foregroundWindow != IntPtr.Zero && NativeMethods.GetWindowRect(foregroundWindow, out var windowRect))

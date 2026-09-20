@@ -5,6 +5,8 @@ namespace TypeSense.Infrastructure;
 
 internal static class NativeMethods
 {
+    internal delegate bool EnumWindowsProc(IntPtr windowHandle, IntPtr parameter);
+
     internal const int WH_KEYBOARD_LL = 13;
     internal const int WH_MOUSE_LL = 14;
     internal const int WM_KEYDOWN = 0x0100;
@@ -24,6 +26,9 @@ internal static class NativeMethods
     internal const uint KEYEVENTF_KEYUP = 0x0002;
     internal const uint KEYEVENTF_UNICODE = 0x0004;
     internal const uint INPUT_KEYBOARD = 1;
+    internal const uint CF_UNICODETEXT = 13;
+    internal const uint GMEM_MOVEABLE = 0x0002;
+    internal const uint GMEM_ZEROINIT = 0x0040;
 
     internal const int VK_BACK = 0x08;
     internal const int VK_TAB = 0x09;
@@ -205,6 +210,20 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     internal static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int GetClassName(
+        IntPtr hWnd,
+        StringBuilder className,
+        int maxCount);
+
     // SECTION 输入法组合状态
 
     [DllImport("imm32.dll")]
@@ -274,6 +293,38 @@ internal static class NativeMethods
     internal static extern uint GetDpiForWindow(IntPtr hWnd);
 
     // !SECTION 键盘状态与窗口信息
+
+    // SECTION 剪贴板操作
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool OpenClipboard(IntPtr windowHandle);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool CloseClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EmptyClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr SetClipboardData(uint format, IntPtr memoryHandle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr GlobalLock(IntPtr memoryHandle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GlobalUnlock(IntPtr memoryHandle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr GlobalFree(IntPtr memoryHandle);
+
+    // !SECTION 剪贴板操作
 
     // SECTION 文本注入与候选窗样式
 

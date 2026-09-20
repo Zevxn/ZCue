@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
 using TypeSense.Infrastructure;
@@ -10,6 +11,8 @@ namespace TypeSense.Services;
 /// </summary>
 public sealed class FocusedTextService
 {
+    private const int MaxTextBeforeCaretLength = 30;
+
     public bool TryGetTextBeforeCaret(IntPtr expectedWindow, out string textBeforeCaret)
     {
         textBeforeCaret = string.Empty;
@@ -18,21 +21,26 @@ public sealed class FocusedTextService
             return false;
         }
 
+        if (IsVisualStudioCodeWindow(expectedWindow))
+        {
+            return false;
+        }
+
         try
         {
             var currentElement = AutomationElement.FocusedElement;
-            while (currentElement is not null)
+            if (currentElement is not null
+                && string.Equals(
+                    currentElement.Current.AutomationId,
+                    "RootWebArea",
+                    StringComparison.Ordinal))
             {
-                if (BelongsToWindow(currentElement, expectedWindow)
-                    && TryReadTextBeforeCaret(currentElement, out textBeforeCaret))
-                {
-                    return true;
-                }
-
-                currentElement = TreeWalker.ControlViewWalker.GetParent(currentElement);
+                return false;
             }
 
-            return false;
+            return currentElement is not null
+                && BelongsToWindow(currentElement, expectedWindow)
+                && TryReadTextBeforeCaret(currentElement, out textBeforeCaret);
         }
         catch
         {
@@ -48,6 +56,14 @@ public sealed class FocusedTextService
         textBeforeCaret = string.Empty;
         try
         {
+            if (string.Equals(
+                    element.Current.AutomationId,
+                    "RootWebArea",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             if (!element.TryGetCurrentPattern(TextPattern.Pattern, out var patternObject)
                 || patternObject is not TextPattern textPattern)
             {
@@ -61,12 +77,16 @@ public sealed class FocusedTextService
             }
 
             var caretRange = selections[^1];
-            var textBeforeRange = textPattern.DocumentRange.Clone();
+            var textBeforeRange = caretRange.Clone();
             textBeforeRange.MoveEndpointByRange(
                 TextPatternRangeEndpoint.End,
                 caretRange,
                 TextPatternRangeEndpoint.Start);
-            textBeforeCaret = textBeforeRange.GetText(-1);
+            textBeforeRange.MoveEndpointByUnit(
+                TextPatternRangeEndpoint.Start,
+                TextUnit.Character,
+                -MaxTextBeforeCaretLength);
+            textBeforeCaret = textBeforeRange.GetText(MaxTextBeforeCaretLength);
             return true;
         }
         catch
@@ -85,5 +105,24 @@ public sealed class FocusedTextService
 
         var rootWindow = NativeMethods.GetAncestor(nativeHandle, NativeMethods.GA_ROOT);
         return rootWindow == IntPtr.Zero || rootWindow == expectedWindow;
+    }
+
+    private static bool IsVisualStudioCodeWindow(IntPtr window)
+    {
+        try
+        {
+            NativeMethods.GetWindowThreadProcessId(window, out var processId);
+            if (processId == 0)
+            {
+                return false;
+            }
+
+            using var process = Process.GetProcessById((int)processId);
+            return string.Equals(process.ProcessName, "Code", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

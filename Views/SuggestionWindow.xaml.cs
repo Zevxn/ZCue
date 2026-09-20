@@ -31,6 +31,8 @@ public partial class SuggestionWindow : Window
 
     public event Action<int>? SelectionRequested;
 
+    internal IntPtr NativeHandle => _windowHandle;
+
     public void SetThemeMode(AppThemeMode mode)
     {
         var isLightTheme = !AppThemeManager.IsDarkTheme(mode);
@@ -72,8 +74,7 @@ public partial class SuggestionWindow : Window
     public void ShowSuggestions(
         IReadOnlyList<PromptMatch> matches,
         int selectedIndex,
-        IntPtr targetWindow,
-        CaretPositionService caretPositionService,
+        CaretPosition caretPosition,
         bool preferAbovePreview)
     {
         Dispatcher.VerifyAccess();
@@ -84,7 +85,6 @@ public partial class SuggestionWindow : Window
         ApplyTheme();
         RenderRows();
 
-        var caretPosition = caretPositionService.GetPosition(targetWindow);
         if (!IsVisible)
         {
             Show();
