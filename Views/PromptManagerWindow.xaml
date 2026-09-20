@@ -620,7 +620,7 @@
                                        Width="18"
                                        TextAlignment="Center"
                                        VerticalAlignment="Center" />
-                            <TextBlock Text="软件设置"
+                            <TextBlock Text="指令设置"
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center" />
                         </StackPanel>
@@ -966,7 +966,7 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <TextBlock Text="软件设置"
+                    <TextBlock Text="指令设置"
                                Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                FontSize="26"
                                FontWeight="SemiBold" />

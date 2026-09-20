@@ -51,16 +51,13 @@ public partial class TrayMenuWindow : Window
         Resources["TrayMenuTextBrush"] = CreateBrush(palette.Text);
         Resources["TrayMenuHoverBrush"] = CreateBrush(palette.Hover);
         Resources["TrayMenuPressedBrush"] = CreateBrush(palette.Pressed);
-        Resources["TrayMenuCheckSurfaceBrush"] = CreateBrush(palette.CheckSurface);
-        Resources["TrayMenuCheckBorderBrush"] = CreateBrush(palette.CheckBorder);
         Resources["TrayMenuCheckmarkBrush"] = CreateBrush(palette.Checkmark);
         Foreground = CreateBrush(palette.Text);
     }
 
     public void UpdatePaused(bool paused)
     {
-        ListeningText.Text = paused ? "启用监听" : "暂停监听";
-        ListeningCheckmark.Visibility = paused ? Visibility.Collapsed : Visibility.Visible;
+        ListeningCheckBox.IsChecked = !paused;
     }
 
     public void UpdateStartupEnabled(bool enabled)
@@ -182,8 +179,6 @@ public partial class TrayMenuWindow : Window
         WpfColor Text,
         WpfColor Hover,
         WpfColor Pressed,
-        WpfColor CheckSurface,
-        WpfColor CheckBorder,
         WpfColor Checkmark)
     {
         public static TrayMenuPalette Create(bool isDark)
@@ -195,8 +190,6 @@ public partial class TrayMenuWindow : Window
                     WpfColor.FromRgb(243, 243, 243),
                     WpfColor.FromRgb(56, 56, 56),
                     WpfColor.FromRgb(68, 68, 68),
-                    WpfColor.FromRgb(43, 43, 43),
-                    WpfColor.FromRgb(105, 105, 105),
                     WpfColor.FromRgb(243, 243, 243))
                 : new TrayMenuPalette(
                     WpfColor.FromRgb(250, 250, 250),
@@ -204,8 +197,6 @@ public partial class TrayMenuWindow : Window
                     WpfColor.FromRgb(31, 31, 31),
                     WpfColor.FromRgb(239, 239, 239),
                     WpfColor.FromRgb(228, 228, 228),
-                    WpfColor.FromRgb(250, 250, 250),
-                    WpfColor.FromRgb(138, 138, 138),
                     WpfColor.FromRgb(31, 31, 31));
         }
     }

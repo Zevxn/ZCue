@@ -59,6 +59,70 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="TrayMenuCheckmarkStyle" TargetType="{x:Type CheckBox}">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Foreground" Value="{DynamicResource TrayMenuTextBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Border x:Name="ItemSurface"
+                                Margin="4,1"
+                                Background="Transparent"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <Grid Margin="7,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.Column="0"
+                                      Width="14"
+                                      Height="14"
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Center">
+                                    <Path x:Name="Checkmark"
+                                          Data="M 2,7 L 5.5,10.5 L 12,3.5"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Stroke="{DynamicResource TrayMenuCheckmarkBrush}"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          StrokeStartLineCap="Round"
+                                          StrokeThickness="1.7"
+                                          Visibility="Collapsed" />
+                                </Grid>
+                                <ContentPresenter Grid.Column="2"
+                                                  ContentSource="Content"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Checkmark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemSurface"
+                                        Property="Background"
+                                        Value="{DynamicResource TrayMenuHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ItemSurface"
+                                        Property="Background"
+                                        Value="{DynamicResource TrayMenuPressedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="8">
@@ -125,41 +189,13 @@
                         Margin="8,3"
                         Background="{DynamicResource TrayMenuBorderBrush}" />
 
-                <Button x:Name="ListeningButton"
-                        Style="{StaticResource TrayMenuButtonStyle}"
-                        Click="HandleListeningClick">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid Width="14"
-                              Height="14"
-                              HorizontalAlignment="Left"
-                              VerticalAlignment="Center">
-                            <Border x:Name="ListeningCheckBorder"
-                                    Background="{DynamicResource TrayMenuCheckSurfaceBrush}"
-                                    BorderBrush="{DynamicResource TrayMenuCheckBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="3" />
-                            <Path x:Name="ListeningCheckmark"
-                                  Data="M 2,7 L 5.5,10.5 L 12,3.5"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Stroke="{DynamicResource TrayMenuCheckmarkBrush}"
-                                  StrokeEndLineCap="Round"
-                                  StrokeLineJoin="Round"
-                                  StrokeStartLineCap="Round"
-                                  StrokeThickness="1.7"
-                                  Visibility="Collapsed" />
-                        </Grid>
-                        <TextBlock x:Name="ListeningText"
-                                   Grid.Column="2"
-                                   Foreground="{DynamicResource TrayMenuTextBrush}"
-                                   VerticalAlignment="Center" />
-                    </Grid>
-                </Button>
+                <CheckBox x:Name="ListeningCheckBox"
+                          Style="{StaticResource TrayMenuCheckmarkStyle}"
+                          Click="HandleListeningClick">
+                    <TextBlock Text="启用监听"
+                               Foreground="{DynamicResource TrayMenuTextBrush}"
+                               VerticalAlignment="Center" />
+                </CheckBox>
 
                 <Button x:Name="StartupButton"
                         Style="{StaticResource TrayMenuButtonStyle}"
@@ -174,11 +210,6 @@
                               Height="14"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Center">
-                            <Border x:Name="StartupCheckBorder"
-                                    Background="{DynamicResource TrayMenuCheckSurfaceBrush}"
-                                    BorderBrush="{DynamicResource TrayMenuCheckBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="3" />
                             <Path x:Name="StartupCheckmark"
                                   Data="M 2,7 L 5.5,10.5 L 12,3.5"
                                   HorizontalAlignment="Center"

@@ -777,11 +777,26 @@ public sealed class AppController : IDisposable
         }
     }
 
+    public void ActivateManager()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        OpenPromptManager();
+    }
+
     private void OpenPromptManager()
     {
         _ = _applicationFilter.GetForegroundProcessName();
         PostToUi(() =>
         {
+            if (_promptManagerWindow.WindowState == WindowState.Minimized)
+            {
+                _promptManagerWindow.WindowState = WindowState.Normal;
+            }
+
             _promptManagerWindow.Show();
             _promptManagerWindow.Activate();
         });
