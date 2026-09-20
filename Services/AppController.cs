@@ -26,6 +26,7 @@ public sealed class AppController : IDisposable
     private readonly GhostPreviewWindow _ghostPreviewWindow;
     private readonly PromptManagerWindow _promptManagerWindow;
     private readonly object _stateGate = new();
+    private const int RightAltVirtualKeyCode = 0xA5;
 
     private IReadOnlyList<PromptMatch> _activeMatches = Array.Empty<PromptMatch>();
     private IntPtr _targetWindow;
@@ -136,6 +137,12 @@ public sealed class AppController : IDisposable
         if (!_applicationFilter.IsApplicationAllowed(foregroundWindow))
         {
             ClearSuggestions(resetBuffer: true);
+            return KeyboardHookDecision.Pass;
+        }
+
+        if (input.VirtualKeyCode == RightAltVirtualKeyCode)
+        {
+            ClearSuggestions(resetBuffer: false);
             return KeyboardHookDecision.Pass;
         }
 
@@ -275,7 +282,9 @@ public sealed class AppController : IDisposable
 
     private void HandleKeyUp(int virtualKeyCode)
     {
-        if (!IsShiftKey(virtualKeyCode) || IsPaused())
+        var isRightAltKey = virtualKeyCode == RightAltVirtualKeyCode;
+        var isShiftKey = IsShiftKey(virtualKeyCode);
+        if ((!isShiftKey && !isRightAltKey) || IsPaused())
         {
             return;
         }
@@ -300,7 +309,10 @@ public sealed class AppController : IDisposable
             return;
         }
 
-        ScheduleFocusedTextSync(foregroundWindow, preservePhysicalInputForShiftCommit: true);
+        ScheduleFocusedTextSync(
+            foregroundWindow,
+            preservePhysicalInputForShiftCommit: isShiftKey,
+            waitForVoiceInputSettle: isRightAltKey);
     }
 
     private void SwitchTargetWindowIfNeeded(IntPtr foregroundWindow)
@@ -669,7 +681,8 @@ public sealed class AppController : IDisposable
 
     private void ScheduleFocusedTextSync(
         IntPtr targetWindow,
-        bool preservePhysicalInputForShiftCommit = false)
+        bool preservePhysicalInputForShiftCommit = false,
+        bool waitForVoiceInputSettle = false)
     {
         var request = Interlocked.Increment(ref _textSyncRequest);
         PostAsyncToUi(async () =>
@@ -735,6 +748,11 @@ public sealed class AppController : IDisposable
                 return;
             }
 
+            if (waitForVoiceInputSettle)
+            {
+                await WaitForVoiceInputSettleAsync(request, targetWindow).ConfigureAwait(true);
+            }
+
             var imeCompositionObserved = IsImeCompositionObserved(targetWindow);
             if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
             {
@@ -755,6 +773,41 @@ public sealed class AppController : IDisposable
                 CompleteImeComposition(targetWindow);
             }
         });
+    }
+
+    private async Task WaitForVoiceInputSettleAsync(long request, IntPtr targetWindow)
+    {
+        // 豆包松开右 Alt 后仍可能继续修正识别结果，先给语音服务留出处理时间。
+        await Task.Delay(500).ConfigureAwait(true);
+
+        var deadline = Environment.TickCount64 + 2000;
+        var stableSince = Environment.TickCount64;
+        string? previousText = null;
+        while (Environment.TickCount64 < deadline)
+        {
+            if (request != Volatile.Read(ref _textSyncRequest)
+                || NativeMethods.GetForegroundWindow() != targetWindow)
+            {
+                return;
+            }
+
+            if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
+            {
+                if (previousText is not null
+                    && !string.Equals(previousText, textBeforeCaret, StringComparison.Ordinal))
+                {
+                    stableSince = Environment.TickCount64;
+                }
+
+                previousText = textBeforeCaret;
+                if (Environment.TickCount64 - stableSince >= 300)
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(100).ConfigureAwait(true);
+        }
     }
 
     private bool TextBeforeCaretMatchesCurrentToken(string textBeforeCaret)
