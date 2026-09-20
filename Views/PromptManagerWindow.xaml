@@ -546,7 +546,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="196" />
+            <ColumnDefinition Width="170" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
@@ -627,23 +627,26 @@
                     </Button>
                 </StackPanel>
 
-                <Border Grid.Row="2"
-                        Background="{DynamicResource ThemeHoverSurfaceBrush}"
-                        CornerRadius="9"
-                        Padding="12"
-                        Margin="0,0,0,4">
-                    <StackPanel>
-                        <TextBlock Text="本地数据"
-                                   Foreground="{DynamicResource ThemeTextStrongBrush}"
-                                   FontWeight="SemiBold"
-                                   FontSize="12" />
-                        <TextBlock Text="指令保存在当前用户的本机配置目录。"
-                                   TextWrapping="Wrap"
-                                   Foreground="{DynamicResource ThemeTextSecondaryBrush}"
-                                   FontSize="11"
-                                   Margin="0,5,0,0" />
+                <Button Grid.Row="2"
+                        Style="{StaticResource NavigationButton}"
+                        Margin="0,0,0,4"
+                        ToolTip="在浏览器中打开 GitHub"
+                        Click="HandleOpenGitHubClick">
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center">
+                        <Grid Width="18"
+                              Height="18"
+                              Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}">
+                            <Grid.OpacityMask>
+                                <ImageBrush ImageSource="pack://application:,,,/assets/github.png"
+                                            Stretch="Uniform" />
+                            </Grid.OpacityMask>
+                        </Grid>
+                        <TextBlock Text="GitHub"
+                                   Margin="10,0,0,0"
+                                   VerticalAlignment="Center" />
                     </StackPanel>
-                </Border>
+                </Button>
             </Grid>
         </Border>
 

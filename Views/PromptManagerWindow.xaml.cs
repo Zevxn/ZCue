@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -30,6 +31,7 @@ namespace TypeSense.Views;
 
 public partial class PromptManagerWindow : Window
 {
+    private const string GitHubUrl = "https://github.com";
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly PromptStorageService _transferStorage = new();
     private readonly SettingsViewModel _settingsViewModel;
@@ -141,6 +143,25 @@ public partial class PromptManagerWindow : Window
         CommandsNavigationButton.ClearValue(BackgroundProperty);
         CommandsNavigationButton.ClearValue(ForegroundProperty);
         _settingsViewModel.Refresh();
+    }
+
+    private void HandleOpenGitHubClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(GitHubUrl)
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception error)
+        {
+            AppDialogWindow.ShowMessage(
+                this,
+                "无法打开 GitHub",
+                $"无法打开 GitHub 链接。\n{error.Message}",
+                AppDialogTone.Warning);
+        }
     }
 
     private void HandleSearchTextChanged(object sender, TextChangedEventArgs e)
