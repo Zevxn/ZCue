@@ -35,13 +35,6 @@ public sealed class ImeCompositionService
 
     public bool IsComposing(IntPtr targetWindow)
     {
-        return CheckFocusedWindowOrTarget(targetWindow, IsComposingOn);
-    }
-
-    private static bool CheckFocusedWindowOrTarget(
-        IntPtr targetWindow,
-        Func<IntPtr, bool> checkWindow)
-    {
         if (targetWindow == IntPtr.Zero)
         {
             return false;
@@ -64,8 +57,8 @@ public sealed class ImeCompositionService
                 }
             }
 
-            return checkWindow(focusedWindow)
-                || focusedWindow != targetWindow && checkWindow(targetWindow);
+            return IsComposingOn(focusedWindow)
+                || focusedWindow != targetWindow && IsComposingOn(targetWindow);
         }
         catch
         {

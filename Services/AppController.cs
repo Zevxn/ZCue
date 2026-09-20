@@ -136,12 +136,6 @@ public sealed class AppController : IDisposable
         SwitchTargetWindowIfNeeded(foregroundWindow);
         if (!_applicationFilter.IsApplicationAllowed(foregroundWindow))
         {
-            if (input.VirtualKeyCode == NativeMethods.VK_TAB)
-            {
-                PostToUi(() => TextInsertionDiagnostics.Write(
-                    $"Tab passed: foreground application is filtered, hwnd=0x{foregroundWindow.ToInt64():X}."));
-            }
-
             ClearSuggestions(resetBuffer: true);
             return KeyboardHookDecision.Pass;
         }
@@ -259,12 +253,6 @@ public sealed class AppController : IDisposable
 
         if (input.VirtualKeyCode is NativeMethods.VK_RETURN or NativeMethods.VK_TAB or NativeMethods.VK_SPACE)
         {
-            if (input.VirtualKeyCode == NativeMethods.VK_TAB)
-            {
-                PostToUi(() => TextInsertionDiagnostics.Write(
-                    $"Tab passed: no visible candidate, hwnd=0x{foregroundWindow.ToInt64():X}."));
-            }
-
             ClearSuggestions(resetBuffer: true);
             ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
@@ -566,10 +554,6 @@ public sealed class AppController : IDisposable
         {
             if (!_suggestionsVisible || index < 0 || index >= _activeMatches.Count)
             {
-                var visible = _suggestionsVisible;
-                var matchCount = _activeMatches.Count;
-                PostToUi(() => TextInsertionDiagnostics.Write(
-                    $"Selection ignored: visible={visible}, index={index}, matches={matchCount}."));
                 return;
             }
 
@@ -588,24 +572,18 @@ public sealed class AppController : IDisposable
 
         PostAsyncToUi(async () =>
         {
-            TextInsertionDiagnostics.Write(
-                $"Selection queued: hwnd=0x{targetWindow.ToInt64():X}, deleteLength={selectedMatch.MatchLength}, textLength={selectedMatch.Item.Content.Length}, multiline={selectedMatch.Item.Content.Contains('\n') || selectedMatch.Item.Content.Contains('\r')}.");
             _suggestionWindow.Hide();
             _ghostPreviewWindow.HidePreview();
-            var foregroundWindow = NativeMethods.GetForegroundWindow();
-            if (foregroundWindow != targetWindow)
+            if (NativeMethods.GetForegroundWindow() != targetWindow)
             {
-                TextInsertionDiagnostics.Write(
-                    $"Selection aborted: foreground changed, target=0x{targetWindow.ToInt64():X}, foreground=0x{foregroundWindow.ToInt64():X}.");
                 return;
             }
 
-            var inserted = await _textInsertionService.ReplaceAsync(
+            await _textInsertionService.ReplaceAsync(
                 targetWindow,
                 selectedMatch.MatchLength,
                 selectedMatch.Item.Content,
                 _suggestionWindow.NativeHandle);
-            TextInsertionDiagnostics.Write($"Selection completed: inserted={inserted}.");
         });
     }
 

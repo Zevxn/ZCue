@@ -124,7 +124,7 @@
 
             <TextBlock Grid.Row="2"
                        Margin="0,0,0,6"
-                       Text="提示词分类"
+                       Text="指令分类"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource ThemeTextStrongBrush}" />
             <ComboBox x:Name="CategoryComboBox"

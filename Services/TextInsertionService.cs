@@ -21,59 +21,32 @@ public sealed class TextInsertionService
         IntPtr clipboardOwnerWindow)
     {
         var text = replacement ?? string.Empty;
-        var foregroundWindow = NativeMethods.GetForegroundWindow();
-        TextInsertionDiagnostics.Write(
-            $"Replace start: target=0x{targetWindow.ToInt64():X}, foreground=0x{foregroundWindow.ToInt64():X}, deleteLength={deleteLength}, textLength={text.Length}, multiline={text.Contains('\n') || text.Contains('\r')}.");
-
-        try
+        if (!IsTargetForeground(targetWindow))
         {
-            if (targetWindow == IntPtr.Zero || foregroundWindow != targetWindow)
-            {
-                TextInsertionDiagnostics.Write("Replace aborted: target is not foreground.");
-                return false;
-            }
+            return false;
+        }
 
-            if (ShouldUseClipboardPaste(text))
-            {
-                TextInsertionDiagnostics.Write("Replace route: clipboard paste.");
-                var clipboardPasteSucceeded = await PasteTextAsync(
-                    targetWindow,
-                    clipboardOwnerWindow,
-                    deleteLength,
-                    text).ConfigureAwait(true);
-                TextInsertionDiagnostics.Write($"Replace finished through clipboard: success={clipboardPasteSucceeded}.");
-                return clipboardPasteSucceeded;
-            }
+        if (ShouldUseClipboardPaste(text))
+        {
+            return await PasteTextAsync(
+                targetWindow,
+                clipboardOwnerWindow,
+                deleteLength,
+                text).ConfigureAwait(true);
+        }
 
-            TextInsertionDiagnostics.Write("Replace route: Unicode SendInput.");
+        if (deleteLength > 0 && !SendBackspaces(deleteLength))
+        {
+            return false;
+        }
 
-            if (deleteLength > 0 && !SendBackspaces(deleteLength))
-            {
-                TextInsertionDiagnostics.Write("Replace aborted: SendInput failed to delete trigger text.");
-                return false;
-            }
-
-            // 短文本优先用 Unicode 键盘包；多行和长文本已优先走剪贴板粘贴。
-            if (SendUnicodeText(text))
-            {
-                return true;
-            }
-
-            // 少数程序不处理 VK_PACKET，再退回剪贴板粘贴方案。
-            var fallbackPasteSucceeded = await PasteTextAsync(
+        // 短文本优先用 Unicode 键盘包；少数不处理 VK_PACKET 的程序再退回粘贴。
+        return SendUnicodeText(text)
+            || await PasteTextAsync(
                 targetWindow,
                 clipboardOwnerWindow,
                 0,
                 text).ConfigureAwait(true);
-            TextInsertionDiagnostics.Write($"Replace finished through clipboard fallback: success={fallbackPasteSucceeded}.");
-            return fallbackPasteSucceeded;
-        }
-        catch (Exception exception)
-        {
-            TextInsertionDiagnostics.Write(
-                $"Replace threw: type={exception.GetType().Name}, hresult=0x{exception.HResult:X8}.");
-            throw;
-        }
     }
 
     private static bool ShouldUseClipboardPaste(string text)
@@ -95,12 +68,10 @@ public sealed class TextInsertionService
     {
         if (!IsTargetForeground(targetWindow))
         {
-            TextInsertionDiagnostics.Write("Clipboard paste aborted: target was not foreground before clipboard capture.");
             return false;
         }
 
         var (clipboardCaptured, originalClipboard) = await TryGetClipboardDataAsync().ConfigureAwait(true);
-        TextInsertionDiagnostics.Write($"Clipboard capture: success={clipboardCaptured}.");
         var clipboardChanged = false;
 
         try
@@ -111,37 +82,31 @@ public sealed class TextInsertionService
             clipboardChanged = clipboardWasChanged;
             if (!clipboardWriteSucceeded)
             {
-                TextInsertionDiagnostics.Write("Clipboard paste aborted: failed to set Unicode clipboard text.");
                 return false;
             }
 
             if (!IsTargetForeground(targetWindow))
             {
-                TextInsertionDiagnostics.Write("Clipboard paste aborted: foreground changed before deleting trigger text.");
                 return false;
             }
 
             if (deleteLength > 0 && !SendBackspaces(deleteLength))
             {
-                TextInsertionDiagnostics.Write("Clipboard paste aborted: SendInput failed to delete trigger text.");
                 return false;
             }
 
             if (!IsTargetForeground(targetWindow))
             {
-                TextInsertionDiagnostics.Write("Clipboard paste aborted: foreground changed before Ctrl+V.");
                 return false;
             }
 
             if (!SendPaste())
             {
-                TextInsertionDiagnostics.Write("Clipboard paste aborted: SendInput failed to send Ctrl+V.");
                 return false;
             }
 
             // 留出时间让目标应用读取剪贴板，再恢复用户原有内容。
             await Task.Delay(ClipboardReadDelayAfterPasteMilliseconds).ConfigureAwait(true);
-            TextInsertionDiagnostics.Write("Clipboard paste completed.");
             return true;
         }
         finally
@@ -177,7 +142,6 @@ public sealed class TextInsertionService
             }
         }
 
-        TextInsertionDiagnostics.Write("Clipboard capture failed after retries.");
         return (false, null);
     }
 
@@ -188,14 +152,11 @@ public sealed class TextInsertionService
         var clipboardChanged = false;
         for (var attempt = 0; attempt < ClipboardWriteRetryCount; attempt++)
         {
-            if (TrySetNativeClipboardText(text, clipboardOwnerWindow, out var errorCode, out var changedThisAttempt))
+            if (TrySetNativeClipboardText(text, clipboardOwnerWindow, out var changedThisAttempt))
             {
                 return (true, true);
             }
             clipboardChanged |= changedThisAttempt;
-
-            TextInsertionDiagnostics.Write(
-                $"Native clipboard write attempt {attempt + 1} failed: win32Error={errorCode}.");
 
             if (attempt + 1 < ClipboardWriteRetryCount)
             {
@@ -203,21 +164,17 @@ public sealed class TextInsertionService
             }
         }
 
-        TextInsertionDiagnostics.Write("Native clipboard text write failed after retries.");
         return (false, clipboardChanged);
     }
 
     private static bool TrySetNativeClipboardText(
         string text,
         IntPtr clipboardOwnerWindow,
-        out int errorCode,
         out bool clipboardChanged)
     {
-        errorCode = 0;
         clipboardChanged = false;
         if (clipboardOwnerWindow == IntPtr.Zero)
         {
-            errorCode = -1;
             return false;
         }
 
@@ -227,7 +184,6 @@ public sealed class TextInsertionService
             new UIntPtr((uint)unicodeText.Length));
         if (clipboardMemory == IntPtr.Zero)
         {
-            errorCode = Marshal.GetLastWin32Error();
             return false;
         }
 
@@ -237,7 +193,6 @@ public sealed class TextInsertionService
             var memoryPointer = NativeMethods.GlobalLock(clipboardMemory);
             if (memoryPointer == IntPtr.Zero)
             {
-                errorCode = Marshal.GetLastWin32Error();
                 return false;
             }
 
@@ -252,7 +207,6 @@ public sealed class TextInsertionService
 
             if (!NativeMethods.OpenClipboard(clipboardOwnerWindow))
             {
-                errorCode = Marshal.GetLastWin32Error();
                 return false;
             }
 
@@ -260,14 +214,12 @@ public sealed class TextInsertionService
             {
                 if (!NativeMethods.EmptyClipboard())
                 {
-                    errorCode = Marshal.GetLastWin32Error();
                     return false;
                 }
                 clipboardChanged = true;
 
                 if (NativeMethods.SetClipboardData(NativeMethods.CF_UNICODETEXT, clipboardMemory) == IntPtr.Zero)
                 {
-                    errorCode = Marshal.GetLastWin32Error();
                     return false;
                 }
 
@@ -320,7 +272,6 @@ public sealed class TextInsertionService
             }
         }
 
-        TextInsertionDiagnostics.Write("Clipboard restore failed after retries.");
     }
 
     private static string NormalizeClipboardLineEndings(string text)
@@ -429,14 +380,7 @@ public sealed class TextInsertionService
             (uint)nativeInputs.Length,
             nativeInputs,
             Marshal.SizeOf<NativeMethods.Input>());
-        if (sent == nativeInputs.Length)
-        {
-            return true;
-        }
-
-        TextInsertionDiagnostics.Write(
-            $"SendInput incomplete: requested={nativeInputs.Length}, sent={sent}, lastError={Marshal.GetLastWin32Error()}.");
-        return false;
+        return sent == nativeInputs.Length;
     }
 
     // !SECTION SendInput 文本注入

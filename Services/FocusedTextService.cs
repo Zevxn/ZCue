@@ -56,14 +56,6 @@ public sealed class FocusedTextService
         textBeforeCaret = string.Empty;
         try
         {
-            if (string.Equals(
-                    element.Current.AutomationId,
-                    "RootWebArea",
-                    StringComparison.Ordinal))
-            {
-                return false;
-            }
-
             if (!element.TryGetCurrentPattern(TextPattern.Pattern, out var patternObject)
                 || patternObject is not TextPattern textPattern)
             {
