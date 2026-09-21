@@ -1,10 +1,10 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.Windows.Forms;
-using TypeSense.Models;
-using TypeSense.Services;
-using TypeSense.Views;
+using ZCue.Models;
+using ZCue.Services;
+using ZCue.Views;
 
-namespace TypeSense.Infrastructure;
+namespace ZCue.Infrastructure;
 
 public sealed class TrayIconService : IDisposable
 {
@@ -34,7 +34,7 @@ public sealed class TrayIconService : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = _icon,
-            Text = "TypeSense Prompt 补全",
+            Text = "ZCue Prompt 补全",
             Visible = true
         };
         _notifyIcon.MouseClick += HandleNotifyIconMouseClick;
@@ -179,7 +179,7 @@ public sealed class TrayIconService : IDisposable
             _startupEnabled = SafeIsStartupEnabled();
             AppDialogWindow.ShowMessage(
                 null,
-                "TypeSense",
+                "ZCue",
                 $"设置开机启动失败：{exception.Message}",
                 AppDialogTone.Warning);
         }

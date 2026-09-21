@@ -1,7 +1,7 @@
-using TypeSense.Infrastructure;
+﻿using ZCue.Infrastructure;
 using System.Text;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class ImeCompositionService
 {

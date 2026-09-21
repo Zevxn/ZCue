@@ -1,9 +1,9 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
-using TypeSense.Infrastructure;
+using ZCue.Infrastructure;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public enum KeyboardHookDecision
 {
@@ -85,7 +85,7 @@ public sealed class KeyboardHookService : IDisposable
             _hookThread = new Thread(HookThreadMain)
             {
                 IsBackground = true,
-                Name = "TypeSense.KeyboardHook"
+                Name = "ZCue.KeyboardHook"
             };
             _hookThread.Start();
         }

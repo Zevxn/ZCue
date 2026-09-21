@@ -1,9 +1,9 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using TypeSense.Infrastructure;
+using ZCue.Infrastructure;
 
-namespace TypeSense.Views;
+namespace ZCue.Views;
 
 public enum AppDialogTone
 {
@@ -30,7 +30,7 @@ public partial class AppDialogWindow : Window
 
         _isConfirmation = isConfirmation;
         Title = title;
-        TitleTextBlock.Text = string.IsNullOrWhiteSpace(title) ? "TypeSense" : title;
+        TitleTextBlock.Text = string.IsNullOrWhiteSpace(title) ? "ZCue" : title;
         MessageTextBlock.Text = message;
         PrimaryButton.Content = primaryButtonText;
         CancelButton.Visibility = isConfirmation ? Visibility.Visible : Visibility.Collapsed;

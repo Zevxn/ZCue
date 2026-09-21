@@ -1,8 +1,8 @@
-@echo off
+﻿@echo off
 setlocal
 pushd "%~dp0"
 
-dotnet publish TypeSense.csproj --configuration Release --runtime win-x64 --self-contained false --output publish\win-x64
+dotnet publish ZCue.csproj --configuration Release --runtime win-x64 --self-contained false --output publish\win-x64
 set "PUBLISH_RESULT=%ERRORLEVEL%"
 if not "%PUBLISH_RESULT%"=="0" goto publish_failed
 

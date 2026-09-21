@@ -1,6 +1,6 @@
-using System.Text;
+﻿using System.Text;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class InputBufferService
 {

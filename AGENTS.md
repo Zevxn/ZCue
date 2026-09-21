@@ -1,22 +1,22 @@
-# TypeSense 项目协作说明
+﻿# ZCue 项目协作说明
 
 ## 项目定位
 
-TypeSense 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托盘，在任意文本输入场景中监听用户输入，根据 Prompt 名称生成的拼音/首字母隐藏别名和名称文本匹配候选，并在当前光标附近显示不抢焦点的候选窗；确认后删除触发片段并插入完整 Prompt。
+ZCue 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托盘，在任意文本输入场景中监听用户输入，根据 Prompt 名称生成的拼音/首字母隐藏别名和名称文本匹配候选，并在当前光标附近显示不抢焦点的候选窗；确认后删除触发片段并插入完整 Prompt。
 
 当前实现是单项目 WPF 应用，目标框架为 `.NET 8` Windows 桌面，使用 Win32 API、Windows UI Automation 和 `PinYinConverterCore`。`ref/` 中的 JavaScript/HTML 是浏览器插件参考实现，不参与 Windows 项目编译；可参考其匹配、排序和交互思路，但不要把 DOM 代码直接迁移到 WPF。
 
 ## 技术入口与运行方式
 
 - `App.xaml.cs` 是 WPF 应用入口。应用使用显式关闭模式，启动时创建并启动 `AppController`，退出时释放 Hook、窗口和托盘资源。
-- `TypeSense.csproj` 定义 `net8.0-windows`、WPF、Windows Forms、PerMonitorV2 DPI 和 `PinYinConverterCore 1.0.2` 依赖；输出类型是托盘型 `WinExe`。
+- `ZCue.csproj` 定义 `net8.0-windows`、WPF、Windows Forms、PerMonitorV2 DPI 和 `PinYinConverterCore 1.0.2` 依赖；输出类型是托盘型 `WinExe`。
 - `app.manifest` 使用 `asInvoker` 且 `uiAccess=false`。程序不能自动越过权限边界操作高权限目标窗口。
 - 常用命令：
 
   ```powershell
-  dotnet build TypeSense.sln
-  dotnet build TypeSense.csproj --configuration Debug
-  dotnet run --project TypeSense.csproj
+  dotnet build ZCue.sln
+  dotnet build ZCue.csproj --configuration Debug
+  dotnet run --project ZCue.csproj
   ```
 
 - 当前没有独立测试项目。修改后至少执行一次构建，并进行手动冒烟验证：启动程序后在 Notepad 等普通文本框输入 `zw`，确认候选出现；继续输入 `zwrs`，用 `Tab` 或 `Enter` 确认，检查触发片段被删除且完整内容插入。还应验证 `↑/↓`、数字键、`Esc`、中文名称/拼音匹配及托盘暂停/恢复。
@@ -73,7 +73,7 @@ App
 
 ## 数据与持久化约定
 
-- Prompt 文件为 `%LOCALAPPDATA%\TypeSense\prompts.json`，设置文件为 `%LOCALAPPDATA%\TypeSense\settings.json`；如果系统无法提供 LocalAppData，服务回退到程序目录。
+- Prompt 文件为 `%LOCALAPPDATA%\ZCue\prompts.json`，设置文件为 `%LOCALAPPDATA%\ZCue\settings.json`；如果系统无法提供 LocalAppData，服务回退到程序目录。
 - `PromptCatalogService` 是 Prompt 的唯一变更入口。新增或编辑时根据 `Name` 调用 `PinyinAliasService.RefreshAliases`，再由 `PromptStorageService` 持久化。
 - `PromptItem.PinyinAliases` 是隐藏内部字段，不在管理界面展示。它保存全拼/首字母别名、匹配分段和高亮映射；匹配热路径只读取该字段，不应在每次按键时重新生成拼音。
 - 加载没有别名的旧 JSON 时，目录服务会生成别名并回写；已有别名直接使用。修改名称时必须通过目录服务更新，确保别名与名称同步。
@@ -95,16 +95,16 @@ App
 
 ## 编码风格
 
-- 使用文件级命名空间 `namespace TypeSense...;`、可空引用类型、隐式 using、`sealed` 类、记录类型和现代集合表达式。
+- 使用文件级命名空间 `namespace ZCue...;`、可空引用类型、隐式 using、`sealed` 类、记录类型和现代集合表达式。
 - 长文件按功能使用成对的 `// SECTION 名称` 与 `// !SECTION 名称` 标记；新增、移动或删除代码时保持标记名称、配对和嵌套正确。
 - 方法和属性使用 PascalCase，私有字段使用 `_camelCase`；事件使用 `Action`/事件名语义命名。ViewModel 使用 `INotifyPropertyChanged` 和集中式 `OnPropertyChanged`。
 - 现有注释和用户界面文本以中文为主；新增注释应说明平台约束或调用意图，不要复制大段实现说明。
 
 ## 修改后的检查清单
 
-- 运行 `dotnet build TypeSense.sln`，确认无编译错误；如果程序正在运行并锁定输出文件，先退出托盘实例后再构建。
+- 运行 `dotnet build ZCue.sln`，确认无编译错误；如果程序正在运行并锁定输出文件，先退出托盘实例后再构建。
 - 运行 `git diff --check`，检查空白和补丁格式；确认没有误改用户本地数据文件、`bin/` 或 `obj/`。
 - 对匹配/别名改动，至少验证中文名称、全拼、首字母、多音字和高亮范围，并验证 JSON 往返后结果一致。
 - 对 Hook/输入注入改动，至少在 Notepad 等普通文本框验证监听、候选键盘操作、窗外点击关闭、应用切换后关闭、Unicode 插入、剪贴板内容和注入事件不递归；点击候选行仍应能选择。
 - 对 UI/定位改动，验证候选窗不抢焦点、光标附近定位、屏幕边缘 fallback、深浅色主题和管理器双击编辑。
-- 对存储/设置改动，检查 `%LOCALAPPDATA%\TypeSense\prompts.json` 与 `settings.json` 的字段和加载回写行为；不要用测试数据覆盖用户现有配置。
+- 对存储/设置改动，检查 `%LOCALAPPDATA%\ZCue\prompts.json` 与 `settings.json` 的字段和加载回写行为；不要用测试数据覆盖用户现有配置。

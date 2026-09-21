@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -8,10 +8,10 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
-using TypeSense.Infrastructure;
-using TypeSense.Models;
-using TypeSense.Services;
-using TypeSense.ViewModels;
+using ZCue.Infrastructure;
+using ZCue.Models;
+using ZCue.Services;
+using ZCue.ViewModels;
 using WpfButton = System.Windows.Controls.Button;
 using WpfCheckBox = System.Windows.Controls.CheckBox;
 using WpfCursor = System.Windows.Input.Cursor;
@@ -27,12 +27,12 @@ using WpfOrientation = System.Windows.Controls.Orientation;
 using WpfPoint = System.Windows.Point;
 using WpfTextBox = System.Windows.Controls.TextBox;
 
-namespace TypeSense.Views;
+namespace ZCue.Views;
 
 public partial class PromptManagerWindow : Window
 {
-    private const string GitHubUrl = "https://github.com/Zevxn/TypeSense";
-    private const string GitHubReleasesUrl = "https://github.com/Zevxn/TypeSense/releases";
+    private const string GitHubUrl = "https://github.com/Zevxn/ZCue";
+    private const string GitHubReleasesUrl = "https://github.com/Zevxn/ZCue/releases";
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly PromptStorageService _transferStorage = new();
     private readonly SettingsViewModel _settingsViewModel;
@@ -569,11 +569,11 @@ public partial class PromptManagerWindow : Window
         var data = new WpfDataObject();
         if (selectedPromptIds.Length > 1)
         {
-            data.SetData("TypeSense.PromptIds", selectedPromptIds);
+            data.SetData("ZCue.PromptIds", selectedPromptIds);
         }
         else
         {
-            data.SetData("TypeSense.PromptId", promptId);
+            data.SetData("ZCue.PromptId", promptId);
         }
 
         if (FindPromptContainer(promptId) is { } sourceContainer)
@@ -612,7 +612,7 @@ public partial class PromptManagerWindow : Window
     private void HandlePromptListDragOver(object sender, WpfDragEventArgs e)
     {
         UpdateDragPreviewPosition();
-        if (e.Data.GetData("TypeSense.PromptId") is not string draggedId)
+        if (e.Data.GetData("ZCue.PromptId") is not string draggedId)
         {
             e.Effects = WpfDragDropEffects.None;
             e.Handled = true;
@@ -634,7 +634,7 @@ public partial class PromptManagerWindow : Window
 
     private void HandlePromptListDrop(object sender, WpfDragEventArgs e)
     {
-        if (e.Data.GetData("TypeSense.PromptId") is not string)
+        if (e.Data.GetData("ZCue.PromptId") is not string)
         {
             e.Effects = WpfDragDropEffects.None;
             e.Handled = true;
@@ -1139,7 +1139,7 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        var data = new WpfDataObject("TypeSense.CategoryId", categoryId);
+        var data = new WpfDataObject("ZCue.CategoryId", categoryId);
         _categoryDragOriginalOrder = GetCategoryButtonOrder();
         _categoryReorderCommitted = false;
         var sourceButton = (WpfButton)sender;
@@ -1173,18 +1173,18 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        if (e.Data.GetData("TypeSense.PromptIds") is string[] promptIds
+        if (e.Data.GetData("ZCue.PromptIds") is string[] promptIds
             && promptIds.Length > 0)
         {
             e.Effects = WpfDragDropEffects.Move;
         }
-        else if (e.Data.GetData("TypeSense.PromptId") is string)
+        else if (e.Data.GetData("ZCue.PromptId") is string)
         {
             e.Effects = WpfDragDropEffects.Move;
         }
         else if (targetCategoryId.Length > 0
             && targetCategoryId != "all"
-            && e.Data.GetData("TypeSense.CategoryId") is string draggedCategoryId)
+            && e.Data.GetData("ZCue.CategoryId") is string draggedCategoryId)
         {
             e.Effects = WpfDragDropEffects.Move;
             var targetButton = (WpfButton)sender;
@@ -1206,7 +1206,7 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        if (e.Data.GetData("TypeSense.PromptIds") is string[] promptIds
+        if (e.Data.GetData("ZCue.PromptIds") is string[] promptIds
             && promptIds.Length > 0)
         {
             _promptViewModel.AssignCategory(promptIds, targetCategoryId);
@@ -1216,7 +1216,7 @@ public partial class PromptManagerWindow : Window
             return;
         }
 
-        if (e.Data.GetData("TypeSense.PromptId") is string promptId)
+        if (e.Data.GetData("ZCue.PromptId") is string promptId)
         {
             _promptViewModel.AssignCategory(promptId, targetCategoryId);
             UpdateEmptyState();
@@ -1227,7 +1227,7 @@ public partial class PromptManagerWindow : Window
 
         if (targetCategoryId.Length == 0
             || targetCategoryId == "all"
-            || e.Data.GetData("TypeSense.CategoryId") is not string)
+            || e.Data.GetData("ZCue.CategoryId") is not string)
         {
             e.Effects = WpfDragDropEffects.None;
             e.Handled = true;
@@ -1576,7 +1576,7 @@ public partial class PromptManagerWindow : Window
     {
         AppDialogWindow.ShowMessage(
             this,
-            "TypeSense",
+            "ZCue",
             message,
             AppDialogTone.Warning);
         _settingsViewModel.Refresh();

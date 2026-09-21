@@ -1,9 +1,9 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
-using TypeSense.Infrastructure;
+using ZCue.Infrastructure;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 /// <summary>
 /// 从当前焦点文本控件读取光标前的真实文本。

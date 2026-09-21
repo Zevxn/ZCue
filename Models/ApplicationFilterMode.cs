@@ -1,4 +1,4 @@
-namespace TypeSense.Models;
+﻿namespace ZCue.Models;
 
 public enum ApplicationFilterMode
 {

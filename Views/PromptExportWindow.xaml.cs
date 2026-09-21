@@ -1,11 +1,11 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
-using TypeSense.Infrastructure;
-using TypeSense.Models;
-using TypeSense.Services;
+using ZCue.Infrastructure;
+using ZCue.Models;
+using ZCue.Services;
 
-namespace TypeSense.Views;
+namespace ZCue.Views;
 
 public partial class PromptExportWindow : Window
 {

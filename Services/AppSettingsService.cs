@@ -1,9 +1,9 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TypeSense.Models;
+using ZCue.Models;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class AppSettingsService
 {
@@ -21,6 +21,14 @@ public sealed class AppSettingsService
     {
         _filePath = Path.Combine(GetDataDirectory(), "settings.json");
         _current = Load();
+    }
+
+    private static string GetDataDirectory()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(
+            string.IsNullOrWhiteSpace(localAppData) ? AppContext.BaseDirectory : localAppData,
+            "ZCue");
     }
 
     public event Action<AppSettings>? Changed;
@@ -129,12 +137,4 @@ public sealed class AppSettingsService
         }
     }
 
-    private static string GetDataDirectory()
-    {
-        var localAppData = Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(
-            string.IsNullOrWhiteSpace(localAppData) ? AppContext.BaseDirectory : localAppData,
-            "TypeSense");
-    }
 }

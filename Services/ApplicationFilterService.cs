@@ -1,9 +1,9 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
-using TypeSense.Infrastructure;
-using TypeSense.Models;
+using ZCue.Infrastructure;
+using ZCue.Models;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class ApplicationFilterService : IDisposable
 {
@@ -21,7 +21,7 @@ public sealed class ApplicationFilterService : IDisposable
     private readonly AppSettingsService _settings;
     private readonly uint _currentProcessId = unchecked((uint)Environment.ProcessId);
     private readonly string _currentProcessName = Path.GetFileName(
-        Environment.ProcessPath ?? "TypeSense.exe");
+        Environment.ProcessPath ?? "ZCue.exe");
     private FilterSnapshot _snapshot;
     private uint _cachedProcessId;
     private string? _cachedProcessName;

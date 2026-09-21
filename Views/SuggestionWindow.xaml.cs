@@ -1,19 +1,19 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using TypeSense.Infrastructure;
-using TypeSense.Models;
-using TypeSense.Services;
+using ZCue.Infrastructure;
+using ZCue.Models;
+using ZCue.Services;
 using Forms = System.Windows.Forms;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MediaBrush = System.Windows.Media.Brush;
 using MediaColor = System.Windows.Media.Color;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 
-namespace TypeSense.Views;
+namespace ZCue.Views;
 
 public partial class SuggestionWindow : Window
 {

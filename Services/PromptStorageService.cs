@@ -1,9 +1,9 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TypeSense.Models;
+using ZCue.Models;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class PromptStorageService
 {
@@ -23,6 +23,14 @@ public sealed class PromptStorageService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         _filePath = filePath;
+    }
+
+    private static string GetDataDirectory()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(
+            string.IsNullOrWhiteSpace(localAppData) ? AppContext.BaseDirectory : localAppData,
+            "ZCue");
     }
 
     // SECTION 加载与保存
@@ -132,7 +140,7 @@ public sealed class PromptStorageService
         var fullPath = Path.GetFullPath(filePath);
         if (string.Equals(fullPath, Path.GetFullPath(_filePath), StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("不能将导出文件保存为 TypeSense 当前的数据文件。");
+            throw new InvalidOperationException("不能将导出文件保存为 ZCue 当前的数据文件。");
         }
 
         WriteDocument(fullPath, prompts, categories);
@@ -207,15 +215,6 @@ public sealed class PromptStorageService
     };
 
     // !SECTION 插件数据映射
-
-    private static string GetDataDirectory()
-    {
-        var localAppData = Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(
-            string.IsNullOrWhiteSpace(localAppData) ? AppContext.BaseDirectory : localAppData,
-            "TypeSense");
-    }
 
     public sealed record StorageSnapshot(
         IReadOnlyList<PromptItem> Prompts,

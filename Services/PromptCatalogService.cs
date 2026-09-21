@@ -1,6 +1,6 @@
-using TypeSense.Models;
+﻿using ZCue.Models;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class PromptCatalogService
 {

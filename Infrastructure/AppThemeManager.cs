@@ -1,8 +1,8 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System.Windows.Media;
-using TypeSense.Models;
+using ZCue.Models;
 
-namespace TypeSense.Infrastructure;
+namespace ZCue.Infrastructure;
 
 public static class AppThemeManager
 {

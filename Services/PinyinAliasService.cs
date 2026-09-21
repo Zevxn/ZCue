@@ -1,9 +1,9 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Text;
 using Microsoft.International.Converters.PinYinConverter;
-using TypeSense.Models;
+using ZCue.Models;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class PinyinAliasService
 {

@@ -1,8 +1,8 @@
-using System.Windows.Automation;
+﻿using System.Windows.Automation;
 using System.Windows.Automation.Text;
-using TypeSense.Infrastructure;
+using ZCue.Infrastructure;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public readonly record struct CaretPosition(
     int Left,

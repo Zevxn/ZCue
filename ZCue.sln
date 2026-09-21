@@ -1,8 +1,8 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeSense", "TypeSense.csproj", "{3A8E8A96-9D9A-4E3D-9B74-92368CC4FD9E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZCue", "ZCue.csproj", "{3A8E8A96-9D9A-4E3D-9B74-92368CC4FD9E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

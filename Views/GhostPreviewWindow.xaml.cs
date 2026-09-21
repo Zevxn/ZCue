@@ -1,12 +1,12 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Threading;
-using TypeSense.Infrastructure;
-using TypeSense.Services;
+using ZCue.Infrastructure;
+using ZCue.Services;
 using Forms = System.Windows.Forms;
 
-namespace TypeSense.Views;
+namespace ZCue.Views;
 
 public partial class GhostPreviewWindow : Window
 {

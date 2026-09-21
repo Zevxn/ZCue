@@ -1,16 +1,17 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class StartupService
 {
     private const string RunKeyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-    private const string ValueName = "TypeSense";
+    private const string ValueName = "ZCue";
 
     public bool IsEnabled()
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-        return key?.GetValue(ValueName) is string value && !string.IsNullOrWhiteSpace(value);
+        return key?.GetValue(ValueName) is string value
+            && !string.IsNullOrWhiteSpace(value);
     }
 
     public void SetEnabled(bool enabled)

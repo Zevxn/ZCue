@@ -1,10 +1,10 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
-using TypeSense.Models;
-using TypeSense.Services;
+using ZCue.Models;
+using ZCue.Services;
 
-namespace TypeSense.ViewModels;
+namespace ZCue.ViewModels;
 
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {

@@ -1,10 +1,11 @@
-using TypeSense.Services;
-using TypeSense.Views;
+﻿using ZCue.Services;
+using ZCue.Views;
 
-namespace TypeSense;
+namespace ZCue;
 
 public partial class App : System.Windows.Application
 {
+    // Keep these IPC names stable so an older TypeSense process cannot run beside ZCue.
     private const string SingleInstanceMutexName = @"Local\TypeSense.SingleInstance";
     private const string ActivationEventName = @"Local\TypeSense.ActivateExistingInstance";
 
@@ -56,8 +57,8 @@ public partial class App : System.Windows.Application
         {
             AppDialogWindow.ShowMessage(
                 null,
-                "TypeSense",
-                $"TypeSense 启动失败：{exception.Message}",
+                "ZCue",
+                $"ZCue 启动失败：{exception.Message}",
                 AppDialogTone.Error);
             Shutdown(-1);
         }

@@ -1,6 +1,6 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-namespace TypeSense.Models;
+namespace ZCue.Models;
 
 public sealed class PromptCategory
 {

@@ -1,10 +1,10 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
-using TypeSense.Infrastructure;
+using ZCue.Infrastructure;
 using WpfClipboard = System.Windows.Clipboard;
 using WpfDataObject = System.Windows.IDataObject;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class TextInsertionService
 {

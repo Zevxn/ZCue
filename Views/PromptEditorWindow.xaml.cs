@@ -1,8 +1,8 @@
-using System.Windows;
-using TypeSense.Infrastructure;
-using TypeSense.Models;
+﻿using System.Windows;
+using ZCue.Infrastructure;
+using ZCue.Models;
 
-namespace TypeSense.Views;
+namespace ZCue.Views;
 
 public partial class PromptEditorWindow : Window
 {

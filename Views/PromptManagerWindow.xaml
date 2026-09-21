@@ -1,8 +1,8 @@
-<Window x:Class="TypeSense.Views.PromptManagerWindow"
+﻿<Window x:Class="ZCue.Views.PromptManagerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:models="clr-namespace:TypeSense.Models"
-        Title="TypeSense"
+        xmlns:models="clr-namespace:ZCue.Models"
+        Title="ZCue"
         Icon="pack://application:,,,/assets/logo.png"
         Width="980"
         Height="660"
@@ -566,7 +566,7 @@
                             Height="36"
                             CornerRadius="10"
                             Background="{DynamicResource ThemeAccentBrush}">
-                        <TextBlock Text="TS"
+                        <TextBlock Text="ZC"
                                    Foreground="White"
                                    FontSize="14"
                                    FontWeight="Bold"
@@ -576,7 +576,7 @@
                     </Border>
                     <StackPanel Margin="11,0,0,0"
                                 VerticalAlignment="Center">
-                        <TextBlock Text="TypeSense"
+                        <TextBlock Text="ZCue"
                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                    FontSize="16"
                                    FontWeight="SemiBold" />
@@ -706,20 +706,16 @@
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
                             Visibility="Collapsed">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Center">
                             <TextBlock x:Name="BatchSelectionSummary"
                                        Text="已选 0 项"
                                        Foreground="{DynamicResource ThemeAccentTextBrush}"
                                        FontSize="13"
                                        FontWeight="SemiBold"
+                                       Margin="0,0,16,0"
                                        VerticalAlignment="Center" />
-                            <StackPanel Grid.Column="2"
-                                        Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal">
                                 <Button Content="归类到…"
                                         Style="{StaticResource SecondaryButton}"
                                         Margin="0,0,7,0"
@@ -732,7 +728,7 @@
                                         Style="{StaticResource SecondaryButton}"
                                         Click="HandleClearSelectionClick" />
                             </StackPanel>
-                        </Grid>
+                        </StackPanel>
                     </Border>
                 </Grid>
 
@@ -973,7 +969,7 @@
                                Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                FontSize="26"
                                FontWeight="SemiBold" />
-                    <TextBlock Text="调整 TypeSense 的输入监听和候选交互方式"
+                    <TextBlock Text="调整 ZCue 的输入监听和候选交互方式"
                                Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                FontSize="13"
                                Margin="0,7,0,0" />
@@ -1439,7 +1435,7 @@
                                                Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                FontSize="14"
                                                FontWeight="SemiBold" />
-                                    <TextBlock Text="登录 Windows 后自动启动 TypeSense。"
+                                    <TextBlock Text="登录 Windows 后自动启动 ZCue。"
                                                Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                FontSize="12"
                                                Margin="0,4,0,0" />
@@ -1475,7 +1471,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="TypeSense"
+                                    <TextBlock Text="ZCue"
                                                Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                FontSize="14"
                                                FontWeight="SemiBold" />
@@ -1488,7 +1484,7 @@
                                         Content="查看 GitHub Releases"
                                         Style="{StaticResource SecondaryButton}"
                                         Padding="12,8"
-                                        ToolTip="在浏览器中打开 TypeSense Releases 页面"
+                                        ToolTip="在浏览器中打开 ZCue Releases 页面"
                                         Click="HandleOpenReleasesClick" />
                             </Grid>
                         </Border>

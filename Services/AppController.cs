@@ -1,10 +1,10 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Threading;
-using TypeSense.Infrastructure;
-using TypeSense.Models;
-using TypeSense.Views;
+using ZCue.Infrastructure;
+using ZCue.Models;
+using ZCue.Views;
 
-namespace TypeSense.Services;
+namespace ZCue.Services;
 
 public sealed class AppController : IDisposable
 {

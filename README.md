@@ -1,16 +1,16 @@
-# TypeSense
+﻿# ZCue
 
-TypeSense 是一个面向 Windows 的全局 AI 提示词快捷输入工具。在兼容的文本输入框中输入 Prompt 名称对应的拼音或首字母，即可弹出候选，并通过键盘插入完整提示词。
+ZCue 是一个面向 Windows 的全局 AI 提示词快捷输入工具。在兼容的文本输入框中输入 Prompt 名称对应的拼音或首字母，即可弹出候选，并通过键盘插入完整提示词。
 
 ## 使用场景
 
-TypeSense 适合在多个 AI 客户端之间复用较长的提示词，尤其是日常使用 AI 编程助手和多模型客户端的用户。Prompt 内容可以包含多行指令，选中候选后会一次性插入当前输入框。
+ZCue 适合在多个 AI 客户端之间复用较长的提示词，尤其是日常使用 AI 编程助手和多模型客户端的用户。Prompt 内容可以包含多行指令，选中候选后会一次性插入当前输入框。
 
 - **AI 编程助手**：在 Codex、OpenCode 等工具中快速输入代码解释、问题排查、代码审查、重构和提交说明等提示词。
 - **多模型对话客户端**：在 Cherry Studio 等客户端中复用角色设定、任务要求、翻译、润色和总结指令。
 - **跨应用工作流**：在不同 AI 客户端及其他兼容的文本输入框中使用同一套 Prompt 和拼音快捷触发方式，不必为每个应用单独维护一份快捷短语。
 
-TypeSense 的重点是快速复用 AI 提示词；实际可用性取决于目标应用输入框对键盘输入和文本插入的支持情况。
+ZCue 的重点是快速复用 AI 提示词；实际可用性取决于目标应用输入框对键盘输入和文本插入的支持情况。
 
 ## 当前 MVP
 
@@ -36,8 +36,8 @@ TypeSense 的重点是快速复用 AI 提示词；实际可用性取决于目标
 需要 Windows 11、.NET 8 SDK 和桌面开发组件：
 
 ```powershell
-dotnet build TypeSense.sln
-dotnet run --project TypeSense.csproj
+dotnet build ZCue.sln
+dotnet run --project ZCue.csproj
 ```
 
 启动后程序默认驻留系统托盘。在 Notepad 中输入 `zw`，候选窗口应出现；继续输入 `zwrs` 后按 `Tab`，触发字符串会被替换为完整 Prompt。

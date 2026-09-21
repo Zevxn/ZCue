@@ -1,14 +1,14 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using TypeSense.Infrastructure;
-using TypeSense.Models;
+using ZCue.Infrastructure;
+using ZCue.Models;
 using FormsScreen = System.Windows.Forms.Screen;
 using WpfColor = System.Windows.Media.Color;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 
-namespace TypeSense.Views;
+namespace ZCue.Views;
 
 public partial class TrayMenuWindow : Window
 {

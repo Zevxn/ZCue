@@ -1,7 +1,7 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 
-namespace TypeSense.Infrastructure;
+namespace ZCue.Infrastructure;
 
 internal static class NativeMethods
 {
