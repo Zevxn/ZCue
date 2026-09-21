@@ -230,31 +230,153 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
-                        <Border x:Name="SwitchTrack"
-                                Background="{DynamicResource ThemeToggleTrackBrush}"
-                                BorderBrush="{DynamicResource ThemeFieldBorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="13"
-                                Cursor="Hand"
-                                Padding="2">
+                        <Grid Background="Transparent">
+                            <Border x:Name="SwitchRipple"
+                                    BorderBrush="{DynamicResource ThemeTextSecondaryBrush}"
+                                    BorderThickness="3"
+                                    CornerRadius="13"
+                                    IsHitTestVisible="False"
+                                    Opacity="0"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform x:Name="SwitchRippleTransform"
+                                                    ScaleX="1"
+                                                    ScaleY="1" />
+                                </Border.RenderTransform>
+                            </Border>
+                            <Border x:Name="SwitchTrackFill"
+                                    Background="{DynamicResource ThemeToggleTrackBrush}"
+                                    CornerRadius="13" />
+                            <Border x:Name="SwitchTrackAccent"
+                                    Background="{DynamicResource ThemeAccentBrush}"
+                                    CornerRadius="13"
+                                    IsHitTestVisible="False"
+                                    Opacity="0" />
+                            <Border x:Name="SwitchTrack"
+                                    Background="Transparent"
+                                    BorderBrush="{DynamicResource ThemeFieldBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="13"
+                                    IsHitTestVisible="False" />
                             <Ellipse x:Name="SwitchThumb"
                                      Width="20"
                                      Height="20"
+                                     Margin="3,0,0,0"
                                      Fill="White"
                                      Cursor="Hand"
-                                     HorizontalAlignment="Left" />
-                        </Border>
+                                     HorizontalAlignment="Left"
+                                     VerticalAlignment="Center">
+                                <Ellipse.RenderTransform>
+                                    <TranslateTransform x:Name="SwitchThumbTransform" X="0" />
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="SwitchTrack"
-                                        Property="Background"
-                                        Value="{DynamicResource ThemeAccentBrush}" />
-                                <Setter TargetName="SwitchTrack"
                                         Property="BorderBrush"
                                         Value="{DynamicResource ThemeAccentBrush}" />
-                                <Setter TargetName="SwitchThumb"
-                                        Property="HorizontalAlignment"
-                                        Value="Right" />
+                                <Setter TargetName="SwitchRipple"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource ThemeSuccessBrush}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchThumbTransform"
+                                                             Storyboard.TargetProperty="X"
+                                                             To="18"
+                                                             Duration="0:0:0.3">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <BackEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchTrackAccent"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1"
+                                                             Duration="0:0:0.3">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchRipple"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             From="0.6"
+                                                             To="0"
+                                                             Duration="0:0:0.5">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchRippleTransform"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             From="1"
+                                                             To="1.45"
+                                                             Duration="0:0:0.5">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchRippleTransform"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             From="1"
+                                                             To="1.45"
+                                                             Duration="0:0:0.5">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchThumbTransform"
+                                                             Storyboard.TargetProperty="X"
+                                                             To="0"
+                                                             Duration="0:0:0.3">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <BackEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchTrackAccent"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0"
+                                                             Duration="0:0:0.3">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchRipple"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             From="0.6"
+                                                             To="0"
+                                                             Duration="0:0:0.5">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchRippleTransform"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             From="1"
+                                                             To="1.45"
+                                                             Duration="0:0:0.5">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SwitchRippleTransform"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             From="1"
+                                                             To="1.45"
+                                                             Duration="0:0:0.5">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="SwitchTrack"
@@ -1399,12 +1521,14 @@
                                 </StackPanel>
                                 <ComboBox Grid.Column="1"
                                           Width="150"
+                                          Height="34"
                                           Style="{StaticResource FieldComboBox}"
                                           ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
                                           SelectedValuePath="Tag"
                                           SelectedValue="{Binding ThemeMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                           VerticalAlignment="Center"
-                                          Margin="24,0,3,0">
+                                          Margin="24,0,3,0"
+                                          PreviewMouseWheel="HandleThemeModePreviewMouseWheel">
                                     <ComboBoxItem Content="跟随系统"
                                                   Tag="{x:Static models:AppThemeMode.System}" />
                                     <ComboBoxItem Content="浅色模式"

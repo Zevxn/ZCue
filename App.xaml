@@ -166,6 +166,7 @@
                                    AllowsTransparency="True"
                                    Focusable="False"
                                    Placement="Bottom"
+                                   VerticalOffset="6"
                                    IsOpen="{TemplateBinding IsDropDownOpen}"
                                    PopupAnimation="Fade">
                                 <Border x:Name="DropDownBorder"

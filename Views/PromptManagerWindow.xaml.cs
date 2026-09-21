@@ -274,7 +274,8 @@ public partial class PromptManagerWindow : Window
         {
             Style = (Style)FindResource("CategoryContextMenu"),
             PlacementTarget = button,
-            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+            VerticalOffset = 6
         };
         AddBatchCategoryMenuItem(menu, "无分类", string.Empty);
         foreach (var category in _promptViewModel.Categories)
@@ -1013,6 +1014,27 @@ public partial class PromptManagerWindow : Window
         }
 
         e.Handled = true;
+        SettingsScrollViewer.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+        {
+            RoutedEvent = Mouse.MouseWheelEvent,
+            Source = SettingsScrollViewer
+        });
+    }
+
+    private void HandleThemeModePreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ComboBox themeModeComboBox
+            || themeModeComboBox.IsDropDownOpen)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (SettingsScrollViewer.ScrollableHeight <= 0)
+        {
+            return;
+        }
+
         SettingsScrollViewer.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
         {
             RoutedEvent = Mouse.MouseWheelEvent,
