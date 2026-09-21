@@ -1542,8 +1542,10 @@ public partial class PromptManagerWindow : Window
         var nameTextBox = new WpfTextBox
         {
             Text = currentName,
+            Height = 40,
             FontSize = 14,
-            Padding = new Thickness(10, 8, 10, 8),
+            Padding = new Thickness(3, 4, 10, 4),
+            VerticalContentAlignment = System.Windows.VerticalAlignment.Center,
             BorderThickness = new Thickness(1),
             Style = (Style)FindResource("RoundedTextBoxBase")
         };
@@ -1599,7 +1601,6 @@ public partial class PromptManagerWindow : Window
             Title = title,
             Width = 360,
             MinWidth = 320,
-            MinHeight = 220,
             SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,

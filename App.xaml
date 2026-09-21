@@ -44,6 +44,7 @@
                                                             <Border x:Name="ThumbBorder"
                                                                     Background="{DynamicResource ThemeScrollThumbBrush}"
                                                                     CornerRadius="3"
+                                                                    Margin="0,1"
                                                                     SnapsToDevicePixels="True" />
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">

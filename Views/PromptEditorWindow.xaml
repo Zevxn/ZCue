@@ -156,6 +156,7 @@
             <TextBox x:Name="ContentTextBox"
                      Grid.Row="5"
                      Style="{StaticResource FieldTextBox}"
+                     Padding="3,8,0,8"
                      MinHeight="150"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"

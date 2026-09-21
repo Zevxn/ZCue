@@ -6,3 +6,4 @@ obj/
 *.suo
 ref/
 TODO.md
+.workbuddy/

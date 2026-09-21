@@ -863,9 +863,9 @@ public sealed class AppController : IDisposable
     private async Task WaitForVoiceInputSettleAsync(long request, IntPtr targetWindow)
     {
         // 豆包松开右 Alt 后仍可能继续修正识别结果，先给语音服务留出处理时间。
-        await Task.Delay(500).ConfigureAwait(true);
+        await Task.Delay(200).ConfigureAwait(true);
 
-        var deadline = Environment.TickCount64 + 2000;
+        var deadline = Environment.TickCount64 + 3000;
         var stableSince = Environment.TickCount64;
         string? previousText = null;
         while (Environment.TickCount64 < deadline)
@@ -891,7 +891,7 @@ public sealed class AppController : IDisposable
                 }
             }
 
-            await Task.Delay(100).ConfigureAwait(true);
+            await Task.Delay(30).ConfigureAwait(true);
         }
     }
 
