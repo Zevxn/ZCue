@@ -32,6 +32,7 @@ namespace TypeSense.Views;
 public partial class PromptManagerWindow : Window
 {
     private const string GitHubUrl = "https://github.com/Zevxn/TypeSense";
+    private const string GitHubReleasesUrl = "https://github.com/Zevxn/TypeSense/releases";
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly PromptStorageService _transferStorage = new();
     private readonly SettingsViewModel _settingsViewModel;
@@ -65,6 +66,11 @@ public partial class PromptManagerWindow : Window
         Action? refreshStartupState = null)
     {
         InitializeComponent();
+        var version = typeof(PromptManagerWindow).Assembly.GetName().Version;
+        VersionTextBlock.Text = version is null
+            ? string.Empty
+            : $"v{version.Major}.{version.Minor}.{version.Build}";
+
         _grabCursor = LoadCursor("grab.cur");
         _grabbingCursor = LoadCursor("grabbing.cur");
         PreviewMouseLeftButtonUp += (_, _) => ResetPressedDragCursor();
@@ -147,9 +153,22 @@ public partial class PromptManagerWindow : Window
 
     private void HandleOpenGitHubClick(object sender, RoutedEventArgs e)
     {
+        OpenExternalUrl(GitHubUrl, "无法打开 GitHub", "无法打开 GitHub 链接。");
+    }
+
+    private void HandleOpenReleasesClick(object sender, RoutedEventArgs e)
+    {
+        OpenExternalUrl(
+            GitHubReleasesUrl,
+            "无法打开 GitHub Releases",
+            "无法打开 GitHub Releases 页面。");
+    }
+
+    private void OpenExternalUrl(string url, string title, string message)
+    {
         try
         {
-            Process.Start(new ProcessStartInfo(GitHubUrl)
+            Process.Start(new ProcessStartInfo(url)
             {
                 UseShellExecute = true
             });
@@ -158,8 +177,8 @@ public partial class PromptManagerWindow : Window
         {
             AppDialogWindow.ShowMessage(
                 this,
-                "无法打开 GitHub",
-                $"无法打开 GitHub 链接。\n{error.Message}",
+                title,
+                $"{message}\n{error.Message}",
                 AppDialogTone.Warning);
         }
     }

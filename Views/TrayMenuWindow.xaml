@@ -242,7 +242,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="2"
-                                   Text="退出程序"
+                                   Text="退出"
                                    Foreground="{DynamicResource TrayMenuTextBrush}"
                                    VerticalAlignment="Center" />
                     </Grid>
