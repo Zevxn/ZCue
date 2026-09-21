@@ -13,6 +13,8 @@ public sealed class AppController : IDisposable
     private readonly InputBufferService _inputBuffer = new();
     private readonly PromptCatalogService _catalog = new();
     private readonly AppSettingsService _settings = new();
+    private readonly UpdateService _updateService = new();
+    private readonly System.Threading.CancellationTokenSource _lifetimeCancellation = new();
     private readonly ApplicationFilterService _applicationFilter;
     private readonly StartupService _startupService = new();
     private readonly PromptMatchService _matchService = new();
@@ -65,7 +67,8 @@ public sealed class AppController : IDisposable
             _startupService,
             () => !IsPaused(),
             enabled => SetPaused(!enabled),
-            _trayIcon.UpdateStartupState);
+            _trayIcon.UpdateStartupState,
+            _updateService);
         _trayIcon.OpenManagerRequested += OpenPromptManager;
         _trayIcon.PauseRequested += () => SetPaused(true);
         _trayIcon.EnableRequested += () => SetPaused(false);
@@ -82,6 +85,11 @@ public sealed class AppController : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _keyboardHook.Start();
+
+        if (_settings.Current.EnableAutomaticUpdateNotifications)
+        {
+            _ = CheckForUpdatesOnStartupAsync(_lifetimeCancellation.Token);
+        }
     }
 
     public void SetPaused(bool paused)
@@ -103,6 +111,7 @@ public sealed class AppController : IDisposable
         }
 
         _disposed = true;
+        _lifetimeCancellation.Cancel();
         _settings.Changed -= HandleSettingsChanged;
         _applicationFilter.Dispose();
         _keyboardHook.KeyDown -= HandleKeyDown;
@@ -116,7 +125,36 @@ public sealed class AppController : IDisposable
         _ghostPreviewWindow.HidePreview();
         _promptManagerWindow.CloseWithoutHiding();
         _trayIcon.Dispose();
+        _lifetimeCancellation.Dispose();
     }
+
+    // SECTION 启动更新检查
+
+    private async Task CheckForUpdatesOnStartupAsync(System.Threading.CancellationToken cancellationToken)
+    {
+        try
+        {
+            var update = await _updateService.CheckForUpdateAsync(cancellationToken);
+            if (update is null
+                || _disposed
+                || cancellationToken.IsCancellationRequested
+                || !_settings.Current.EnableAutomaticUpdateNotifications)
+            {
+                return;
+            }
+
+            _trayIcon.NotifyUpdateAvailable(update.TagName, update.ReleaseUri);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch
+        {
+            // 自动检查失败不影响启动；用户仍可在设置页手动检查。
+        }
+    }
+
+    // !SECTION 启动更新检查
 
     // SECTION 全局键盘事件与输入状态
 

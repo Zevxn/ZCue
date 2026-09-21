@@ -193,6 +193,21 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool EnableAutomaticUpdateNotifications
+    {
+        get => _settings.Current.EnableAutomaticUpdateNotifications;
+        set
+        {
+            if (_settings.Current.EnableAutomaticUpdateNotifications == value)
+            {
+                return;
+            }
+
+            _settings.Update(current => current.EnableAutomaticUpdateNotifications = value);
+            OnPropertyChanged();
+        }
+    }
+
     public bool LaunchAtStartup
     {
         get
@@ -283,6 +298,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowContentPreview));
         OnPropertyChanged(nameof(EnableNumberSelection));
         OnPropertyChanged(nameof(EnableEnterConfirmation));
+        OnPropertyChanged(nameof(EnableAutomaticUpdateNotifications));
         OnPropertyChanged(nameof(LaunchAtStartup));
         RefreshCurrentApplicationNames();
     }

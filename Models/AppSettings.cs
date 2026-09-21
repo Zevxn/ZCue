@@ -20,6 +20,8 @@ public sealed class AppSettings
 
     public bool EnableEnterConfirmation { get; set; } = true;
 
+    public bool EnableAutomaticUpdateNotifications { get; set; } = true;
+
     public ApplicationFilterMode FilterMode { get; set; } = ApplicationFilterMode.Blacklist;
 
     public List<string> Blacklist { get; set; } = [];
@@ -37,6 +39,7 @@ public sealed class AppSettings
         ShowContentPreview = ShowContentPreview,
         EnableNumberSelection = EnableNumberSelection,
         EnableEnterConfirmation = EnableEnterConfirmation,
+        EnableAutomaticUpdateNotifications = EnableAutomaticUpdateNotifications,
         FilterMode = FilterMode,
         Blacklist = Blacklist is null ? [] : [.. Blacklist],
         Whitelist = Whitelist is null ? [] : [.. Whitelist]

@@ -15,6 +15,7 @@ public sealed class TrayIconService : IDisposable
     private readonly Icon _icon;
     private readonly NotifyIcon _notifyIcon;
     private TrayMenuWindow? _menuWindow;
+    private Uri? _pendingUpdateReleaseUri;
     private AppThemeMode _themeMode;
     private bool _startupEnabled;
     private bool _paused;
@@ -38,6 +39,7 @@ public sealed class TrayIconService : IDisposable
             Visible = true
         };
         _notifyIcon.MouseClick += HandleNotifyIconMouseClick;
+        _notifyIcon.BalloonTipClicked += HandleBalloonTipClicked;
     }
 
     public event Action? OpenManagerRequested;
@@ -66,6 +68,21 @@ public sealed class TrayIconService : IDisposable
         _menuWindow?.UpdateStartupEnabled(_startupEnabled);
     }
 
+    public void NotifyUpdateAvailable(string version, Uri releaseUri)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _pendingUpdateReleaseUri = releaseUri;
+        _notifyIcon.ShowBalloonTip(
+            5000,
+            "ZCue 有新版本",
+            $"发现 {version}，点击通知查看更新说明和下载。",
+            ToolTipIcon.Info);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -80,6 +97,7 @@ public sealed class TrayIconService : IDisposable
         }
 
         _notifyIcon.MouseClick -= HandleNotifyIconMouseClick;
+        _notifyIcon.BalloonTipClicked -= HandleBalloonTipClicked;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _icon.Dispose();
@@ -94,6 +112,28 @@ public sealed class TrayIconService : IDisposable
         else if (eventArgs.Button == MouseButtons.Right)
         {
             ShowContextMenu();
+        }
+    }
+
+    private void HandleBalloonTipClicked(object? sender, EventArgs eventArgs)
+    {
+        if (_pendingUpdateReleaseUri is not { } releaseUri
+            || releaseUri.Scheme != Uri.UriSchemeHttps
+            || !string.Equals(releaseUri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(releaseUri.AbsoluteUri)
+            {
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 打开浏览器失败时不应影响托盘进程。
         }
     }
 

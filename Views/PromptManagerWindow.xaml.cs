@@ -34,6 +34,7 @@ public partial class PromptManagerWindow : Window
     private const string GitHubUrl = "https://github.com/Zevxn/ZCue";
     private const string GitHubReleasesUrl = "https://github.com/Zevxn/ZCue/releases";
     private readonly PromptManagerViewModel _promptViewModel;
+    private readonly UpdateService _updateService;
     private readonly PromptStorageService _transferStorage = new();
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
@@ -63,9 +64,11 @@ public partial class PromptManagerWindow : Window
         StartupService startupService,
         Func<bool> isListeningEnabled,
         Action<bool> setListeningEnabled,
-        Action? refreshStartupState = null)
+        Action? refreshStartupState = null,
+        UpdateService? updateService = null)
     {
         InitializeComponent();
+        _updateService = updateService ?? new UpdateService();
         var version = typeof(PromptManagerWindow).Assembly.GetName().Version;
         VersionTextBlock.Text = version is null
             ? string.Empty
@@ -162,6 +165,48 @@ public partial class PromptManagerWindow : Window
             GitHubReleasesUrl,
             "无法打开 GitHub Releases",
             "无法打开 GitHub Releases 页面。");
+    }
+
+    private async void HandleCheckUpdatesClick(object sender, RoutedEventArgs e)
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        CheckUpdatesButton.Content = "检查中…";
+
+        try
+        {
+            var update = await _updateService.CheckForUpdateAsync();
+            if (update is null)
+            {
+                AppDialogWindow.ShowMessage(this, "检查更新", "当前已是最新版本。");
+                return;
+            }
+
+            var message = $"发现新版本 {update.TagName}。当前版本为 v{UpdateService.CurrentVersionText}。\n\n是否打开 GitHub Release 页面查看更新说明并下载？";
+            if (AppDialogWindow.Confirm(
+                    this,
+                    "发现新版本",
+                    message,
+                    confirmText: "打开 Release"))
+            {
+                OpenExternalUrl(
+                    update.ReleaseUri.AbsoluteUri,
+                    "无法打开 GitHub Release",
+                    "无法打开新版本的 Release 页面。");
+            }
+        }
+        catch (Exception exception)
+        {
+            AppDialogWindow.ShowMessage(
+                this,
+                "检查更新失败",
+                $"无法连接 GitHub 或读取版本信息。请检查网络后重试。\n\n{exception.Message}",
+                AppDialogTone.Warning);
+        }
+        finally
+        {
+            CheckUpdatesButton.Content = "检查更新";
+            CheckUpdatesButton.IsEnabled = true;
+        }
     }
 
     private void OpenExternalUrl(string url, string title, string message)

@@ -1466,6 +1466,10 @@
                                 Padding="18,14"
                                 Margin="0,0,0,20">
                             <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -1480,12 +1484,50 @@
                                                FontSize="12"
                                                Margin="0,4,0,0" />
                                 </StackPanel>
-                                <Button Grid.Column="1"
-                                        Content="查看 GitHub Releases"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Padding="12,8"
-                                        ToolTip="在浏览器中打开 ZCue Releases 页面"
-                                        Click="HandleOpenReleasesClick" />
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <Button x:Name="CheckUpdatesButton"
+                                            Content="检查更新"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="12,8"
+                                            Margin="0,0,8,0"
+                                            ToolTip="检查 GitHub 上是否有新版本"
+                                            Click="HandleCheckUpdatesClick" />
+                                    <Button Content="查看 GitHub Releases"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="12,8"
+                                            ToolTip="在浏览器中打开 ZCue Releases 页面"
+                                            Click="HandleOpenReleasesClick" />
+                                </StackPanel>
+                                <Border Grid.Row="1"
+                                        Grid.ColumnSpan="2"
+                                        BorderBrush="{DynamicResource ThemeBorderBrush}"
+                                        BorderThickness="0,1,0,0"
+                                        Margin="0,14,0,0"
+                                        Padding="0,12,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="自动通知更新"
+                                                       Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="应用启动时自动检查，发现新版本时通过系统托盘通知。"
+                                                       Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                                                       FontSize="12"
+                                                       Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <CheckBox Grid.Column="1"
+                                                  Style="{StaticResource ToggleSwitch}"
+                                                  IsChecked="{Binding EnableAutomaticUpdateNotifications, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  VerticalAlignment="Center"
+                                                  Margin="24,0,3,0" />
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </Border>
                     </StackPanel>
