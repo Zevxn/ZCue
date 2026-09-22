@@ -151,7 +151,7 @@ public partial class SuggestionWindow : Window
             : new SolidColorBrush(MediaColor.FromRgb(243, 244, 246));
         var secondaryForeground = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromRgb(107, 114, 128))
-            : new SolidColorBrush(MediaColor.FromRgb(156, 163, 175));
+            : new SolidColorBrush(MediaColor.FromRgb(179, 179, 179));
         var selectedNameForeground = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromRgb(30, 64, 175))
             : new SolidColorBrush(MediaColor.FromRgb(243, 244, 246));
@@ -163,7 +163,7 @@ public partial class SuggestionWindow : Window
             : new SolidColorBrush(MediaColor.FromRgb(244, 114, 182));
         var selectedBackground = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromRgb(239, 246, 255))
-            : new SolidColorBrush(MediaColor.FromRgb(55, 65, 81));
+            : new SolidColorBrush(MediaColor.FromRgb(58, 58, 58));
 
         var row = new Border
         {
@@ -190,7 +190,7 @@ public partial class SuggestionWindow : Window
             CornerRadius = new CornerRadius(12),
             Background = isSelected ? selectedBadgeBackground : (_isLightTheme
                 ? new SolidColorBrush(MediaColor.FromRgb(229, 231, 235))
-                : new SolidColorBrush(MediaColor.FromRgb(75, 85, 99))),
+                : new SolidColorBrush(MediaColor.FromRgb(74, 74, 74))),
             HorizontalAlignment = WpfHorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock
@@ -349,10 +349,10 @@ public partial class SuggestionWindow : Window
         _isLightTheme = !AppThemeManager.IsDarkTheme(_themeMode);
         RootBorder.Background = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromArgb(248, 255, 255, 255))
-            : new SolidColorBrush(MediaColor.FromArgb(248, 31, 41, 55));
+            : new SolidColorBrush(MediaColor.FromArgb(248, 32, 32, 32));
         RootBorder.BorderBrush = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromRgb(229, 231, 235))
-            : new SolidColorBrush(MediaColor.FromRgb(75, 85, 99));
+            : new SolidColorBrush(MediaColor.FromRgb(69, 69, 69));
         RootBorder.Effect = new System.Windows.Media.Effects.DropShadowEffect
         {
             BlurRadius = 18,

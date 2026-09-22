@@ -1176,7 +1176,25 @@ public partial class PromptManagerWindow : Window
         }
 
         button.Click += HandleCategoryClick;
+        button.MouseEnter += HandleCategoryMouseEnter;
+        button.MouseLeave += HandleCategoryMouseLeave;
         return button;
+    }
+
+    private void HandleCategoryMouseEnter(object sender, WpfMouseEventArgs e)
+    {
+        if (sender is WpfButton button)
+        {
+            ApplyCategoryButtonState(button, isHovered: true);
+        }
+    }
+
+    private void HandleCategoryMouseLeave(object sender, WpfMouseEventArgs e)
+    {
+        if (sender is WpfButton button)
+        {
+            ApplyCategoryButtonState(button, isHovered: false);
+        }
     }
 
     private void HandleCategoryMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1523,18 +1541,31 @@ public partial class PromptManagerWindow : Window
     {
         foreach (var button in CategoryPanel.Children.OfType<WpfButton>())
         {
-            var selected = button.Tag is string id
-                && string.Equals(id, _promptViewModel.SelectedCategoryId, StringComparison.Ordinal);
-            button.SetResourceReference(
-                System.Windows.Controls.Control.BackgroundProperty,
-                selected ? AppThemeManager.AccentSurfaceBrushKey : AppThemeManager.SurfaceBrushKey);
-            button.SetResourceReference(
-                System.Windows.Controls.Control.ForegroundProperty,
-                selected ? AppThemeManager.AccentTextBrushKey : AppThemeManager.CategoryTextBrushKey);
-            button.SetResourceReference(
-                System.Windows.Controls.Control.BorderBrushProperty,
-                selected ? AppThemeManager.AccentBrushKey : AppThemeManager.FieldBorderBrushKey);
+            ApplyCategoryButtonState(button, button.IsMouseOver);
         }
+    }
+
+    private void ApplyCategoryButtonState(WpfButton button, bool isHovered)
+    {
+        var selected = button.Tag is string id
+            && string.Equals(id, _promptViewModel.SelectedCategoryId, StringComparison.Ordinal);
+        button.SetResourceReference(
+            System.Windows.Controls.Control.BackgroundProperty,
+            selected ? AppThemeManager.AccentSurfaceBrushKey : AppThemeManager.SurfaceBrushKey);
+        button.SetResourceReference(
+            System.Windows.Controls.Control.ForegroundProperty,
+            selected ? AppThemeManager.AccentTextBrushKey : AppThemeManager.CategoryTextBrushKey);
+        button.SetResourceReference(
+            System.Windows.Controls.Control.BorderBrushProperty,
+                selected
+                ? AppThemeManager.AccentSoftBrushKey
+                : isHovered
+                    ? AppThemeManager.AccentSoftBrushKey
+                    : AppThemeManager.FieldBorderBrushKey);
+        button.BorderThickness = new Thickness(selected ? 2 : 1);
+        button.Padding = selected
+            ? new Thickness(12, 6, 12, 6)
+            : new Thickness(13, 7, 13, 7);
     }
 
     private string? ShowCategoryNameDialog(string title, string currentName)

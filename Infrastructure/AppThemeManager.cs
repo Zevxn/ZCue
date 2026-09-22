@@ -22,6 +22,7 @@ public static class AppThemeManager
     public const string CategoryTextBrushKey = "ThemeCategoryTextBrush";
     public const string AccentBrushKey = "ThemeAccentBrush";
     public const string AccentHoverBrushKey = "ThemeAccentHoverBrush";
+    public const string AccentSoftBrushKey = "ThemeAccentSoftBrush";
     public const string AccentTextBrushKey = "ThemeAccentTextBrush";
     public const string AccentSurfaceBrushKey = "ThemeAccentSurfaceBrush";
     public const string SelectionSurfaceBrushKey = "ThemeSelectionSurfaceBrush";
@@ -41,35 +42,36 @@ public static class AppThemeManager
     private static readonly IReadOnlyDictionary<string, (string Light, string Dark)> Palette =
         new Dictionary<string, (string Light, string Dark)>
         {
-            [WindowBackgroundBrushKey] = ("#F8FAFC", "#171D2D"),
-            [SidebarBrushKey] = ("#F1F5F9", "#020617"),
-            [SurfaceBrushKey] = ("#FFFFFF", "#1E293B"),
-            [BorderBrushKey] = ("#E2E8F0", "#334155"),
-            [FieldBorderBrushKey] = ("#CBD5E1", "#475569"),
-            [DividerBrushKey] = ("#F1F5F9", "#334155"),
-            [BadgeBackgroundBrushKey] = ("#F1F5F9", "#334155"),
+            [WindowBackgroundBrushKey] = ("#F8FAFC", "#202020"),
+            [SidebarBrushKey] = ("#F1F5F9", "#252525"),
+            [SurfaceBrushKey] = ("#FFFFFF", "#2B2B2B"),
+            [BorderBrushKey] = ("#E2E8F0", "#454545"),
+            [FieldBorderBrushKey] = ("#CBD5E1", "#5A5A5A"),
+            [DividerBrushKey] = ("#F1F5F9", "#383838"),
+            [BadgeBackgroundBrushKey] = ("#F1F5F9", "#3A3A3A"),
             [TextPrimaryBrushKey] = ("#0F172A", "#F1F5F9"),
-            [TextStrongBrushKey] = ("#334155", "#E2E8F0"),
-            [TextSecondaryBrushKey] = ("#64748B", "#94A3B8"),
-            [TextMutedBrushKey] = ("#94A3B8", "#94A3B8"),
-            [CategoryTextBrushKey] = ("#475569", "#CBD5E1"),
+            [TextStrongBrushKey] = ("#334155", "#E5E5E5"),
+            [TextSecondaryBrushKey] = ("#64748B", "#B3B3B3"),
+            [TextMutedBrushKey] = ("#94A3B8", "#8A8A8A"),
+            [CategoryTextBrushKey] = ("#475569", "#CCCCCC"),
             [AccentBrushKey] = ("#2563EB", "#2563EB"),
             [AccentHoverBrushKey] = ("#1D4ED8", "#1D4ED8"),
-            [AccentTextBrushKey] = ("#1D4ED8", "#93C5FD"),
-            [AccentSurfaceBrushKey] = ("#DBEAFE", "#1E293B"),
-            [SelectionSurfaceBrushKey] = ("#DBEAFE", "#243B60"),
-            [AccentSubtleBrushKey] = ("#EFF6FF", "#334155"),
-            [AccentBorderBrushKey] = ("#93C5FD", "#475569"),
+            [AccentSoftBrushKey] = ("#60A5FA", "#6B9FEA"),
+            [AccentTextBrushKey] = ("#1D4ED8", "#F3F3F3"),
+            [AccentSurfaceBrushKey] = ("#DBEAFE", "#363636"),
+            [SelectionSurfaceBrushKey] = ("#DBEAFE", "#3D3D3D"),
+            [AccentSubtleBrushKey] = ("#EFF6FF", "#363636"),
+            [AccentBorderBrushKey] = ("#93C5FD", "#5A5A5A"),
             [SuccessBrushKey] = ("#059669", "#34D399"),
-            [HoverSurfaceBrushKey] = ("#E2E8F0", "#334155"),
-            [ToggleTrackBrushKey] = ("#CBD5E1", "#475569"),
+            [HoverSurfaceBrushKey] = ("#E2E8F0", "#3A3A3A"),
+            [ToggleTrackBrushKey] = ("#CBD5E1", "#505050"),
             [DangerTextBrushKey] = ("#DC2626", "#F87171"),
             [DangerHoverBrushKey] = ("#FEF2F2", "#450A0A"),
             [DangerBorderBrushKey] = ("#FCA5A5", "#7F1D1D"),
-            [GhostTextBrushKey] = ("#9CA3AF", "#7A8AA2"),
+            [GhostTextBrushKey] = ("#9CA3AF", "#8A8A8A"),
             [ScrollTrackBrushKey] = ("Transparent", "Transparent"),
-            [ScrollThumbBrushKey] = ("#CBD5E1", "#475569"),
-            [ScrollThumbHoverBrushKey] = ("#94A3B8", "#64748B")
+            [ScrollThumbBrushKey] = ("#CBD5E1", "#505050"),
+            [ScrollThumbHoverBrushKey] = ("#94A3B8", "#686868")
         };
     private static bool? _lastAppliedDarkTheme;
 

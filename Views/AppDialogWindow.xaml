@@ -12,7 +12,7 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        FontFamily="Segoe UI"
+        FontFamily="{DynamicResource {x:Static SystemFonts.MessageFontFamilyKey}}"
         UseLayoutRounding="True"
         KeyDown="HandleWindowKeyDown">
     <Window.Resources>
@@ -162,11 +162,20 @@
                                    TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center" />
                     </StackPanel>
-                    <Button Content="×"
-                            Style="{StaticResource DialogCloseButton}"
+                    <Button Style="{StaticResource DialogCloseButton}"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top"
-                            Click="HandleCloseClick" />
+                            Click="HandleCloseClick">
+                        <Path Width="12"
+                              Height="12"
+                              Data="M 2,2 L 10,10 M 10,2 L 2,10"
+                              Fill="Transparent"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                              StrokeThickness="1.6"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </Button>
                 </Grid>
 
                 <ScrollViewer Grid.Row="1"

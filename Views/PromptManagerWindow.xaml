@@ -815,7 +815,7 @@
                                 ToolTip="按分类导出提示词 JSON"
                                 Margin="0,0,8,0"
                                 Click="HandleExportClick" />
-                        <Button Content="＋  新增指令"
+                        <Button Content="＋  新建指令"
                                 Style="{StaticResource PrimaryButton}"
                                 Click="HandleAddClick" />
                     </StackPanel>
@@ -1029,13 +1029,21 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
+                                    <Border x:Name="PromptRowSelectionBorder"
+                                            Background="Transparent"
+                                            BorderBrush="Transparent"
+                                            BorderThickness="2"
+                                            CornerRadius="10"
+                                            IsHitTestVisible="False"
+                                            Panel.ZIndex="2"
+                                            Visibility="Collapsed" />
                                 </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                                                  Value="True">
                                         <Setter TargetName="PromptRowCard"
                                                 Property="BorderBrush"
-                                                Value="{DynamicResource ThemeAccentBrush}" />
+                                                Value="{DynamicResource ThemeAccentSoftBrush}" />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                                                  Value="True">
@@ -1047,7 +1055,16 @@
                                                 Value="{DynamicResource ThemeSelectionSurfaceBrush}" />
                                         <Setter TargetName="PromptRowCard"
                                                 Property="BorderBrush"
-                                                Value="{DynamicResource ThemeAccentBrush}" />
+                                                Value="{DynamicResource ThemeBorderBrush}" />
+                                        <Setter TargetName="PromptRowCard"
+                                                Property="BorderThickness"
+                                                Value="1" />
+                                        <Setter TargetName="PromptRowSelectionBorder"
+                                                Property="BorderBrush"
+                                                Value="{DynamicResource ThemeAccentSoftBrush}" />
+                                        <Setter TargetName="PromptRowSelectionBorder"
+                                                Property="Visibility"
+                                                Value="Visible" />
                                     </DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>
@@ -1069,7 +1086,7 @@
                                        FontSize="16"
                                        FontWeight="SemiBold"
                                        HorizontalAlignment="Center" />
-                            <TextBlock Text="尝试搜索其他关键词，或新建一条指令。"
+                            <TextBlock Text="尝试搜索其他关键词，或新建一条指令"
                                        Foreground="{DynamicResource ThemeTextMutedBrush}"
                                        FontSize="13"
                                        Margin="0,7,0,0"
@@ -1125,7 +1142,7 @@
                                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="关闭后暂停在所有应用中的 Prompt 补全。"
+                                        <TextBlock Text="关闭后暂停在所有应用中的 Prompt 补全"
                                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,4,0,0" />
@@ -1171,7 +1188,7 @@
                                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="使用 1～9 直接确认对应的候选项。"
+                                        <TextBlock Text="使用 1～9 直接确认对应的候选项"
                                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,4,0,0" />
@@ -1194,7 +1211,7 @@
                                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="候选框打开时按 Enter 插入当前选中的 Prompt。"
+                                        <TextBlock Text="候选框打开时按 Enter 插入当前选中的 Prompt"
                                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,4,0,0" />
@@ -1217,7 +1234,7 @@
                                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="允许使用 Prompt 名称的全拼或首字母进行匹配。"
+                                        <TextBlock Text="允许使用 Prompt 名称的全拼或首字母进行匹配"
                                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,4,0,0" />
@@ -1275,7 +1292,7 @@
                                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="拼音或首字母输入达到该阈值后才参与匹配。"
+                                        <TextBlock Text="拼音或首字母输入达到该阈值后才参与匹配"
                                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,4,0,0" />
@@ -1311,7 +1328,7 @@
                                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="非汉字输入达到该阈值后才参与匹配。"
+                                        <TextBlock Text="非汉字输入达到该阈值后才参与匹配"
                                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,4,0,0" />
@@ -1347,7 +1364,7 @@
                                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="调整全局候选窗口宽度（200–1000）。"
+                                        <TextBlock Text="调整全局候选窗口宽度（200–1000）"
                                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,4,0,0" />
@@ -1396,7 +1413,7 @@
                                              IsChecked="{Binding IsBlacklistMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                              Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                              FontSize="13" />
-                                <TextBlock Text="默认在所有应用中启用，名单中的应用除外。"
+                                <TextBlock Text="默认在所有应用中启用，名单中的应用除外"
                                            Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="22,3,0,10" />
@@ -1407,7 +1424,7 @@
                                              Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                              FontSize="13"
                                              Margin="0,10,0,0" />
-                                <TextBlock Text="默认在所有应用中禁用，仅名单中的应用会启用。"
+                                <TextBlock Text="默认在所有应用中禁用，仅名单中的应用会启用"
                                            Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="22,3,0,14" />
@@ -1514,7 +1531,7 @@
                                                Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                FontSize="14"
                                                FontWeight="SemiBold" />
-                                    <TextBlock Text="选择浅色、深色，或跟随 Windows 外观。"
+                                    <TextBlock Text="选择浅色、深色，或跟随 Windows 外观"
                                                Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                FontSize="12"
                                                Margin="0,4,0,0" />
@@ -1559,7 +1576,7 @@
                                                Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                FontSize="14"
                                                FontWeight="SemiBold" />
-                                    <TextBlock Text="登录 Windows 后自动启动 ZCue。"
+                                    <TextBlock Text="登录 Windows 后自动启动 ZCue"
                                                Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                FontSize="12"
                                                Margin="0,4,0,0" />
@@ -1573,7 +1590,7 @@
                             </Grid>
                         </Border>
 
-                        <TextBlock Text="Prompt 和交互设置会立即保存到本机配置目录；监听开关仅对本次运行生效。"
+                        <TextBlock Text="Prompt 和交互设置会立即保存到本机配置目录；监听开关仅对本次运行生效"
                                    Foreground="{DynamicResource ThemeTextMutedBrush}"
                                    FontSize="12"
                                    Margin="2,18,0,14" />
@@ -1640,7 +1657,7 @@
                                                        Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                        FontSize="14"
                                                        FontWeight="SemiBold" />
-                                            <TextBlock Text="应用启动时自动检查，发现新版本时通过系统托盘通知。"
+                                            <TextBlock Text="应用启动时自动检查，发现新版本时通过系统托盘通知"
                                                        Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                        FontSize="12"
                                                        Margin="0,4,0,0" />

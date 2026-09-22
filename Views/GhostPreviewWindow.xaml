@@ -18,7 +18,7 @@
         <TextBlock x:Name="GhostText"
                    Foreground="{DynamicResource ThemeGhostTextBrush}"
                    Opacity="0.68"
-                   FontFamily="Segoe UI"
+                   FontFamily="{DynamicResource {x:Static SystemFonts.MessageFontFamilyKey}}"
                    FontSize="14"
                    FontWeight="Normal"
                    TextWrapping="Wrap"
