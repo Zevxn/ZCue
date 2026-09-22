@@ -79,6 +79,12 @@ public partial class SuggestionWindow : Window
     {
         Dispatcher.VerifyAccess();
 
+        if (IsVisible)
+        {
+            Hide();
+        }
+
+        Opacity = 0;
         _matches.Clear();
         _matches.AddRange(matches.Take(9));
         _selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, _matches.Count - 1));
@@ -92,6 +98,7 @@ public partial class SuggestionWindow : Window
 
         UpdateLayout();
         PositionWindow(caretPosition, preferAbovePreview);
+        Opacity = 1;
     }
 
     public void UpdateSelection(int selectedIndex)
@@ -339,8 +346,7 @@ public partial class SuggestionWindow : Window
                 0,
                 NativeMethods.SWP_NOMOVE
                     | NativeMethods.SWP_NOSIZE
-                    | NativeMethods.SWP_NOACTIVATE
-                    | NativeMethods.SWP_SHOWWINDOW);
+                    | NativeMethods.SWP_NOACTIVATE);
         }
     }
 

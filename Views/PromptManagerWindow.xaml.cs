@@ -1563,9 +1563,6 @@ public partial class PromptManagerWindow : Window
                     ? AppThemeManager.AccentSoftBrushKey
                     : AppThemeManager.FieldBorderBrushKey);
         button.BorderThickness = new Thickness(selected ? 2 : 1);
-        button.Padding = selected
-            ? new Thickness(12, 6, 12, 6)
-            : new Thickness(13, 7, 13, 7);
     }
 
     private string? ShowCategoryNameDialog(string title, string currentName)

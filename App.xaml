@@ -127,14 +127,21 @@
                                                 BorderThickness="{TemplateBinding BorderThickness}"
                                                 Cursor="Hand"
                                                 CornerRadius="6">
-                                            <Path Data="M 0 0 L 4 4 L 8 0"
+                                            <Path x:Name="ArrowPath"
+                                                  Data="M 0 0 L 4 4 L 8 0"
                                                   Stroke="{DynamicResource ThemeTextSecondaryBrush}"
                                                   StrokeThickness="1.6"
                                                   StrokeStartLineCap="Round"
                                                   StrokeEndLineCap="Round"
                                                   HorizontalAlignment="Right"
                                                   VerticalAlignment="Center"
-                                                  Margin="0,0,11,0" />
+                                                  RenderTransformOrigin="0.5,0.5"
+                                                  Margin="0,0,11,0">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform x:Name="ArrowRotation"
+                                                                     Angle="0" />
+                                                </Path.RenderTransform>
+                                            </Path>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
@@ -146,6 +153,34 @@
                                                 <Setter TargetName="ToggleBorder"
                                                         Property="BorderBrush"
                                                         Value="{DynamicResource ThemeAccentBorderBrush}" />
+                                                <Trigger.EnterActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="ArrowRotation"
+                                                                             Storyboard.TargetProperty="Angle"
+                                                                             To="180"
+                                                                             Duration="0:0:0.16">
+                                                                <DoubleAnimation.EasingFunction>
+                                                                    <CubicEase EasingMode="EaseInOut" />
+                                                                </DoubleAnimation.EasingFunction>
+                                                            </DoubleAnimation>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.EnterActions>
+                                                <Trigger.ExitActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="ArrowRotation"
+                                                                             Storyboard.TargetProperty="Angle"
+                                                                             To="0"
+                                                                             Duration="0:0:0.16">
+                                                                <DoubleAnimation.EasingFunction>
+                                                                    <CubicEase EasingMode="EaseInOut" />
+                                                                </DoubleAnimation.EasingFunction>
+                                                            </DoubleAnimation>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.ExitActions>
                                             </Trigger>
                                             <Trigger Property="IsEnabled" Value="False">
                                                 <Setter TargetName="ToggleBorder"

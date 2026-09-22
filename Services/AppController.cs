@@ -311,6 +311,11 @@ public sealed class AppController : IDisposable
             }
             else
             {
+                if (HasSuggestions())
+                {
+                    ClearSuggestions(resetBuffer: false, cancelTextSync: false);
+                }
+
                 _inputBuffer.Append(inputText);
             }
 
@@ -567,11 +572,7 @@ public sealed class AppController : IDisposable
                 try
                 {
                     var caretPosition = _caretPositionService.GetPosition(targetWindow);
-                    _suggestionWindow.ShowSuggestions(
-                        matches,
-                        selectedIndex,
-                        caretPosition,
-                        _settings.Current.ShowContentPreview);
+                    _suggestionWindow.UpdateSelection(selectedIndex);
                     ShowGhostPreview(matches[selectedIndex].Item.Content, targetWindow, caretPosition);
                 }
                 catch

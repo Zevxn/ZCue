@@ -116,15 +116,18 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                Cursor="{TemplateBinding Cursor}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="16"
-                                Padding="{TemplateBinding Padding}">
+                        <Grid Cursor="{TemplateBinding Cursor}"
+                              SnapsToDevicePixels="True">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="16" />
+                            <Border BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="16"
+                                    IsHitTestVisible="False" />
                             <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                        </Border>
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
