@@ -94,6 +94,7 @@ public partial class PromptManagerWindow : Window
         DataContext = _promptViewModel;
         RenderCategoryButtons();
         SettingsPage.DataContext = _settingsViewModel;
+        ApplicationSettingsPage.DataContext = _settingsViewModel;
         Closing += HandleClosing;
         Loaded += (_, _) =>
         {
@@ -127,6 +128,7 @@ public partial class PromptManagerWindow : Window
     {
         CommandsPage.Visibility = Visibility.Visible;
         SettingsPage.Visibility = Visibility.Collapsed;
+        ApplicationSettingsPage.Visibility = Visibility.Collapsed;
         CommandsNavigationButton.SetResourceReference(
             System.Windows.Controls.Control.BackgroundProperty,
             AppThemeManager.AccentSurfaceBrushKey);
@@ -135,6 +137,8 @@ public partial class PromptManagerWindow : Window
             AppThemeManager.AccentTextBrushKey);
         SettingsNavigationButton.ClearValue(BackgroundProperty);
         SettingsNavigationButton.ClearValue(ForegroundProperty);
+        ApplicationSettingsNavigationButton.ClearValue(BackgroundProperty);
+        ApplicationSettingsNavigationButton.ClearValue(ForegroundProperty);
         _promptViewModel.Reload(_promptViewModel.SelectedPrompt?.Id);
         UpdateEmptyState();
     }
@@ -143,6 +147,7 @@ public partial class PromptManagerWindow : Window
     {
         CommandsPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Visible;
+        ApplicationSettingsPage.Visibility = Visibility.Collapsed;
         SettingsNavigationButton.SetResourceReference(
             System.Windows.Controls.Control.BackgroundProperty,
             AppThemeManager.AccentSurfaceBrushKey);
@@ -151,6 +156,26 @@ public partial class PromptManagerWindow : Window
             AppThemeManager.AccentTextBrushKey);
         CommandsNavigationButton.ClearValue(BackgroundProperty);
         CommandsNavigationButton.ClearValue(ForegroundProperty);
+        ApplicationSettingsNavigationButton.ClearValue(BackgroundProperty);
+        ApplicationSettingsNavigationButton.ClearValue(ForegroundProperty);
+        _settingsViewModel.Refresh();
+    }
+
+    private void ShowApplicationSettingsPage(object sender, RoutedEventArgs e)
+    {
+        CommandsPage.Visibility = Visibility.Collapsed;
+        SettingsPage.Visibility = Visibility.Collapsed;
+        ApplicationSettingsPage.Visibility = Visibility.Visible;
+        ApplicationSettingsNavigationButton.SetResourceReference(
+            System.Windows.Controls.Control.BackgroundProperty,
+            AppThemeManager.AccentSurfaceBrushKey);
+        ApplicationSettingsNavigationButton.SetResourceReference(
+            System.Windows.Controls.Control.ForegroundProperty,
+            AppThemeManager.AccentTextBrushKey);
+        CommandsNavigationButton.ClearValue(BackgroundProperty);
+        CommandsNavigationButton.ClearValue(ForegroundProperty);
+        SettingsNavigationButton.ClearValue(BackgroundProperty);
+        SettingsNavigationButton.ClearValue(ForegroundProperty);
         _settingsViewModel.Refresh();
     }
 
@@ -1030,15 +1055,15 @@ public partial class PromptManagerWindow : Window
         }
 
         e.Handled = true;
-        if (SettingsScrollViewer.ScrollableHeight <= 0)
+        if (ApplicationSettingsScrollViewer.ScrollableHeight <= 0)
         {
             return;
         }
 
-        SettingsScrollViewer.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+        ApplicationSettingsScrollViewer.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
         {
             RoutedEvent = Mouse.MouseWheelEvent,
-            Source = SettingsScrollViewer
+            Source = ApplicationSettingsScrollViewer
         });
     }
 

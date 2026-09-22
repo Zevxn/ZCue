@@ -785,6 +785,21 @@
                             <TextBlock Text="指令设置"
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    <Button x:Name="ApplicationSettingsNavigationButton"
+                            Style="{StaticResource NavigationButton}"
+                            Margin="0,4,0,0"
+                            Click="ShowApplicationSettingsPage">
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="◈"
+                                       Width="18"
+                                       TextAlignment="Center"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="应用设置"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -1557,11 +1572,44 @@
                             </StackPanel>
                         </Border>
 
+                        <TextBlock Text="Prompt 和交互设置会立即保存到本机配置目录；监听开关仅对本次运行生效"
+                                   Foreground="{DynamicResource ThemeTextMutedBrush}"
+                                   FontSize="12"
+                                   Margin="2,18,0,14" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <Grid x:Name="ApplicationSettingsPage"
+                  Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="应用设置"
+                               Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                               FontSize="26"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="调整 ZCue 的外观、系统启动和应用信息"
+                               Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                               FontSize="13"
+                               Margin="0,7,0,0" />
+                </StackPanel>
+
+                <ScrollViewer x:Name="ApplicationSettingsScrollViewer"
+                              Grid.Row="1"
+                              Margin="0,26,0,0"
+                              Padding="0,0,14,0"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
                         <TextBlock Text="外观"
                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                    FontSize="12"
                                    FontWeight="SemiBold"
-                                   Margin="2,24,0,9" />
+                                   Margin="2,0,0,9" />
                         <Border Background="{DynamicResource ThemeSurfaceBrush}"
                                 BorderBrush="{DynamicResource ThemeBorderBrush}"
                                 BorderThickness="1"
@@ -1636,16 +1684,11 @@
                             </Grid>
                         </Border>
 
-                        <TextBlock Text="Prompt 和交互设置会立即保存到本机配置目录；监听开关仅对本次运行生效"
-                                   Foreground="{DynamicResource ThemeTextMutedBrush}"
-                                   FontSize="12"
-                                   Margin="2,18,0,14" />
-
                         <TextBlock Text="关于"
                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                    FontSize="12"
                                    FontWeight="SemiBold"
-                                   Margin="2,0,0,9" />
+                                   Margin="2,24,0,9" />
                         <Border Background="{DynamicResource ThemeSurfaceBrush}"
                                 BorderBrush="{DynamicResource ThemeBorderBrush}"
                                 BorderThickness="1"
