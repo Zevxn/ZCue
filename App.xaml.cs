@@ -1,6 +1,8 @@
 ﻿using ZCue.Services;
 using ZCue.Views;
 
+using ZCue.Infrastructure;
+
 namespace ZCue;
 
 public partial class App : System.Windows.Application
@@ -18,6 +20,7 @@ public partial class App : System.Windows.Application
     {
         ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
+        ButtonPressFeedbackService.Initialize();
 
         try
         {
