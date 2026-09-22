@@ -12,6 +12,14 @@ ZCue 适合在多个 AI 客户端之间复用较长的提示词，尤其是日�
 
 ZCue 的重点是快速复用 AI 提示词；实际可用性取决于目标应用输入框对键盘输入和文本插入的支持情况。
 
+## 功能演示
+
+![ZCue 功能演示](assets/img/功能演示.gif)
+
+![ZCue 指令管理界面](assets/img/指令管理.png)
+
+![ZCue 指令设置界面](assets/img/指令设置.png)
+
 ## 当前 MVP
 
 - .NET 8 + WPF + Win32
