@@ -299,6 +299,23 @@ public partial class SuggestionWindow : Window
 
     // SECTION 无焦点定位与主题
 
+    private void HandleRootBorderSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var width = RootBorder.ActualWidth;
+        var height = RootBorder.ActualHeight;
+        if (width <= 0 || height <= 0)
+        {
+            RootBorder.Clip = null;
+            return;
+        }
+
+        var radius = Math.Min(11, Math.Min(width, height) / 2);
+        RootBorder.Clip = new RectangleGeometry(
+            new Rect(0, 0, width, height),
+            radius,
+            radius);
+    }
+
     private void PositionWindow(CaretPosition caretPosition, bool preferAbovePreview)
     {
         var scale = caretPosition.DpiScale <= 0 ? 1 : caretPosition.DpiScale;

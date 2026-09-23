@@ -18,7 +18,10 @@
     <Border x:Name="RootBorder"
             Padding="8"
             CornerRadius="11"
-            BorderThickness="1">
+            BorderThickness="1"
+            ClipToBounds="True"
+            SnapsToDevicePixels="True"
+            SizeChanged="HandleRootBorderSizeChanged">
         <ScrollViewer x:Name="ItemsScrollViewer"
                       MaxHeight="380"
                       VerticalScrollBarVisibility="Auto"
