@@ -48,16 +48,28 @@ public sealed class InputBufferService
         }
     }
 
+    /// <summary>
+    /// 用光标前的真实文本同步缓冲区。只保留尾部 token：匹配与高亮始终只关心当前 token，
+    /// 保存整段正文会让无关内容参与后续 Backspace 与 token 推导。
+    /// </summary>
     public void ReplaceFromTextBeforeCaret(string textBeforeCaret)
     {
         lock (_gate)
         {
             _buffer.Clear();
-            if (!string.IsNullOrEmpty(textBeforeCaret))
+            if (string.IsNullOrEmpty(textBeforeCaret))
             {
-                _buffer.Append(textBeforeCaret);
-                TrimToMaxLength();
+                return;
             }
+
+            var start = textBeforeCaret.Length;
+            while (start > 0 && !IsTokenBoundary(textBeforeCaret[start - 1]))
+            {
+                start--;
+            }
+
+            _buffer.Append(textBeforeCaret[start..]);
+            TrimToMaxLength();
         }
     }
 

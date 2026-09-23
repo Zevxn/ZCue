@@ -10,6 +10,11 @@ namespace ZCue.Views;
 
 public partial class GhostPreviewWindow : Window
 {
+    /// <summary>
+    /// 隐藏用的屏幕外坐标。窗口保持可见，只把坐标挪到屏幕外。
+    /// </summary>
+    private const double OffScreenCoordinate = -32000;
+
     private IntPtr _windowHandle;
     private IntPtr _targetWindow;
     private HwndSource? _windowSource;
@@ -23,6 +28,13 @@ public partial class GhostPreviewWindow : Window
             Interval = TimeSpan.FromMilliseconds(120)
         };
         _foregroundTimer.Tick += HandleForegroundTimerTick;
+
+        // 启动时先显示一次并停在屏幕外，此后不再 Show/Hide。
+        // 分层窗口 Hide 后再 Show 时 DWM 会回放上一次的合成表面，这是"旧预览闪回"的来源；
+        // 常驻可见、只用坐标表达"隐藏"就没有这个瞬间。
+        Left = OffScreenCoordinate;
+        Top = OffScreenCoordinate;
+        Show();
     }
 
     // SECTION 幽灵文字渲染与定位
@@ -96,14 +108,12 @@ public partial class GhostPreviewWindow : Window
         Width = availableWidthDip;
         Height = availableHeightDip;
 
-        if (!IsVisible)
-        {
-            Show();
-        }
-
-        UpdateLayout();
+        // 窗口常驻可见，这里只原地改坐标、尺寸与内容，整段在同一个 UI 任务里完成，
+        // 会一起合成，不会让上一轮的坐标或文字成帧。
         Left = textAreaLeft / scale;
         Top = caretPosition.Top / scale;
+
+        UpdateLayout();
 
         if (_windowHandle != IntPtr.Zero)
         {
@@ -116,8 +126,7 @@ public partial class GhostPreviewWindow : Window
                 0,
                 NativeMethods.SWP_NOMOVE
                     | NativeMethods.SWP_NOSIZE
-                    | NativeMethods.SWP_NOACTIVATE
-                    | NativeMethods.SWP_SHOWWINDOW);
+                    | NativeMethods.SWP_NOACTIVATE);
         }
     }
 
@@ -126,7 +135,8 @@ public partial class GhostPreviewWindow : Window
         Dispatcher.VerifyAccess();
         _foregroundTimer.Stop();
         _targetWindow = IntPtr.Zero;
-        Hide();
+        Left = OffScreenCoordinate;
+        Top = OffScreenCoordinate;
     }
 
     // !SECTION 幽灵文字渲染与定位
@@ -160,12 +170,8 @@ public partial class GhostPreviewWindow : Window
 
     private void HandleForegroundTimerTick(object? sender, EventArgs e)
     {
-        if (!IsVisible)
-        {
-            _foregroundTimer.Stop();
-            return;
-        }
-
+        // 窗口常驻可见，无法再用 IsVisible 判断是否已隐藏；_targetWindow 才是当前是否
+        // 正在显示的依据（HidePreview 会把它清空，并停掉本计时器）。
         if (_targetWindow == IntPtr.Zero || NativeMethods.GetForegroundWindow() != _targetWindow)
         {
             HidePreview();

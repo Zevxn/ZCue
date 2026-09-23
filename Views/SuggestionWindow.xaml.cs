@@ -17,6 +17,11 @@ namespace ZCue.Views;
 
 public partial class SuggestionWindow : Window
 {
+    /// <summary>
+    /// 隐藏用的屏幕外坐标。窗口保持可见，只把坐标挪到屏幕外。
+    /// </summary>
+    private const double OffScreenCoordinate = -32000;
+
     private readonly List<PromptMatch> _matches = [];
     private IntPtr _windowHandle;
     private int _selectedIndex;
@@ -27,6 +32,14 @@ public partial class SuggestionWindow : Window
     {
         InitializeComponent();
         ApplyTheme();
+
+        // 启动时先显示一次并停在屏幕外，此后不再 Show/Hide。
+        // 分层窗口（AllowsTransparency）在 Hide 之后重新 Show 时，DWM 会先合成上一次
+        // 压入的表面；Opacity=0 挡不住它 —— 透明度同样是异步生效的 WPF 属性。
+        // 保持窗口常驻可见、只用坐标表达"隐藏"，就没有"重新可见"这个瞬间。
+        Left = OffScreenCoordinate;
+        Top = OffScreenCoordinate;
+        Show();
     }
 
     public event Action<int>? SelectionRequested;
@@ -71,6 +84,11 @@ public partial class SuggestionWindow : Window
         }
     }
 
+    /// <summary>
+    /// 更新候选内容与位置。窗口常驻可见（无匹配时停在屏幕外），这里只原地替换行内容、
+    /// 尺寸与坐标。整段在同一个 UI 任务内完成，内容与坐标一起合成，
+    /// 不存在会被 DWM 回放上一轮表面的"重新可见"瞬间。
+    /// </summary>
     public void ShowSuggestions(
         IReadOnlyList<PromptMatch> matches,
         int selectedIndex,
@@ -79,26 +97,27 @@ public partial class SuggestionWindow : Window
     {
         Dispatcher.VerifyAccess();
 
-        if (IsVisible)
-        {
-            Hide();
-        }
-
-        Opacity = 0;
         _matches.Clear();
         _matches.AddRange(matches.Take(9));
         _selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, _matches.Count - 1));
         ApplyTheme();
         RenderRows();
 
-        if (!IsVisible)
-        {
-            Show();
-        }
-
+        // 窗口高度由内容决定（SizeToContent="Height"），必须先完成布局才拿得到真实尺寸。
         UpdateLayout();
         PositionWindow(caretPosition, preferAbovePreview);
-        Opacity = 1;
+    }
+
+    /// <summary>
+    /// 隐藏候选：移出屏幕。先移出再清内容，清空引起的尺寸变化发生在屏幕外。
+    /// </summary>
+    public void HideSuggestions()
+    {
+        Dispatcher.VerifyAccess();
+        Left = OffScreenCoordinate;
+        Top = OffScreenCoordinate;
+        _matches.Clear();
+        _selectedIndex = 0;
     }
 
     public void UpdateSelection(int selectedIndex)

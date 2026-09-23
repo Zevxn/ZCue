@@ -121,7 +121,7 @@ public sealed class AppController : IDisposable
         _keyboardHook.Dispose();
         _foregroundMonitor.Stop();
         _foregroundMonitor.Tick -= HandleForegroundMonitorTick;
-        _suggestionWindow.Hide();
+        _suggestionWindow.HideSuggestions();
         _ghostPreviewWindow.HidePreview();
         _promptManagerWindow.CloseWithoutHiding();
         _trayIcon.Dispose();
@@ -311,12 +311,9 @@ public sealed class AppController : IDisposable
             }
             else
             {
-                if (HasSuggestions())
-                {
-                    ClearSuggestions(resetBuffer: false, cancelTextSync: false);
-                }
-
                 _inputBuffer.Append(inputText);
+                // 物理缓冲此时已是最新 token，立即按其更新候选：窗口原地替换内容，不隐藏。
+                RecomputeSuggestions(foregroundWindow);
             }
 
             ScheduleFocusedTextSync(foregroundWindow);
@@ -443,6 +440,9 @@ public sealed class AppController : IDisposable
             settings: _settings.Current);
         if (inferCommittedImeText)
         {
+            // Chromium 类控件不暴露光标前文本时，物理缓冲里只有拼音字母，而输入框里
+            // 实际已上屏中文。这里按拼音匹配结果反推出对应的中文名称片段，仅用于本次
+            // 候选与确认时的删除长度计算；不回写 _inputBuffer，避免残留片段影响后续输入。
             var inferredMatch = matches.FirstOrDefault(match =>
                 match.MatchKind is PromptMatchKind.PinyinFull or PromptMatchKind.PinyinInitial
                 && match.HighlightLength > 0
@@ -453,7 +453,6 @@ public sealed class AppController : IDisposable
                 token = inferredMatch.Item.Name.Substring(
                     inferredMatch.HighlightStart,
                     inferredMatch.HighlightLength);
-                _inputBuffer.ReplaceFromTextBeforeCaret(token);
                 matches = _matchService.Match(
                     token,
                     enabledItems,
@@ -471,20 +470,6 @@ public sealed class AppController : IDisposable
             version = ++_stateVersion;
         }
 
-        if (matches.Count == 0)
-        {
-            PostToUi(() =>
-            {
-                if (IsCurrentVersion(version))
-                {
-                    _foregroundMonitor.Stop();
-                    _suggestionWindow.Hide();
-                    _ghostPreviewWindow.HidePreview();
-                }
-            });
-            return;
-        }
-
         PostToUi(() =>
         {
             if (!IsCurrentVersion(version))
@@ -499,8 +484,18 @@ public sealed class AppController : IDisposable
                 return;
             }
 
-            if (HideSuggestionsIfImeComposing(targetWindow) || !HasSuggestions())
+            if (HideSuggestionsIfImeComposing(targetWindow))
             {
+                return;
+            }
+
+            if (matches.Count == 0)
+            {
+                // 无匹配时关闭窗口，但必须先清空行内容再隐藏：
+                // 否则分层窗口在隐藏瞬间会露出上一轮的候选行。
+                _foregroundMonitor.Stop();
+                _suggestionWindow.HideSuggestions();
+                _ghostPreviewWindow.HidePreview();
                 return;
             }
 
@@ -508,6 +503,14 @@ public sealed class AppController : IDisposable
             {
                 var currentIndex = GetSelectedIndex();
                 var caretPosition = _caretPositionService.GetPosition(targetWindow);
+                // 光标定位是跨进程 UI Automation，耗时可能超过一次按键间隔。
+                // 期间新按键会更新 _stateVersion，此处必须重新校验，
+                // 否则会用上一轮的 matches 覆盖刚更新的候选。
+                if (!IsCurrentVersion(version))
+                {
+                    return;
+                }
+
                 _suggestionWindow.ShowSuggestions(
                     matches,
                     currentIndex,
@@ -518,7 +521,7 @@ public sealed class AppController : IDisposable
             }
             catch
             {
-                _suggestionWindow.Hide();
+                _suggestionWindow.HideSuggestions();
                 _ghostPreviewWindow.HidePreview();
             }
         });
@@ -577,7 +580,7 @@ public sealed class AppController : IDisposable
                 }
                 catch
                 {
-                    _suggestionWindow.Hide();
+                    _suggestionWindow.HideSuggestions();
                     _ghostPreviewWindow.HidePreview();
                 }
             }
@@ -611,7 +614,7 @@ public sealed class AppController : IDisposable
 
         PostAsyncToUi(async () =>
         {
-            _suggestionWindow.Hide();
+            _suggestionWindow.HideSuggestions();
             _ghostPreviewWindow.HidePreview();
             if (NativeMethods.GetForegroundWindow() != targetWindow)
             {
@@ -663,7 +666,7 @@ public sealed class AppController : IDisposable
         PostToUi(() =>
         {
             _foregroundMonitor.Stop();
-            _suggestionWindow.Hide();
+            _suggestionWindow.HideSuggestions();
             _ghostPreviewWindow.HidePreview();
         });
     }
@@ -676,10 +679,15 @@ public sealed class AppController : IDisposable
         }
     }
 
+    /// <summary>
+    /// 输入法组合期间压住候选显示。这里只隐藏窗口、不结束候选状态：
+    /// 组合结束后还要按拼音缓冲区重新匹配，若在此清空状态会丢掉触发串。
+    /// 是否处于组合以 IMM32 的组合串为准；候选窗存在只作为补充信号，
+    /// 因为部分输入法（如搜狗）的候选窗会常驻屏幕，单独依赖它会长期误判。
+    /// </summary>
     private bool HideSuggestionsIfImeComposing(IntPtr targetWindow)
     {
-        if (!_imeCompositionService.IsComposing(targetWindow)
-            && !_imeCompositionService.HasVisibleCandidateWindow())
+        if (!_imeCompositionService.IsComposing(targetWindow))
         {
             return false;
         }
@@ -689,7 +697,12 @@ public sealed class AppController : IDisposable
             _imeCompositionTarget = targetWindow;
         }
 
-        ClearSuggestions(resetBuffer: false, cancelTextSync: false);
+        PostToUi(() =>
+        {
+            _foregroundMonitor.Stop();
+            _suggestionWindow.HideSuggestions();
+            _ghostPreviewWindow.HidePreview();
+        });
         return true;
     }
 
@@ -770,8 +783,7 @@ public sealed class AppController : IDisposable
             var compositionDeadline = Environment.TickCount64 + 2000;
             while (true)
             {
-                if (_imeCompositionService.IsComposing(targetWindow)
-                    || _imeCompositionService.HasVisibleCandidateWindow())
+                if (_imeCompositionService.IsComposing(targetWindow))
                 {
                     observedComposition = true;
                     if (!suggestionsSuppressed || HasSuggestions())
@@ -804,8 +816,7 @@ public sealed class AppController : IDisposable
                         return;
                     }
 
-                    if (_imeCompositionService.IsComposing(targetWindow)
-                        || _imeCompositionService.HasVisibleCandidateWindow())
+                    if (_imeCompositionService.IsComposing(targetWindow))
                     {
                         observedComposition = true;
                         continue;
@@ -828,7 +839,7 @@ public sealed class AppController : IDisposable
 
             var imeCompositionObserved = observedComposition
                 || IsImeCompositionObserved(targetWindow);
-            if (_imeCompositionService.HasVisibleCandidateWindow())
+            if (_imeCompositionService.IsComposing(targetWindow))
             {
                 HideSuggestionsIfImeComposing(targetWindow);
                 return;
@@ -837,20 +848,26 @@ public sealed class AppController : IDisposable
             var inferCommittedImeText = false;
             if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
             {
-                var matchesPhysicalInput = TextBeforeCaretMatchesCurrentToken(textBeforeCaret);
-                var shouldReplaceBuffer = preservePhysicalInputForShiftCommit
-                    ? matchesPhysicalInput
-                    : matchesPhysicalInput || imeCompositionObserved || waitForVoiceInputSettle;
-                if (shouldReplaceBuffer)
+                if (TextBeforeCaretMatchesCurrentToken(textBeforeCaret))
                 {
+                    // 光标前文本确实是当前 token 时，用它同步缓冲区（处理 Ctrl+V、撤销等）。
                     _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
                 }
+                else if (imeCompositionObserved && !preservePhysicalInputForShiftCommit)
+                {
+                    // 输入法已上屏中文：光标前的文本不再是拼音触发串，物理缓冲区里的字母
+                    // 已经过期。此时必须清空，否则残留字母会与新按键拼成永不匹配的乱串。
+                    _inputBuffer.Reset();
+                }
             }
-            else if (imeCompositionObserved && !preservePhysicalInputForShiftCommit)
+            else
             {
-                // VS Code 的 Chromium 编辑器不暴露可靠的光标文本。保留组合期间收集的
-                // 拼音触发串，并按其对应的中文名称字符数删除已上屏文本。
-                inferCommittedImeText = true;
+                if (imeCompositionObserved && !preservePhysicalInputForShiftCommit)
+                {
+                    // VS Code 的 Chromium 编辑器不暴露可靠的光标文本。保留组合期间收集的
+                    // 拼音触发串，并按其对应的中文名称字符数删除已上屏文本。
+                    inferCommittedImeText = true;
+                }
             }
 
             RecomputeSuggestions(targetWindow, inferCommittedImeText);
@@ -896,11 +913,17 @@ public sealed class AppController : IDisposable
         }
     }
 
+    /// <summary>
+    /// 判断 UI Automation 读到的光标前文本是否值得用来替换物理按键缓冲。
+    /// 只有文本尾部确实以当前 token 结尾时才允许替换：UIA 读取可能滞后于物理按键，
+    /// 若放任它覆盖，会把上一次输入遗留的字符带进缓冲区，重算出上一轮的候选。
+    /// token 为空时没有可校验的依据，保持物理缓冲。
+    /// </summary>
     private bool TextBeforeCaretMatchesCurrentToken(string textBeforeCaret)
     {
         var token = _inputBuffer.GetCurrentToken();
-        return token.Length == 0
-            || textBeforeCaret.EndsWith(token, StringComparison.OrdinalIgnoreCase);
+        return token.Length > 0
+            && textBeforeCaret.EndsWith(token, StringComparison.OrdinalIgnoreCase);
     }
 
     private void CancelFocusedTextSync()
@@ -991,23 +1014,16 @@ public sealed class AppController : IDisposable
 
     private void RefreshGhostPreview()
     {
-        PromptMatch? match;
         IntPtr targetWindow;
-
         lock (_stateGate)
         {
-            if (!_suggestionsVisible || _activeMatches.Count == 0)
-            {
-                _ghostPreviewWindow.HidePreview();
-                return;
-            }
-
-            match = _activeMatches[Math.Clamp(_selectedIndex, 0, _activeMatches.Count - 1)];
             targetWindow = _targetWindow;
         }
 
-        var caretPosition = _caretPositionService.GetPosition(targetWindow);
-        ShowGhostPreview(match.Item.Content, targetWindow, caretPosition);
+        // 预览内容只能由 RecomputeSuggestions 写。这里直接调用 ShowGhostPreview 会绕过
+        // 版本号校验：同一时刻尚未执行的旧重算任务恢复后仍会用上一轮内容覆盖窗口，
+        // 表现为旧预览闪回。改为重新排队一次重算，旧任务随即被版本号丢弃。
+        RecomputeSuggestions(targetWindow);
     }
 
     private void ShowGhostPreview(
