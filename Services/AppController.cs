@@ -311,9 +311,12 @@ public sealed class AppController : IDisposable
             }
             else
             {
+                if (HasSuggestions())
+                {
+                    ClearSuggestions(resetBuffer: false, cancelTextSync: false);
+                }
+
                 _inputBuffer.Append(inputText);
-                // 物理缓冲此时已是最新 token，立即按其更新候选：窗口原地替换内容，不隐藏。
-                RecomputeSuggestions(foregroundWindow);
             }
 
             ScheduleFocusedTextSync(foregroundWindow);
@@ -682,12 +685,12 @@ public sealed class AppController : IDisposable
     /// <summary>
     /// 输入法组合期间压住候选显示。这里只隐藏窗口、不结束候选状态：
     /// 组合结束后还要按拼音缓冲区重新匹配，若在此清空状态会丢掉触发串。
-    /// 是否处于组合以 IMM32 的组合串为准；候选窗存在只作为补充信号，
-    /// 因为部分输入法（如搜狗）的候选窗会常驻屏幕，单独依赖它会长期误判。
+    /// IMM32 组合串和输入法候选窗共同用于捕获组合/选词状态，避免预编辑拼音触发候选。
     /// </summary>
     private bool HideSuggestionsIfImeComposing(IntPtr targetWindow)
     {
-        if (!_imeCompositionService.IsComposing(targetWindow))
+        if (!_imeCompositionService.IsComposing(targetWindow)
+            && !_imeCompositionService.HasVisibleCandidateWindow())
         {
             return false;
         }
@@ -697,12 +700,7 @@ public sealed class AppController : IDisposable
             _imeCompositionTarget = targetWindow;
         }
 
-        PostToUi(() =>
-        {
-            _foregroundMonitor.Stop();
-            _suggestionWindow.HideSuggestions();
-            _ghostPreviewWindow.HidePreview();
-        });
+        ClearSuggestions(resetBuffer: false, cancelTextSync: false);
         return true;
     }
 
@@ -839,25 +837,22 @@ public sealed class AppController : IDisposable
 
             var imeCompositionObserved = observedComposition
                 || IsImeCompositionObserved(targetWindow);
-            if (_imeCompositionService.IsComposing(targetWindow))
+            if (HideSuggestionsIfImeComposing(targetWindow))
             {
-                HideSuggestionsIfImeComposing(targetWindow);
                 return;
             }
 
             var inferCommittedImeText = false;
             if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
             {
-                if (TextBeforeCaretMatchesCurrentToken(textBeforeCaret))
+                var matchesPhysicalInput = TextBeforeCaretMatchesCurrentToken(textBeforeCaret);
+                var shouldReplaceBuffer = preservePhysicalInputForShiftCommit
+                    ? matchesPhysicalInput
+                    : matchesPhysicalInput || imeCompositionObserved || waitForVoiceInputSettle;
+                if (shouldReplaceBuffer)
                 {
-                    // 光标前文本确实是当前 token 时，用它同步缓冲区（处理 Ctrl+V、撤销等）。
+                    // 输入法已提交时，物理缓冲是拼音，光标前真实文本才是中文触发串。
                     _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
-                }
-                else if (imeCompositionObserved && !preservePhysicalInputForShiftCommit)
-                {
-                    // 输入法已上屏中文：光标前的文本不再是拼音触发串，物理缓冲区里的字母
-                    // 已经过期。此时必须清空，否则残留字母会与新按键拼成永不匹配的乱串。
-                    _inputBuffer.Reset();
                 }
             }
             else
