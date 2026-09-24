@@ -34,6 +34,7 @@ public partial class GhostPreviewWindow : Window
         // 常驻可见、只用坐标表达"隐藏"就没有这个瞬间。
         Left = OffScreenCoordinate;
         Top = OffScreenCoordinate;
+        GhostClip.Opacity = 0;
         Show();
     }
 
@@ -53,6 +54,7 @@ public partial class GhostPreviewWindow : Window
             return;
         }
 
+        GhostClip.Opacity = 1;
         _targetWindow = targetWindow;
         _foregroundTimer.Start();
         var scale = caretPosition.DpiScale <= 0 ? 1 : caretPosition.DpiScale;
@@ -130,6 +132,11 @@ public partial class GhostPreviewWindow : Window
         }
     }
 
+    /// <summary>
+    /// 隐藏预览：移出屏幕，然后把窗口表面清空。
+    /// 只移出屏幕不够 —— DWM 缓存着上一次提交的表面，下次移回时会先画出上一轮的幽灵文字。
+    /// 清掉文本、缩到 1×1 并置为全透明，缓存里就是一张空白；顺带免去大尺寸表面的合成开销。
+    /// </summary>
     public void HidePreview()
     {
         Dispatcher.VerifyAccess();
@@ -137,6 +144,10 @@ public partial class GhostPreviewWindow : Window
         _targetWindow = IntPtr.Zero;
         Left = OffScreenCoordinate;
         Top = OffScreenCoordinate;
+        GhostText.Inlines.Clear();
+        GhostClip.Opacity = 0;
+        Width = 1;
+        Height = 1;
     }
 
     // !SECTION 幽灵文字渲染与定位
