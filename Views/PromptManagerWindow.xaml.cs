@@ -14,6 +14,7 @@ using ZCue.Services;
 using ZCue.ViewModels;
 using WpfButton = System.Windows.Controls.Button;
 using WpfCheckBox = System.Windows.Controls.CheckBox;
+using WpfGrid = System.Windows.Controls.Grid;
 using WpfCursor = System.Windows.Input.Cursor;
 using WpfCursors = System.Windows.Input.Cursors;
 using WpfDataObject = System.Windows.DataObject;
@@ -25,7 +26,11 @@ using WpfListViewItem = System.Windows.Controls.ListViewItem;
 using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 using WpfOrientation = System.Windows.Controls.Orientation;
 using WpfPoint = System.Windows.Point;
+using WpfPath = System.Windows.Shapes.Path;
 using WpfTextBox = System.Windows.Controls.TextBox;
+using WinFormsClipboard = System.Windows.Forms.Clipboard;
+using WinFormsDataObject = System.Windows.Forms.DataObject;
+using WinFormsTextDataFormat = System.Windows.Forms.TextDataFormat;
 
 namespace ZCue.Views;
 
@@ -38,6 +43,7 @@ public partial class PromptManagerWindow : Window
     private readonly PromptStorageService _transferStorage = new();
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
+    private readonly Dictionary<WpfButton, System.Windows.Threading.DispatcherTimer> _copyFeedbackTimers = [];
     private readonly WpfCursor _grabCursor;
     private readonly WpfCursor _grabbingCursor;
     private bool _allowClose;
@@ -510,6 +516,61 @@ public partial class PromptManagerWindow : Window
             _promptViewModel.Add(editor.ResultItem);
             UpdateEmptyState();
         }
+    }
+
+    private void HandleCopyClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as WpfButton)?.Tag is not PromptItem item)
+        {
+            return;
+        }
+
+        try
+        {
+            var clipboardData = new WinFormsDataObject();
+            clipboardData.SetText(item.Content, WinFormsTextDataFormat.UnicodeText);
+            WinFormsClipboard.SetDataObject(clipboardData, true, 20, 25);
+            ShowCopySuccessFeedback((WpfButton)sender);
+        }
+        catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException
+            or InvalidOperationException)
+        {
+            AppDialogWindow.ShowMessage(this, "复制失败", "无法写入系统剪贴板，请稍后重试。");
+        }
+    }
+
+    private void ShowCopySuccessFeedback(WpfButton button)
+    {
+        if (button.Content is not WpfGrid iconGrid
+            || iconGrid.Children.Count < 2
+            || iconGrid.Children[0] is not WpfPath copyIcon
+            || iconGrid.Children[1] is not WpfPath successIcon)
+        {
+            return;
+        }
+
+        if (_copyFeedbackTimers.Remove(button, out var previousTimer))
+        {
+            previousTimer.Stop();
+        }
+
+        copyIcon.Visibility = Visibility.Collapsed;
+        successIcon.Visibility = Visibility.Visible;
+
+        var timer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(900)
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            copyIcon.Visibility = Visibility.Visible;
+            successIcon.Visibility = Visibility.Collapsed;
+            _copyFeedbackTimers.Remove(button);
+        };
+
+        _copyFeedbackTimers[button] = timer;
+        timer.Start();
     }
 
     private void HandleEditClick(object sender, RoutedEventArgs e)

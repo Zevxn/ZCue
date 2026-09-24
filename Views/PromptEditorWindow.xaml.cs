@@ -2,6 +2,15 @@
 using ZCue.Infrastructure;
 using ZCue.Models;
 
+using WpfKey = System.Windows.Input.Key;
+using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
+using WpfKeyboard = System.Windows.Input.Keyboard;
+using WpfModifierKeys = System.Windows.Input.ModifierKeys;
+using WpfTextBox = System.Windows.Controls.TextBox;
+using WinFormsClipboard = System.Windows.Forms.Clipboard;
+using WinFormsDataObject = System.Windows.Forms.DataObject;
+using WinFormsTextDataFormat = System.Windows.Forms.TextDataFormat;
+
 namespace ZCue.Views;
 
 public partial class PromptEditorWindow : Window
@@ -44,6 +53,34 @@ public partial class PromptEditorWindow : Window
     }
 
     public PromptItem? ResultItem { get; private set; }
+
+    private void HandleTextBoxPreviewKeyDown(object sender, WpfKeyEventArgs e)
+    {
+        var modifiers = WpfKeyboard.Modifiers;
+        var isCutShortcut = e.Key == WpfKey.X && modifiers == WpfModifierKeys.Control
+            || e.Key == WpfKey.Delete && modifiers == WpfModifierKeys.Shift;
+        if (!isCutShortcut
+            || sender is not WpfTextBox textBox
+            || textBox.IsReadOnly
+            || textBox.SelectionLength == 0)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        try
+        {
+            var clipboardData = new WinFormsDataObject();
+            clipboardData.SetText(textBox.SelectedText, WinFormsTextDataFormat.UnicodeText);
+            WinFormsClipboard.SetDataObject(clipboardData, true, 20, 25);
+            textBox.SelectedText = string.Empty;
+        }
+        catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException
+            or InvalidOperationException)
+        {
+            AppDialogWindow.ShowMessage(this, "剪切失败", "无法写入系统剪贴板，所选文字未删除。");
+        }
+    }
 
     private void HandleSaveClick(object sender, RoutedEventArgs e)
     {

@@ -120,6 +120,7 @@
                      Padding="3,4,10,4"
                      VerticalContentAlignment="Center"
                      Style="{StaticResource FieldTextBox}"
+                     PreviewKeyDown="HandleTextBoxPreviewKeyDown"
                      MaxLength="80" />
 
             <TextBlock Grid.Row="2"
@@ -161,6 +162,7 @@
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
                      VerticalContentAlignment="Top"
+                     PreviewKeyDown="HandleTextBoxPreviewKeyDown"
                      VerticalScrollBarVisibility="Auto"
                      HorizontalScrollBarVisibility="Disabled"
                      MaxLength="10000" />
