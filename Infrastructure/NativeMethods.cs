@@ -236,6 +236,11 @@ internal static class NativeMethods
         IntPtr buffer,
         uint bufferLength);
 
+    [DllImport("imm32.dll", EntryPoint = "ImmGetCandidateListCountW")]
+    internal static extern uint ImmGetCandidateListCount(
+        IntPtr inputContext,
+        out uint candidateListCount);
+
     [DllImport("imm32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool ImmReleaseContext(IntPtr hWnd, IntPtr inputContext);

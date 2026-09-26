@@ -32,7 +32,7 @@ public sealed class AppController : IDisposable
 
     private IReadOnlyList<PromptMatch> _activeMatches = Array.Empty<PromptMatch>();
     private IntPtr _targetWindow;
-    private IntPtr _imeCompositionTarget;
+    private IntPtr _imeInputStateTarget;
     private int _selectedIndex;
     private long _stateVersion;
     private long _textSyncRequest;
@@ -195,7 +195,7 @@ public sealed class AppController : IDisposable
             return KeyboardHookDecision.Pass;
         }
 
-        var imeInputActive = HideSuggestionsIfImeComposing(foregroundWindow);
+        var imeInputActive = HideSuggestionsIfImeInputActive(foregroundWindow);
         if (IsShiftKey(input.VirtualKeyCode))
         {
             return KeyboardHookDecision.Pass;
@@ -206,7 +206,7 @@ public sealed class AppController : IDisposable
             if (input.VirtualKeyCode == NativeMethods.VK_ESCAPE)
             {
                 ClearSuggestions(resetBuffer: true);
-                CompleteImeComposition(foregroundWindow);
+                CompleteImeInputState(foregroundWindow);
                 return KeyboardHookDecision.Pass;
             }
 
@@ -219,7 +219,10 @@ public sealed class AppController : IDisposable
                 _inputBuffer.Append(pinyinInput);
             }
 
-            ScheduleFocusedTextSync(foregroundWindow);
+            var allowImeCommitSync = input.VirtualKeyCode is NativeMethods.VK_RETURN or NativeMethods.VK_SPACE
+                || !input.IsShiftDown && input.VirtualKeyCode is >= 0x31 and <= 0x39
+                || input.VirtualKeyCode is (>= 0xBA and <= 0xC0) or (>= 0xDB and <= 0xDE);
+            ScheduleFocusedTextSync(foregroundWindow, allowImeCommitSync: allowImeCommitSync);
             return KeyboardHookDecision.Pass;
         }
 
@@ -362,7 +365,8 @@ public sealed class AppController : IDisposable
         ScheduleFocusedTextSync(
             foregroundWindow,
             preservePhysicalInputForShiftCommit: isShiftKey,
-            waitForVoiceInputSettle: isRightAltKey);
+            waitForVoiceInputSettle: isRightAltKey,
+            allowImeCommitSync: isShiftKey);
     }
 
     private void SwitchTargetWindowIfNeeded(IntPtr foregroundWindow)
@@ -373,7 +377,7 @@ public sealed class AppController : IDisposable
             if (_targetWindow != IntPtr.Zero && _targetWindow != foregroundWindow)
             {
                 changed = true;
-                _imeCompositionTarget = IntPtr.Zero;
+                _imeInputStateTarget = IntPtr.Zero;
             }
 
             _targetWindow = foregroundWindow;
@@ -386,21 +390,21 @@ public sealed class AppController : IDisposable
         }
     }
 
-    private bool IsImeCompositionObserved(IntPtr targetWindow)
+    private bool IsImeInputStateObserved(IntPtr targetWindow)
     {
         lock (_stateGate)
         {
-            return _imeCompositionTarget == targetWindow;
+            return _imeInputStateTarget == targetWindow;
         }
     }
 
-    private void CompleteImeComposition(IntPtr targetWindow)
+    private void CompleteImeInputState(IntPtr targetWindow)
     {
         lock (_stateGate)
         {
-            if (_imeCompositionTarget == targetWindow)
+            if (_imeInputStateTarget == targetWindow)
             {
-                _imeCompositionTarget = IntPtr.Zero;
+                _imeInputStateTarget = IntPtr.Zero;
             }
         }
     }
@@ -487,7 +491,7 @@ public sealed class AppController : IDisposable
                 return;
             }
 
-            if (HideSuggestionsIfImeComposing(targetWindow))
+            if (HideSuggestionsIfImeInputActive(targetWindow))
             {
                 return;
             }
@@ -568,7 +572,7 @@ public sealed class AppController : IDisposable
                 return;
             }
 
-            if (HideSuggestionsIfImeComposing(targetWindow))
+            if (HideSuggestionsIfImeInputActive(targetWindow))
             {
                 return;
             }
@@ -644,6 +648,17 @@ public sealed class AppController : IDisposable
         {
             ClearSuggestions(resetBuffer: true);
         }
+
+        IntPtr targetWindow;
+        lock (_stateGate)
+        {
+            targetWindow = _targetWindow;
+        }
+
+        if (IsImeInputStateObserved(targetWindow))
+        {
+            ScheduleFocusedTextSync(targetWindow, allowImeCommitSync: true);
+        }
     }
 
     private void ClearSuggestions(bool resetBuffer, bool cancelTextSync = true)
@@ -683,21 +698,23 @@ public sealed class AppController : IDisposable
     }
 
     /// <summary>
-    /// 输入法组合期间压住候选显示。这里只隐藏窗口、不结束候选状态：
+    /// 输入法组合或选词期间压住候选显示。这里只隐藏窗口、不结束输入法状态：
     /// 组合结束后还要按拼音缓冲区重新匹配，若在此清空状态会丢掉触发串。
-    /// IMM32 组合串和输入法候选窗共同用于捕获组合/选词状态，避免预编辑拼音触发候选。
+    /// IMM32 组合串和当前候选列表用于捕获输入/选词状态；其他输入法继续使用候选窗类名兜底。
     /// </summary>
-    private bool HideSuggestionsIfImeComposing(IntPtr targetWindow)
+    private bool HideSuggestionsIfImeInputActive(IntPtr targetWindow)
     {
-        if (!_imeCompositionService.IsComposing(targetWindow)
-            && !_imeCompositionService.HasVisibleCandidateWindow())
+        var isImeInputActive = _imeCompositionService.IsComposing(targetWindow)
+            || _imeCompositionService.HasCandidateList(targetWindow)
+            || _imeCompositionService.HasVisibleCandidateWindow();
+        if (!isImeInputActive)
         {
             return false;
         }
 
         lock (_stateGate)
         {
-            _imeCompositionTarget = targetWindow;
+            _imeInputStateTarget = targetWindow;
         }
 
         ClearSuggestions(resetBuffer: false, cancelTextSync: false);
@@ -764,7 +781,8 @@ public sealed class AppController : IDisposable
     private void ScheduleFocusedTextSync(
         IntPtr targetWindow,
         bool preservePhysicalInputForShiftCommit = false,
-        bool waitForVoiceInputSettle = false)
+        bool waitForVoiceInputSettle = false,
+        bool allowImeCommitSync = false)
     {
         var request = Interlocked.Increment(ref _textSyncRequest);
         PostAsyncToUi(async () =>
@@ -786,7 +804,7 @@ public sealed class AppController : IDisposable
                     observedComposition = true;
                     if (!suggestionsSuppressed || HasSuggestions())
                     {
-                        HideSuggestionsIfImeComposing(targetWindow);
+                        HideSuggestionsIfImeInputActive(targetWindow);
                         suggestionsSuppressed = true;
                     }
 
@@ -805,7 +823,7 @@ public sealed class AppController : IDisposable
                     continue;
                 }
 
-                if (observedComposition || IsImeCompositionObserved(targetWindow))
+                if (observedComposition || IsImeInputStateObserved(targetWindow))
                 {
                     await Task.Delay(20).ConfigureAwait(true);
                     if (request != Volatile.Read(ref _textSyncRequest)
@@ -835,9 +853,9 @@ public sealed class AppController : IDisposable
                 await WaitForVoiceInputSettleAsync(request, targetWindow).ConfigureAwait(true);
             }
 
-            var imeCompositionObserved = observedComposition
-                || IsImeCompositionObserved(targetWindow);
-            if (HideSuggestionsIfImeComposing(targetWindow))
+            var imeInputObserved = observedComposition
+                || IsImeInputStateObserved(targetWindow);
+            if (!allowImeCommitSync && HideSuggestionsIfImeInputActive(targetWindow))
             {
                 return;
             }
@@ -848,7 +866,7 @@ public sealed class AppController : IDisposable
                 var matchesPhysicalInput = TextBeforeCaretMatchesCurrentToken(textBeforeCaret);
                 var shouldReplaceBuffer = preservePhysicalInputForShiftCommit
                     ? matchesPhysicalInput
-                    : matchesPhysicalInput || imeCompositionObserved || waitForVoiceInputSettle;
+                    : matchesPhysicalInput || imeInputObserved || waitForVoiceInputSettle;
                 if (shouldReplaceBuffer)
                 {
                     // 输入法已提交时，物理缓冲是拼音，光标前真实文本才是中文触发串。
@@ -857,7 +875,7 @@ public sealed class AppController : IDisposable
             }
             else
             {
-                if (imeCompositionObserved && !preservePhysicalInputForShiftCommit)
+                if (imeInputObserved && !preservePhysicalInputForShiftCommit)
                 {
                     // VS Code 的 Chromium 编辑器不暴露可靠的光标文本。保留组合期间收集的
                     // 拼音触发串，并按其对应的中文名称字符数删除已上屏文本。
@@ -866,9 +884,9 @@ public sealed class AppController : IDisposable
             }
 
             RecomputeSuggestions(targetWindow, inferCommittedImeText);
-            if (imeCompositionObserved)
+            if (imeInputObserved)
             {
-                CompleteImeComposition(targetWindow);
+                CompleteImeInputState(targetWindow);
             }
         });
     }
