@@ -18,6 +18,7 @@ public sealed class AppController : IDisposable
     private readonly ApplicationFilterService _applicationFilter;
     private readonly StartupService _startupService = new();
     private readonly PromptMatchService _matchService = new();
+    private readonly PromptVariableService _promptVariableService = new();
     private readonly CaretPositionService _caretPositionService = new();
     private readonly FocusedTextService _focusedTextService = new();
     private readonly ImeCompositionService _imeCompositionService = new();
@@ -518,12 +519,15 @@ public sealed class AppController : IDisposable
                     return;
                 }
 
+                var previewContents = _promptVariableService.ResolveAll(
+                    matches.Select(match => match.Item.Content).ToArray());
                 _suggestionWindow.ShowSuggestions(
                     matches,
                     currentIndex,
                     caretPosition,
-                    _settings.Current.ShowContentPreview);
-                ShowGhostPreview(matches[currentIndex].Item.Content, targetWindow, caretPosition);
+                    _settings.Current.ShowContentPreview,
+                    previewContents);
+                ShowGhostPreview(previewContents[currentIndex], targetWindow, caretPosition);
                 _foregroundMonitor.Start();
             }
             catch
@@ -583,7 +587,9 @@ public sealed class AppController : IDisposable
                 {
                     var caretPosition = _caretPositionService.GetPosition(targetWindow);
                     _suggestionWindow.UpdateSelection(selectedIndex);
-                    ShowGhostPreview(matches[selectedIndex].Item.Content, targetWindow, caretPosition);
+                    var previewContent = _promptVariableService.Resolve(
+                        matches[selectedIndex].Item.Content);
+                    ShowGhostPreview(previewContent, targetWindow, caretPosition);
                 }
                 catch
                 {
@@ -628,10 +634,11 @@ public sealed class AppController : IDisposable
                 return;
             }
 
+            var content = _promptVariableService.Resolve(selectedMatch.Item.Content);
             await _textInsertionService.ReplaceAsync(
                 targetWindow,
                 selectedMatch.MatchLength,
-                selectedMatch.Item.Content,
+                content,
                 _suggestionWindow.NativeHandle);
         });
     }

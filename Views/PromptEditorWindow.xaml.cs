@@ -6,6 +6,9 @@ using WpfKey = System.Windows.Input.Key;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 using WpfKeyboard = System.Windows.Input.Keyboard;
 using WpfModifierKeys = System.Windows.Input.ModifierKeys;
+using WpfComboBox = System.Windows.Controls.ComboBox;
+using WpfComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using WpfSelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
 using WpfTextBox = System.Windows.Controls.TextBox;
 using WinFormsClipboard = System.Windows.Forms.Clipboard;
 using WinFormsDataObject = System.Windows.Forms.DataObject;
@@ -80,6 +83,42 @@ public partial class PromptEditorWindow : Window
         {
             AppDialogWindow.ShowMessage(this, "剪切失败", "无法写入系统剪贴板，所选文字未删除。");
         }
+    }
+
+    private void HandleVariableSelectionChanged(object sender, WpfSelectionChangedEventArgs e)
+    {
+        if (sender is not WpfComboBox comboBox
+            || comboBox.SelectedItem is not WpfComboBoxItem { Tag: string variableName })
+        {
+            return;
+        }
+
+        var variable = variableName switch
+        {
+            "date" => "{{date}}",
+            "time" => "{{time}}",
+            "clipboard" => "{{clipboard}}",
+            _ => string.Empty
+        };
+        if (variable.Length == 0)
+        {
+            return;
+        }
+
+        var selectionStart = ContentTextBox.SelectionStart;
+        var selectionLength = ContentTextBox.SelectionLength;
+        var resultingLength = ContentTextBox.Text.Length - selectionLength + variable.Length;
+        if (resultingLength > ContentTextBox.MaxLength)
+        {
+            comboBox.SelectedIndex = 0;
+            ContentTextBox.Focus();
+            return;
+        }
+
+        comboBox.SelectedIndex = 0;
+        ContentTextBox.SelectedText = variable;
+        ContentTextBox.Focus();
+        ContentTextBox.CaretIndex = selectionStart + variable.Length;
     }
 
     private void HandleSaveClick(object sender, RoutedEventArgs e)

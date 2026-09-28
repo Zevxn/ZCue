@@ -23,6 +23,7 @@ public partial class SuggestionWindow : Window
     private const double OffScreenCoordinate = -32000;
 
     private readonly List<PromptMatch> _matches = [];
+    private readonly List<string> _previewContents = [];
     private IntPtr _windowHandle;
     private int _selectedIndex;
     private bool _isLightTheme;
@@ -93,13 +94,22 @@ public partial class SuggestionWindow : Window
         IReadOnlyList<PromptMatch> matches,
         int selectedIndex,
         CaretPosition caretPosition,
-        bool preferAbovePreview)
+        bool preferAbovePreview,
+        IReadOnlyList<string> previewContents)
     {
         Dispatcher.VerifyAccess();
 
         RootBorder.Opacity = 1;
         _matches.Clear();
         _matches.AddRange(matches.Take(9));
+        _previewContents.Clear();
+        for (var index = 0; index < _matches.Count; index++)
+        {
+            _previewContents.Add(index < previewContents.Count
+                ? previewContents[index]
+                : _matches[index].Item.Content);
+        }
+
         _selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, _matches.Count - 1));
         ApplyTheme();
         RenderRows();
@@ -121,6 +131,7 @@ public partial class SuggestionWindow : Window
         Left = OffScreenCoordinate;
         Top = OffScreenCoordinate;
         _matches.Clear();
+        _previewContents.Clear();
         _selectedIndex = 0;
         RenderRows();
         RootBorder.Opacity = 0;
@@ -171,12 +182,16 @@ public partial class SuggestionWindow : Window
         {
             var match = _matches[index];
             var isSelected = index == _selectedIndex;
-            var row = CreateRow(match, index, isSelected);
+            var row = CreateRow(match, index, isSelected, _previewContents[index]);
             ItemsPanel.Children.Add(row);
         }
     }
 
-    private Border CreateRow(PromptMatch match, int index, bool isSelected)
+    private Border CreateRow(
+        PromptMatch match,
+        int index,
+        bool isSelected,
+        string previewContent)
     {
         var foreground = _isLightTheme
             ? new SolidColorBrush(MediaColor.FromRgb(31, 41, 55))
@@ -256,7 +271,7 @@ public partial class SuggestionWindow : Window
         Grid.SetColumn(nameBlock, 1);
         grid.Children.Add(nameBlock);
 
-        var preview = match.Item.Content.Replace('\r', ' ').Replace('\n', ' ');
+        var preview = previewContent.Replace('\r', ' ').Replace('\n', ' ');
         var previewBlock = new TextBlock
         {
             Text = preview,

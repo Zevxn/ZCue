@@ -149,11 +149,47 @@
                 </ComboBox.ItemTemplate>
             </ComboBox>
 
-            <TextBlock Grid.Row="4"
-                       Margin="0,0,0,6"
-                       Text="指令内容"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource ThemeTextStrongBrush}" />
+            <Grid Grid.Row="4"
+                  Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="指令内容"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource ThemeTextStrongBrush}" />
+                    <TextBlock Margin="0,4,0,0"
+                               Text="选择变量插入，使用时自动替换。"
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{DynamicResource ThemeTextSecondaryBrush}" />
+                </StackPanel>
+                <ComboBox x:Name="VariableComboBox"
+                          Grid.Column="1"
+                          Width="148"
+                          Height="40"
+                          FontSize="13"
+                          MaxDropDownHeight="240"
+                          Style="{StaticResource FieldComboBox}"
+                          ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
+                          SelectedIndex="0"
+                          SelectionChanged="HandleVariableSelectionChanged">
+                    <ComboBoxItem Content="插入变量…"
+                                  IsEnabled="False"
+                                  Visibility="Collapsed" />
+                    <ComboBoxItem Content="当前日期"
+                                  Tag="date"
+                                  ToolTip="插入 {{date}}，使用时替换为当前日期" />
+                    <ComboBoxItem Content="当前时间"
+                                  Tag="time"
+                                  ToolTip="插入 {{time}}，使用时替换为当前时间" />
+                    <ComboBoxItem Content="剪贴板内容"
+                                  Tag="clipboard"
+                                  ToolTip="插入 {{clipboard}}，使用时替换为剪贴板文本" />
+                </ComboBox>
+            </Grid>
             <TextBox x:Name="ContentTextBox"
                      Grid.Row="5"
                      Style="{StaticResource FieldTextBox}"
