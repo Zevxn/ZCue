@@ -344,7 +344,13 @@
             <RowDefinition Height="32" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <ui:TitleBar Height="32" Title="ZCue" Icon="pack://application:,,,/assets/logo.png" CloseWindowByDoubleClickOnIcon="False" />
+        <ui:TitleBar Height="32"
+                     Title="ZCue"
+                     CloseWindowByDoubleClickOnIcon="False">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon Source="pack://application:,,,/assets/logo.png" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="184" />

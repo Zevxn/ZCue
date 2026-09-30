@@ -1763,17 +1763,17 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         nameTextBox.SetResourceReference(
             System.Windows.Controls.Control.BorderBrushProperty,
             AppThemeManager.FieldBorderBrushKey);
-        var saveButton = new WpfButton
+        var saveButton = new Wpf.Ui.Controls.Button
         {
             Content = "保存",
-            Style = (Style)FindResource("PrimaryButton"),
+            Style = (Style)FindResource("FluentPrimaryButton"),
             IsDefault = true,
             MinWidth = 76
         };
-        var cancelButton = new WpfButton
+        var cancelButton = new Wpf.Ui.Controls.Button
         {
             Content = "取消",
-            Style = (Style)FindResource("SecondaryButton"),
+            Style = (Style)FindResource("FluentSecondaryButton"),
             IsCancel = true,
             MinWidth = 76,
             Margin = new Thickness(0, 0, 9, 0)
