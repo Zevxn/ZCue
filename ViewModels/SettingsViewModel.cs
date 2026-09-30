@@ -36,6 +36,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public event Action<string>? ErrorOccurred;
 
+    public event Action? PromptDataChanged;
+
     public ObservableCollection<string> CurrentApplicationNames { get; } = [];
 
     // SECTION 设置属性
@@ -249,7 +251,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     {
         try
         {
-            _catalog.ChangeDataFilePath(filePath);
+            if (_catalog.ChangeDataFilePath(filePath))
+            {
+                PromptDataChanged?.Invoke();
+            }
+
             OnPropertyChanged(nameof(PromptDataFilePath));
         }
         catch (Exception error)

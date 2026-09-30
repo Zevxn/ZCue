@@ -68,33 +68,38 @@ public sealed class PromptStorageService
                 return null;
             }
 
-            var json = File.ReadAllText(filePath);
-            using var document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind != JsonValueKind.Object
-                || !document.RootElement.EnumerateObject().Any(property =>
-                    string.Equals(property.Name, "allCommands", StringComparison.OrdinalIgnoreCase)))
-            {
-                throw new InvalidDataException("提示词数据文件格式无效。");
-            }
-
-            var storedData = JsonSerializer.Deserialize<StorageDocument>(json, _jsonOptions);
-            if (storedData is null)
-            {
-                throw new InvalidDataException("提示词数据文件中没有可读取的数据。");
-            }
-
-            return new StorageSnapshot(
-                (storedData.AllCommands ?? [])
-                    .Where(command => command is not null)
-                    .Select(ToPromptItem)
-                    .ToArray(),
-                storedData.AllCategories ?? []);
+            return ReadDocument(filePath);
         }
         catch when (!hasCustomPath)
         {
             // 保留损坏文件，调用方使用默认数据启动，避免启动失败。
             return null;
         }
+    }
+
+    private StorageSnapshot ReadDocument(string filePath)
+    {
+        var json = File.ReadAllText(filePath);
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Object
+            || !document.RootElement.EnumerateObject().Any(property =>
+                string.Equals(property.Name, "allCommands", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidDataException("提示词数据文件格式无效。");
+        }
+
+        var storedData = JsonSerializer.Deserialize<StorageDocument>(json, _jsonOptions);
+        if (storedData is null)
+        {
+            throw new InvalidDataException("提示词数据文件中没有可读取的数据。");
+        }
+
+        return new StorageSnapshot(
+            (storedData.AllCommands ?? [])
+                .Where(command => command is not null)
+                .Select(ToPromptItem)
+                .ToArray(),
+            storedData.AllCategories ?? []);
     }
 
     public void Save(IEnumerable<PromptItem> prompts, IEnumerable<PromptCategory> categories)
@@ -113,10 +118,11 @@ public sealed class PromptStorageService
 
     // SECTION 提示词位置迁移
 
-    public void ChangeFilePath(
+    public bool ChangeFilePath(
         string filePath,
         IEnumerable<PromptItem> prompts,
-        IEnumerable<PromptCategory> categories)
+        IEnumerable<PromptCategory> categories,
+        Action<StorageSnapshot> prepareExistingData)
     {
         if (_settings is null)
         {
@@ -124,10 +130,11 @@ public sealed class PromptStorageService
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentNullException.ThrowIfNull(prepareExistingData);
         var fullPath = Path.GetFullPath(filePath);
         if (string.Equals(fullPath, FilePath, StringComparison.OrdinalIgnoreCase))
         {
-            return;
+            return false;
         }
 
         if (string.Equals(fullPath, _settings.FilePath, StringComparison.OrdinalIgnoreCase))
@@ -137,7 +144,9 @@ public sealed class PromptStorageService
 
         if (File.Exists(fullPath))
         {
-            throw new IOException("目标位置已有文件。为保留该文件，请选择新的文件位置。读取已有提示词请使用“导入”。");
+            prepareExistingData(ReadDocument(fullPath));
+            _settings.SetPromptDataFilePath(fullPath);
+            return true;
         }
 
         var temporaryPath = fullPath + $".{Guid.NewGuid():N}.tmp";
@@ -165,6 +174,8 @@ public sealed class PromptStorageService
                 File.Delete(temporaryPath);
             }
         }
+
+        return false;
     }
 
     // !SECTION 提示词位置迁移

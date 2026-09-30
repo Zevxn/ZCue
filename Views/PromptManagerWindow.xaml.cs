@@ -99,6 +99,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             setListeningEnabled,
             catalog);
         _settingsViewModel.ErrorOccurred += HandleSettingsError;
+        _settingsViewModel.PromptDataChanged += HandlePromptDataChanged;
         _settingsViewModel.PropertyChanged += HandleSettingsPropertyChanged;
 
         DataContext = _promptViewModel;
@@ -1182,6 +1183,16 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     // !SECTION 拖拽排序与分类筛选
 
     // SECTION 提示词数据位置设置
+
+    private void HandlePromptDataChanged()
+    {
+        _promptViewModel.SearchText = string.Empty;
+        _promptViewModel.SelectedCategoryId = "all";
+        _promptViewModel.Reload(null);
+        RenderCategoryButtons();
+        UpdateEmptyState();
+        UpdateBatchSelectionState();
+    }
 
     private void HandleChangePromptDataLocationClick(object sender, RoutedEventArgs e)
     {

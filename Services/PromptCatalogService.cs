@@ -7,8 +7,8 @@ public sealed class PromptCatalogService
     private readonly object _gate = new();
     private readonly PromptStorageService _storage;
     private readonly PinyinAliasService _pinyinAliasService = new();
-    private readonly List<PromptItem> _items;
-    private readonly List<PromptCategory> _categories;
+    private readonly List<PromptItem> _items = [];
+    private readonly List<PromptCategory> _categories = [];
 
     // SECTION 初始化与查询
 
@@ -17,16 +17,27 @@ public sealed class PromptCatalogService
     public PromptCatalogService(PromptStorageService? storage = null)
     {
         _storage = storage ?? new PromptStorageService();
-        var loadedData = _storage.Load();
+        var prepared = PrepareLoadedData(_storage.Load());
+        _items.AddRange(prepared.Items);
+        _categories.AddRange(prepared.Categories);
+        if (prepared.NeedsSave)
+        {
+            PersistLocked();
+        }
+    }
+
+    private (List<PromptItem> Items, List<PromptCategory> Categories, bool NeedsSave)
+        PrepareLoadedData(PromptStorageService.StorageSnapshot? loadedData)
+    {
         var storedCategories = loadedData?.Categories ?? [];
-        _categories = storedCategories
+        var categories = storedCategories
             .Where(category => category is not null
                 && !string.IsNullOrWhiteSpace(category.Id)
                 && !string.IsNullOrWhiteSpace(category.Name))
             .Select(NormalizeCategory)
             .DistinctBy(category => category.Id, StringComparer.Ordinal)
             .ToList() ?? [];
-        _items = loadedData is null
+        var items = loadedData is null
             ? CreateDefaultItems()
             : loadedData.Prompts
                 .Where(item => item is not null
@@ -38,13 +49,13 @@ public sealed class PromptCatalogService
         var aliasesChanged = false;
         var promptCategoriesChanged = false;
         var categoriesChanged = loadedData is not null
-            && (storedCategories.Count != _categories.Count
+            && (storedCategories.Count != categories.Count
                 || storedCategories.Where((category, index) => category is null
-                    || category.Id != _categories[index].Id
-                    || category.Name != _categories[index].Name).Any());
-        var validCategoryIds = _categories.Select(category => category.Id)
+                    || category.Id != categories[index].Id
+                    || category.Name != categories[index].Name).Any());
+        var validCategoryIds = categories.Select(category => category.Id)
             .ToHashSet(StringComparer.Ordinal);
-        foreach (var item in _items)
+        foreach (var item in items)
         {
             if (!string.IsNullOrEmpty(item.CategoryId)
                 && !validCategoryIds.Contains(item.CategoryId))
@@ -59,13 +70,8 @@ public sealed class PromptCatalogService
             }
         }
 
-        if (loadedData is null
-            || categoriesChanged
-            || aliasesChanged
-            || promptCategoriesChanged)
-        {
-            PersistLocked();
-        }
+        return (items, categories, loadedData is null
+            || categoriesChanged || aliasesChanged || promptCategoriesChanged);
     }
 
     public IReadOnlyList<PromptItem> GetEnabledItems()
@@ -96,12 +102,24 @@ public sealed class PromptCatalogService
 
     // SECTION 数据位置变更
 
-    public void ChangeDataFilePath(string filePath)
+    public bool ChangeDataFilePath(string filePath)
     {
         lock (_gate)
         {
-            // 与指令修改和使用次数保存共用锁，迁移期间不会遗漏新数据。
-            _storage.ChangeFilePath(filePath, _items, _categories);
+            // 先准备目标数据，路径保存成功后再替换当前目录，失败时保留原数据。
+            (List<PromptItem> Items, List<PromptCategory> Categories, bool NeedsSave)? prepared = null;
+            var dataChanged = _storage.ChangeFilePath(
+                filePath, _items, _categories,
+                snapshot => prepared = PrepareLoadedData(snapshot));
+            if (prepared is { } data)
+            {
+                _items.Clear();
+                _items.AddRange(data.Items);
+                _categories.Clear();
+                _categories.AddRange(data.Categories);
+            }
+
+            return dataChanged;
         }
     }
 

@@ -1074,8 +1074,9 @@
                                             BorderBrush="{DynamicResource ThemeDividerBrush}"
                                             BorderThickness="1"
                                             CornerRadius="7"
-                                            Padding="10,6">
+                                            Padding="10,6,0,6">
                                         <ScrollViewer MaxHeight="160"
+                                                      Padding="0,0,12,0"
                                                       VerticalScrollBarVisibility="Auto"
                                                       HorizontalScrollBarVisibility="Disabled"
                                                       PreviewMouseWheel="HandleApplicationListPreviewMouseWheel">
@@ -1255,7 +1256,7 @@
                                             <TextBlock Text="提示词数据位置"
                                                        Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                        FontSize="14" />
-                                            <TextBlock Text="更改位置会复制当前提示词和分类，原文件保留，后续保存立即使用新位置"
+                                            <TextBlock Text="目标文件已存在时使用其中的提示词和分类，不存在时复制当前数据；原文件保留"
                                                        TextWrapping="Wrap"
                                                        Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                        FontSize="12"
