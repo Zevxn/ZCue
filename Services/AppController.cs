@@ -11,7 +11,7 @@ public sealed class AppController : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _foregroundMonitor;
     private readonly InputBufferService _inputBuffer = new();
-    private readonly PromptCatalogService _catalog = new();
+    private readonly PromptCatalogService _catalog;
     private readonly AppSettingsService _settings = new();
     private readonly UpdateService _updateService = new();
     private readonly System.Threading.CancellationTokenSource _lifetimeCancellation = new();
@@ -44,6 +44,7 @@ public sealed class AppController : IDisposable
     public AppController(Dispatcher dispatcher)
     {
         _dispatcher = dispatcher;
+        _catalog = new PromptCatalogService(new PromptStorageService(_settings));
         _applicationFilter = new ApplicationFilterService(_settings);
         AppThemeManager.Apply(_settings.Current.ThemeMode);
         _foregroundMonitor = new DispatcherTimer(DispatcherPriority.Background, dispatcher)

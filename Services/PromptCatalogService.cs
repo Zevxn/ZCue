@@ -12,6 +12,8 @@ public sealed class PromptCatalogService
 
     // SECTION 初始化与查询
 
+    public string DataFilePath => _storage.FilePath;
+
     public PromptCatalogService(PromptStorageService? storage = null)
     {
         _storage = storage ?? new PromptStorageService();
@@ -91,6 +93,19 @@ public sealed class PromptCatalogService
     }
 
     // !SECTION 初始化与查询
+
+    // SECTION 数据位置变更
+
+    public void ChangeDataFilePath(string filePath)
+    {
+        lock (_gate)
+        {
+            // 与指令修改和使用次数保存共用锁，迁移期间不会遗漏新数据。
+            _storage.ChangeFilePath(filePath, _items, _categories);
+        }
+    }
+
+    // !SECTION 数据位置变更
 
     // SECTION 修改与持久化
 

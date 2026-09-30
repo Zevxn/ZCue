@@ -9,6 +9,7 @@ namespace ZCue.ViewModels;
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly AppSettingsService _settings;
+    private readonly PromptCatalogService _catalog;
     private readonly ApplicationFilterService _applicationFilter;
     private readonly StartupService _startupService;
     private readonly Func<bool> _isListeningEnabled;
@@ -19,9 +20,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         ApplicationFilterService applicationFilter,
         StartupService startupService,
         Func<bool> isListeningEnabled,
-        Action<bool> setListeningEnabled)
+        Action<bool> setListeningEnabled,
+        PromptCatalogService catalog)
     {
         _settings = settings;
+        _catalog = catalog;
         _applicationFilter = applicationFilter;
         _startupService = startupService;
         _isListeningEnabled = isListeningEnabled;
@@ -238,6 +241,25 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     // !SECTION 设置属性
 
+    // SECTION 提示词数据位置
+
+    public string PromptDataFilePath => _catalog.DataFilePath;
+
+    public void ChangePromptDataFilePath(string filePath)
+    {
+        try
+        {
+            _catalog.ChangeDataFilePath(filePath);
+            OnPropertyChanged(nameof(PromptDataFilePath));
+        }
+        catch (Exception error)
+        {
+            ErrorOccurred?.Invoke($"更改提示词数据位置失败：{error.Message}");
+        }
+    }
+
+    // !SECTION 提示词数据位置
+
     // SECTION 应用范围名单
 
     public void AddLastExternalApplication()
@@ -284,6 +306,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public void Refresh()
     {
+        OnPropertyChanged(nameof(PromptDataFilePath));
         OnPropertyChanged(nameof(FilterMode));
         OnPropertyChanged(nameof(IsBlacklistMode));
         OnPropertyChanged(nameof(IsWhitelistMode));

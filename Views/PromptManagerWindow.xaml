@@ -192,7 +192,7 @@
         <Style TargetType="ListViewItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="Margin" Value="0,0,16,8" />
             <Setter Property="Focusable" Value="True" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -1147,7 +1147,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="Prompt 和交互设置会立即保存到本机配置目录；监听开关仅对本次运行生效"
+                            <TextBlock Text="Prompt 会立即保存到指定数据位置，交互设置保存在本机配置目录；监听开关仅对本次运行生效"
                                        Foreground="{DynamicResource ThemeTextMutedBrush}"
                                        FontSize="12"
                                        Margin="2,18,0,14" />
@@ -1167,7 +1167,7 @@
                                    Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                    FontSize="30"
                                    FontWeight="SemiBold" />
-                        <TextBlock Text="调整 ZCue 的外观、系统启动和应用信息"
+                        <TextBlock Text="调整 ZCue 的外观、数据位置、系统启动和应用信息"
                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                    FontSize="13"
                                    Margin="0,7,0,0" />
@@ -1237,6 +1237,45 @@
                                         <ui:ToggleSwitch x:Name="StartupCheckBox" Grid.Column="1" Style="{StaticResource FluentToggleSwitch}" IsChecked="{Binding LaunchAtStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="24,0,3,0" />
                                     </Grid>
                                 </ui:Card>
+
+                            <!-- SECTION 提示词数据位置设置 -->
+                            <TextBlock Text="数据"
+                                       Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Margin="2,24,0,9" />
+                            <ui:Card Style="{StaticResource FluentSettingCard}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,18,0" VerticalAlignment="Center">
+                                            <TextBlock Text="提示词数据位置"
+                                                       Foreground="{DynamicResource ThemeTextPrimaryBrush}"
+                                                       FontSize="14" />
+                                            <TextBlock Text="更改位置会复制当前提示词和分类，原文件保留，后续保存立即使用新位置"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                                                       FontSize="12"
+                                                       Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <ui:Button Grid.Column="1"
+                                                   Content="更改位置"
+                                                   Style="{StaticResource FluentSecondaryButton}"
+                                                   VerticalAlignment="Center"
+                                                   Click="HandleChangePromptDataLocationClick" />
+                                    </Grid>
+                                    <TextBox Text="{Binding PromptDataFilePath, Mode=OneWay}"
+                                             ToolTip="{Binding PromptDataFilePath}"
+                                             IsReadOnly="True"
+                                             TextWrapping="Wrap"
+                                             Style="{StaticResource RoundedTextBoxBase}"
+                                             Margin="0,12,0,0" />
+                                </StackPanel>
+                            </ui:Card>
+                            <!-- !SECTION 提示词数据位置设置 -->
 
                             <TextBlock Text="关于"
                                        Foreground="{DynamicResource ThemeTextSecondaryBrush}"

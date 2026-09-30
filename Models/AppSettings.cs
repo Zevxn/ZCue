@@ -2,6 +2,8 @@
 
 public sealed class AppSettings
 {
+    public string PromptDataFilePath { get; set; } = string.Empty;
+
     public AppThemeMode ThemeMode { get; set; } = AppThemeMode.System;
 
     public bool EnablePinyinWake { get; set; } = true;
@@ -30,6 +32,7 @@ public sealed class AppSettings
 
     public AppSettings Clone() => new()
     {
+        PromptDataFilePath = PromptDataFilePath,
         ThemeMode = ThemeMode,
         EnablePinyinWake = EnablePinyinWake,
         CnWakeThreshold = CnWakeThreshold,

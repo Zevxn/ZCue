@@ -18,10 +18,18 @@ public sealed class AppSettingsService
     private AppSettings _current;
 
     public AppSettingsService()
+        : this(Path.Combine(GetDataDirectory(), "settings.json"))
     {
-        _filePath = Path.Combine(GetDataDirectory(), "settings.json");
+    }
+
+    public AppSettingsService(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        _filePath = Path.GetFullPath(filePath);
         _current = Load();
     }
+
+    internal string FilePath => _filePath;
 
     private static string GetDataDirectory()
     {
@@ -60,6 +68,36 @@ public sealed class AppSettingsService
         Changed?.Invoke(snapshot);
     }
 
+    // SECTION 提示词位置设置
+
+    public void SetPromptDataFilePath(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        lock (_gate)
+        {
+            var updated = _current.Clone();
+            updated.PromptDataFilePath = Path.GetFullPath(filePath);
+            var temporaryPath = _filePath + $".{Guid.NewGuid():N}.tmp";
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+                File.WriteAllText(temporaryPath, JsonSerializer.Serialize(updated, _jsonOptions));
+                // 路径设置必须先可靠落盘，失败时继续使用原数据位置。
+                File.Move(temporaryPath, _filePath, overwrite: true);
+                _current = updated;
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+        }
+    }
+
+    // !SECTION 提示词位置设置
+
     private AppSettings Load()
     {
         if (!File.Exists(_filePath))
@@ -82,6 +120,8 @@ public sealed class AppSettingsService
 
     private static AppSettings Normalize(AppSettings settings)
     {
+        settings.PromptDataFilePath = settings.PromptDataFilePath?.Trim() ?? string.Empty;
+
         if (!Enum.IsDefined(typeof(AppThemeMode), settings.ThemeMode))
         {
             settings.ThemeMode = AppThemeMode.System;

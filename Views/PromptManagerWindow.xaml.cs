@@ -40,7 +40,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private const string GitHubReleasesUrl = "https://github.com/Zevxn/ZCue/releases";
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly UpdateService _updateService;
-    private readonly PromptStorageService _transferStorage = new();
+    private readonly PromptStorageService _transferStorage;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
     private readonly Dictionary<WpfButton, System.Windows.Threading.DispatcherTimer> _copyFeedbackTimers = [];
@@ -89,13 +89,15 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         AppThemeManager.TrackWindow(this);
 
         _refreshStartupState = refreshStartupState;
+        _transferStorage = new PromptStorageService(settings);
         _promptViewModel = new PromptManagerViewModel(catalog);
         _settingsViewModel = new SettingsViewModel(
             settings,
             applicationFilter,
             startupService,
             isListeningEnabled,
-            setListeningEnabled);
+            setListeningEnabled,
+            catalog);
         _settingsViewModel.ErrorOccurred += HandleSettingsError;
         _settingsViewModel.PropertyChanged += HandleSettingsPropertyChanged;
 
@@ -1178,6 +1180,28 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     }
 
     // !SECTION 拖拽排序与分类筛选
+
+    // SECTION 提示词数据位置设置
+
+    private void HandleChangePromptDataLocationClick(object sender, RoutedEventArgs e)
+    {
+        var fileDialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "选择提示词数据保存位置",
+            Filter = "JSON 文件 (*.json)|*.json",
+            DefaultExt = ".json",
+            AddExtension = true,
+            FileName = "prompts.json",
+            InitialDirectory = Path.GetDirectoryName(_settingsViewModel.PromptDataFilePath),
+            OverwritePrompt = false
+        };
+        if (fileDialog.ShowDialog(this) == true)
+        {
+            _settingsViewModel.ChangePromptDataFilePath(fileDialog.FileName);
+        }
+    }
+
+    // !SECTION 提示词数据位置设置
 
     // SECTION 应用范围设置
 

@@ -8,6 +8,7 @@ namespace ZCue.Services;
 public sealed class PromptStorageService
 {
     private readonly string _filePath;
+    private readonly AppSettingsService? _settings;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -22,7 +23,23 @@ public sealed class PromptStorageService
     public PromptStorageService(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        _filePath = filePath;
+        _filePath = Path.GetFullPath(filePath);
+    }
+
+    public PromptStorageService(AppSettingsService settings)
+        : this()
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        _settings = settings;
+    }
+
+    public string FilePath
+    {
+        get
+        {
+            var customPath = _settings?.Current.PromptDataFilePath;
+            return string.IsNullOrWhiteSpace(customPath) ? _filePath : Path.GetFullPath(customPath);
+        }
     }
 
     private static string GetDataDirectory()
@@ -37,26 +54,33 @@ public sealed class PromptStorageService
 
     public StorageSnapshot? Load()
     {
-        if (!File.Exists(_filePath))
-        {
-            return null;
-        }
-
+        var filePath = FilePath;
+        var hasCustomPath = !string.IsNullOrWhiteSpace(_settings?.Current.PromptDataFilePath);
         try
         {
-            var json = File.ReadAllText(_filePath);
+            if (!File.Exists(filePath))
+            {
+                if (hasCustomPath)
+                {
+                    throw new FileNotFoundException("找不到自定义提示词数据文件，请检查保存位置是否可用。", filePath);
+                }
+
+                return null;
+            }
+
+            var json = File.ReadAllText(filePath);
             using var document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.EnumerateObject().Any(property =>
                     string.Equals(property.Name, "allCommands", StringComparison.OrdinalIgnoreCase)))
             {
-                return null;
+                throw new InvalidDataException("提示词数据文件格式无效。");
             }
 
             var storedData = JsonSerializer.Deserialize<StorageDocument>(json, _jsonOptions);
             if (storedData is null)
             {
-                return null;
+                throw new InvalidDataException("提示词数据文件中没有可读取的数据。");
             }
 
             return new StorageSnapshot(
@@ -66,7 +90,7 @@ public sealed class PromptStorageService
                     .ToArray(),
                 storedData.AllCategories ?? []);
         }
-        catch
+        catch when (!hasCustomPath)
         {
             // 保留损坏文件，调用方使用默认数据启动，避免启动失败。
             return null;
@@ -77,7 +101,7 @@ public sealed class PromptStorageService
     {
         try
         {
-            WriteDocument(_filePath, prompts, categories);
+            WriteDocument(FilePath, prompts, categories);
         }
         catch
         {
@@ -86,6 +110,64 @@ public sealed class PromptStorageService
     }
 
     // !SECTION 加载与保存
+
+    // SECTION 提示词位置迁移
+
+    public void ChangeFilePath(
+        string filePath,
+        IEnumerable<PromptItem> prompts,
+        IEnumerable<PromptCategory> categories)
+    {
+        if (_settings is null)
+        {
+            throw new InvalidOperationException("当前存储服务未关联位置设置。");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        var fullPath = Path.GetFullPath(filePath);
+        if (string.Equals(fullPath, FilePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (string.Equals(fullPath, _settings.FilePath, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("不能将提示词保存为软件的设置文件。");
+        }
+
+        if (File.Exists(fullPath))
+        {
+            throw new IOException("目标位置已有文件。为保留该文件，请选择新的文件位置。读取已有提示词请使用“导入”。");
+        }
+
+        var temporaryPath = fullPath + $".{Guid.NewGuid():N}.tmp";
+        var created = false;
+        try
+        {
+            WriteDocument(temporaryPath, prompts, categories);
+            File.Move(temporaryPath, fullPath, overwrite: false);
+            created = true;
+            _settings.SetPromptDataFilePath(fullPath);
+        }
+        catch
+        {
+            if (created)
+            {
+                File.Delete(fullPath);
+            }
+
+            throw;
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+    }
+
+    // !SECTION 提示词位置迁移
 
     // SECTION 外部文件导入与导出
 
@@ -138,7 +220,7 @@ public sealed class PromptStorageService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var fullPath = Path.GetFullPath(filePath);
-        if (string.Equals(fullPath, Path.GetFullPath(_filePath), StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(fullPath, FilePath, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("不能将导出文件保存为 ZCue 当前的数据文件。");
         }
