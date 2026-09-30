@@ -13,11 +13,12 @@
         Width="320"
         MinWidth="200"
         MaxWidth="1000"
+        FontFamily="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
     <Border x:Name="RootBorder"
             Padding="8"
-            CornerRadius="11"
+            CornerRadius="8"
             BorderThickness="1"
             ClipToBounds="True"
             SnapsToDevicePixels="True"

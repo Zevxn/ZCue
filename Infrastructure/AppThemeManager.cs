@@ -1,5 +1,6 @@
 ﻿using Microsoft.Win32;
 using System.Windows.Media;
+using WpfColor = System.Windows.Media.Color;
 using ZCue.Models;
 
 namespace ZCue.Infrastructure;
@@ -22,6 +23,7 @@ public static class AppThemeManager
     public const string CategoryTextBrushKey = "ThemeCategoryTextBrush";
     public const string AccentBrushKey = "ThemeAccentBrush";
     public const string AccentHoverBrushKey = "ThemeAccentHoverBrush";
+    public const string AccentForegroundBrushKey = "ThemeAccentForegroundBrush";
     public const string AccentSoftBrushKey = "ThemeAccentSoftBrush";
     public const string AccentTextBrushKey = "ThemeAccentTextBrush";
     public const string AccentSurfaceBrushKey = "ThemeAccentSurfaceBrush";
@@ -42,36 +44,37 @@ public static class AppThemeManager
     private static readonly IReadOnlyDictionary<string, (string Light, string Dark)> Palette =
         new Dictionary<string, (string Light, string Dark)>
         {
-            [WindowBackgroundBrushKey] = ("#F8FAFC", "#202020"),
-            [SidebarBrushKey] = ("#F1F5F9", "#252525"),
-            [SurfaceBrushKey] = ("#FFFFFF", "#2B2B2B"),
-            [BorderBrushKey] = ("#E2E8F0", "#454545"),
-            [FieldBorderBrushKey] = ("#CBD5E1", "#5A5A5A"),
-            [DividerBrushKey] = ("#F1F5F9", "#383838"),
-            [BadgeBackgroundBrushKey] = ("#F1F5F9", "#3A3A3A"),
-            [TextPrimaryBrushKey] = ("#0F172A", "#F1F5F9"),
-            [TextStrongBrushKey] = ("#334155", "#E5E5E5"),
-            [TextSecondaryBrushKey] = ("#64748B", "#B3B3B3"),
-            [TextMutedBrushKey] = ("#94A3B8", "#8A8A8A"),
-            [CategoryTextBrushKey] = ("#475569", "#CCCCCC"),
-            [AccentBrushKey] = ("#2563EB", "#2563EB"),
-            [AccentHoverBrushKey] = ("#1D4ED8", "#1D4ED8"),
-            [AccentSoftBrushKey] = ("#60A5FA", "#6B9FEA"),
-            [AccentTextBrushKey] = ("#1D4ED8", "#F3F3F3"),
-            [AccentSurfaceBrushKey] = ("#DBEAFE", "#363636"),
-            [SelectionSurfaceBrushKey] = ("#DBEAFE", "#3D3D3D"),
-            [AccentSubtleBrushKey] = ("#EFF6FF", "#363636"),
-            [AccentBorderBrushKey] = ("#93C5FD", "#5A5A5A"),
+            [WindowBackgroundBrushKey] = ("#F3F3F3", "#202020"),
+            [SidebarBrushKey] = ("#00F3F3F3", "#00202020"),
+            [SurfaceBrushKey] = ("#E6FFFFFF", "#E62B2B2B"),
+            [BorderBrushKey] = ("#14000000", "#20FFFFFF"),
+            [FieldBorderBrushKey] = ("#D1D1D1", "#5A5A5A"),
+            [DividerBrushKey] = ("#F3F3F3", "#383838"),
+            [BadgeBackgroundBrushKey] = ("#F3F3F3", "#3A3A3A"),
+            [TextPrimaryBrushKey] = ("#1A1A1A", "#F3F3F3"),
+            [TextStrongBrushKey] = ("#323232", "#E5E5E5"),
+            [TextSecondaryBrushKey] = ("#616161", "#B3B3B3"),
+            [TextMutedBrushKey] = ("#757575", "#8A8A8A"),
+            [CategoryTextBrushKey] = ("#484848", "#CCCCCC"),
+            [AccentBrushKey] = ("#0067C0", "#4CC2FF"),
+            [AccentHoverBrushKey] = ("#E60067C0", "#E64CC2FF"),
+            [AccentForegroundBrushKey] = ("#FFFFFF", "#000000"),
+            [AccentSoftBrushKey] = ("#60A5FA", "#4CC2FF"),
+            [AccentTextBrushKey] = ("#1A1A1A", "#FFFFFF"),
+            [AccentSurfaceBrushKey] = ("#E9E9E9", "#363636"),
+            [SelectionSurfaceBrushKey] = ("#E9E9E9", "#3D3D3D"),
+            [AccentSubtleBrushKey] = ("#F0F0F0", "#363636"),
+            [AccentBorderBrushKey] = ("#B3B3B3", "#5A5A5A"),
             [SuccessBrushKey] = ("#059669", "#34D399"),
-            [HoverSurfaceBrushKey] = ("#E2E8F0", "#3A3A3A"),
-            [ToggleTrackBrushKey] = ("#CBD5E1", "#505050"),
+            [HoverSurfaceBrushKey] = ("#E5E5E5", "#3A3A3A"),
+            [ToggleTrackBrushKey] = ("#D1D1D1", "#505050"),
             [DangerTextBrushKey] = ("#DC2626", "#F87171"),
             [DangerHoverBrushKey] = ("#FEF2F2", "#450A0A"),
             [DangerBorderBrushKey] = ("#FCA5A5", "#7F1D1D"),
             [GhostTextBrushKey] = ("#9CA3AF", "#8A8A8A"),
             [ScrollTrackBrushKey] = ("Transparent", "Transparent"),
-            [ScrollThumbBrushKey] = ("#CBD5E1", "#505050"),
-            [ScrollThumbHoverBrushKey] = ("#94A3B8", "#686868")
+            [ScrollThumbBrushKey] = ("#D1D1D1", "#505050"),
+            [ScrollThumbHoverBrushKey] = ("#757575", "#686868")
         };
     private static bool? _lastAppliedDarkTheme;
 
@@ -94,8 +97,23 @@ public static class AppThemeManager
         }
 
         var isDark = IsDarkTheme(mode);
-        if (_lastAppliedDarkTheme != isDark)
+        var themeChanged = _lastAppliedDarkTheme != isDark;
+        if (themeChanged)
         {
+            // 与现有设置共用主题入口，避免 Fluent 控件和自绘浮窗使用不同主题。
+            var fluentTheme = isDark
+                ? Wpf.Ui.Appearance.ApplicationTheme.Dark
+                : Wpf.Ui.Appearance.ApplicationTheme.Light;
+            // 控件字典会读取强调色资源，先设置颜色，再切换主题字典。
+            Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(
+                isDark
+                    ? System.Windows.Media.Color.FromRgb(76, 194, 255)
+                    : System.Windows.Media.Color.FromRgb(0, 103, 192),
+                fluentTheme);
+            Wpf.Ui.Appearance.ApplicationThemeManager.Apply(
+                fluentTheme,
+                Wpf.Ui.Controls.WindowBackdropType.None,
+                updateAccent: false);
             foreach (var (key, colors) in Palette)
             {
                 var brush = new SolidColorBrush(
@@ -105,12 +123,45 @@ public static class AppThemeManager
                 application.Resources[key] = brush;
             }
 
+            ApplyFluentAccentResources(application.Resources);
             _lastAppliedDarkTheme = isDark;
         }
 
         foreach (System.Windows.Window window in application.Windows)
         {
-            ApplyWindowTitleBarTheme(window, isDark);
+            ApplyWindowTitleBarTheme(window, isDark, themeChanged);
+        }
+    }
+
+    private static void ApplyFluentAccentResources(System.Windows.ResourceDictionary resources)
+    {
+        var accent = ((SolidColorBrush)resources[AccentBrushKey]).Color;
+        var foreground = ((SolidColorBrush)resources[AccentForegroundBrushKey]).Color;
+
+        // 覆盖控件库生成的浅色阶，使按钮和开关使用一致的 Windows 强调色。
+        resources["SystemAccentColorPrimary"] = accent;
+        SetBrush(accent,
+            "AccentButtonBackground", "ToggleSwitchFillOn", "AccentFillColorDefaultBrush",
+            "SliderThumbBackground", "SliderTrackFillPointerOver", "SliderThumbBackgroundPointerOver");
+        SetBrush(WpfColor.FromArgb(0xE6, accent.R, accent.G, accent.B),
+            "AccentButtonBackgroundPointerOver", "ToggleSwitchFillOnPointerOver",
+            "ToggleSwitchStrokeOnPointerOver", "AccentFillColorSecondaryBrush");
+        SetBrush(WpfColor.FromArgb(0xCC, accent.R, accent.G, accent.B),
+            "AccentButtonBackgroundPressed", "ToggleSwitchFillOnPressed",
+            "ToggleSwitchStrokeOnPressed", "AccentFillColorTertiaryBrush");
+        SetBrush(foreground,
+            "AccentButtonForeground", "AccentButtonForegroundPointerOver",
+            "ToggleSwitchKnobFillOn", "ToggleSwitchKnobFillOnPointerOver", "ToggleSwitchKnobFillOnPressed",
+            "TextOnAccentFillColorPrimaryBrush", "TextOnAccentFillColorSecondaryBrush");
+
+        void SetBrush(WpfColor color, params string[] keys)
+        {
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            foreach (var key in keys)
+            {
+                resources[key] = brush;
+            }
         }
     }
 
@@ -126,12 +177,19 @@ public static class AppThemeManager
             ApplyWindowTitleBarTheme(window, _lastAppliedDarkTheme ?? IsSystemDarkTheme());
     }
 
-    private static void ApplyWindowTitleBarTheme(System.Windows.Window window, bool isDark)
+    private static void ApplyWindowTitleBarTheme(System.Windows.Window window, bool isDark, bool refreshBackdrop = false)
     {
         var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
         if (handle == IntPtr.Zero)
         {
             return;
+        }
+
+        // 只为普通 Fluent 窗口刷新材质；透明候选窗继续使用原来的窗口样式。
+        if (refreshBackdrop && window is Wpf.Ui.Controls.FluentWindow fluentWindow)
+        {
+            fluentWindow.WindowBackdropType = Wpf.Ui.Controls.WindowBackdropType.None;
+            fluentWindow.WindowBackdropType = Wpf.Ui.Controls.WindowBackdropType.Mica;
         }
 
         var useDarkMode = isDark ? 1 : 0;

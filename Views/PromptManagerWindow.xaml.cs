@@ -34,7 +34,7 @@ using WinFormsTextDataFormat = System.Windows.Forms.TextDataFormat;
 
 namespace ZCue.Views;
 
-public partial class PromptManagerWindow : Window
+public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 {
     private const string GitHubUrl = "https://github.com/Zevxn/ZCue";
     private const string GitHubReleasesUrl = "https://github.com/Zevxn/ZCue/releases";
@@ -109,6 +109,28 @@ public partial class PromptManagerWindow : Window
         };
     }
 
+    // SECTION 设置滑动条焦点提示
+
+    private void HandleSettingsSliderPreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Slider slider)
+        {
+            // 鼠标拖动仍保留键盘焦点，只隐藏控件外围的焦点装饰。
+            slider.FocusVisualStyle = null;
+        }
+    }
+
+    private void HandleSettingsSliderPreviewGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Slider slider
+            && InputManager.Current.MostRecentInputDevice is KeyboardDevice)
+        {
+            slider.SetResourceReference(System.Windows.Controls.Control.FocusVisualStyleProperty, "DefaultControlFocusVisualStyle");
+        }
+    }
+
+    // !SECTION 设置滑动条焦点提示
+
     public void CloseWithoutHiding()
     {
         if (!IsVisible)
@@ -132,6 +154,9 @@ public partial class PromptManagerWindow : Window
 
     private void ShowCommandsPage(object sender, RoutedEventArgs e)
     {
+        CommandsNavigationButton.Tag = "Selected";
+        SettingsNavigationButton.Tag = null;
+        ApplicationSettingsNavigationButton.Tag = null;
         CommandsPage.Visibility = Visibility.Visible;
         SettingsPage.Visibility = Visibility.Collapsed;
         ApplicationSettingsPage.Visibility = Visibility.Collapsed;
@@ -151,6 +176,9 @@ public partial class PromptManagerWindow : Window
 
     private void ShowSettingsPage(object sender, RoutedEventArgs e)
     {
+        CommandsNavigationButton.Tag = null;
+        SettingsNavigationButton.Tag = "Selected";
+        ApplicationSettingsNavigationButton.Tag = null;
         CommandsPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Visible;
         ApplicationSettingsPage.Visibility = Visibility.Collapsed;
@@ -169,6 +197,9 @@ public partial class PromptManagerWindow : Window
 
     private void ShowApplicationSettingsPage(object sender, RoutedEventArgs e)
     {
+        CommandsNavigationButton.Tag = null;
+        SettingsNavigationButton.Tag = null;
+        ApplicationSettingsNavigationButton.Tag = "Selected";
         CommandsPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Collapsed;
         ApplicationSettingsPage.Visibility = Visibility.Visible;

@@ -16,7 +16,7 @@ using WinFormsTextDataFormat = System.Windows.Forms.TextDataFormat;
 
 namespace ZCue.Views;
 
-public partial class PromptEditorWindow : Window
+public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
 {
     private readonly string? _editingId;
     private readonly int _usageCount;

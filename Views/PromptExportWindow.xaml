@@ -39,7 +39,7 @@
                                         VerticalAlignment="Center" />
                                 <Path x:Name="CheckMark"
                                       Data="M 3,9 L 7,13 L 15,4"
-                                      Stroke="White"
+                                      Stroke="{DynamicResource ThemeAccentForegroundBrush}"
                                       StrokeThickness="2.2"
                                       StrokeStartLineCap="Round"
                                       StrokeEndLineCap="Round"
@@ -52,7 +52,7 @@
                                            Height="2.5"
                                            RadiusX="1.25"
                                            RadiusY="1.25"
-                                           Fill="White"
+                                           Fill="{DynamicResource ThemeAccentForegroundBrush}"
                                            Visibility="Collapsed"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
@@ -132,7 +132,7 @@
         <Style x:Key="ExportPrimaryButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeAccentForegroundBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="16,9" />
             <Setter Property="FontWeight" Value="SemiBold" />

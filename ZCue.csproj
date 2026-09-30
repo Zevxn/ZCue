@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="PinYinConverterCore" Version="1.0.2" />
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +26,7 @@
     <Resource Include="assets\cursors\grab.cur" />
     <Resource Include="assets\cursors\grabbing.cur" />
     <None Update="assets\logo.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="docs\licenses\*.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

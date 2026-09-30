@@ -1,77 +1,25 @@
-﻿<Window x:Class="ZCue.Views.PromptEditorWindow"
+﻿<ui:FluentWindow x:Class="ZCue.Views.PromptEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="编辑指令"
         Icon="pack://application:,,,/assets/logo.png"
         Width="620"
-        Height="640"
+        Height="720"
         MinWidth="560"
-        MinHeight="600"
+        MinHeight="660"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         Background="{DynamicResource ThemeWindowBackgroundBrush}"
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Mica"
+        FontFamily="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI"
         UseLayoutRounding="True">
     <Window.Resources>
-        <Style x:Key="PrimaryButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="18,9" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                Cursor="{TemplateBinding Cursor}"
-                                CornerRadius="7"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Cursor" Value="No" />
-                </Trigger>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource ThemeAccentHoverBrush}" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="SecondaryButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource ThemeTextStrongBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeFieldBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="18,9" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                Cursor="{TemplateBinding Cursor}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="7"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Cursor" Value="No" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
+
         <Style x:Key="FieldTextBox" TargetType="TextBox" BasedOn="{StaticResource RoundedTextBoxBase}">
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Padding" Value="3,8,10,8" />
+            <Setter Property="Padding" Value="12,8" />
         </Style>
         <Style x:Key="PromptEditorCategoryComboBoxItem"
                TargetType="{x:Type ComboBoxItem}"
@@ -80,159 +28,168 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="28">
+    <!-- SECTION Fluent 编辑窗口 -->
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="48" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-
-        <StackPanel Grid.Row="0"
-                    Margin="0,0,0,20">
-            <TextBlock x:Name="TitleTextBlock"
-                       Text="新建指令"
-                       FontSize="24"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource ThemeTextPrimaryBrush}" />
-            <TextBlock Margin="0,7,0,0"
-                       Text="设置名称和要插入到当前输入框的完整内容。"
-                       Foreground="{DynamicResource ThemeTextSecondaryBrush}"
-                       FontSize="13" />
-        </StackPanel>
-
-        <Grid Grid.Row="1">
+        <ui:TitleBar Title="{Binding Title, RelativeSource={RelativeSource AncestorType={x:Type ui:FluentWindow}}}" ShowMinimize="False" ShowMaximize="False" Icon="pack://application:,,,/assets/logo.png" />
+        <Grid Grid.Row="1" Margin="28,18,28,24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Text="指令名称"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource ThemeTextStrongBrush}" />
-            <TextBox x:Name="NameTextBox"
-                     Grid.Row="1"
-                     Margin="0,7,0,14"
-                     Height="40"
-                     Padding="3,4,10,4"
-                     VerticalContentAlignment="Center"
-                     Style="{StaticResource FieldTextBox}"
-                     PreviewKeyDown="HandleTextBoxPreviewKeyDown"
-                     MaxLength="80" />
+            <StackPanel Grid.Row="0"
+                        Margin="0,0,0,20">
+                <TextBlock x:Name="TitleTextBlock"
+                           Text="新建指令"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ThemeTextPrimaryBrush}" />
+                <TextBlock Margin="0,7,0,0"
+                           Text="设置名称和要插入到当前输入框的完整内容。"
+                           Foreground="{DynamicResource ThemeTextSecondaryBrush}"
+                           FontSize="13" />
+            </StackPanel>
 
-            <TextBlock Grid.Row="2"
-                       Margin="0,0,0,6"
-                       Text="指令分类"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource ThemeTextStrongBrush}" />
-            <ComboBox x:Name="CategoryComboBox"
-                      Grid.Row="3"
-                      Margin="0,0,0,14"
-                      HorizontalAlignment="Stretch"
-                      Height="40"
-                      FontSize="14"
-                      MaxDropDownHeight="320"
-                      Style="{StaticResource FieldComboBox}"
-                      ItemContainerStyle="{StaticResource PromptEditorCategoryComboBoxItem}"
-                      SelectedValuePath="Id">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Name}"
-                                   FontSize="14"
-                                   TextTrimming="CharacterEllipsis"
-                                   TextWrapping="NoWrap"
-                                   VerticalAlignment="Center" />
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-            <Grid Grid.Row="4"
-                  Margin="0,0,0,6">
+                <TextBlock Text="指令名称"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ThemeTextStrongBrush}" />
+                <TextBox x:Name="NameTextBox"
+                         Grid.Row="1"
+                         Margin="0,7,0,14"
+                         Height="40"
+                         Padding="12,8"
+                         VerticalContentAlignment="Center"
+                         Style="{StaticResource FieldTextBox}"
+                         PreviewKeyDown="HandleTextBoxPreviewKeyDown"
+                         MaxLength="80" />
+
+                <TextBlock Grid.Row="2"
+                           Margin="0,0,0,6"
+                           Text="指令分类"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ThemeTextStrongBrush}" />
+                <ComboBox x:Name="CategoryComboBox"
+                          Grid.Row="3"
+                          Margin="0,0,0,14"
+                          HorizontalAlignment="Stretch"
+                          Height="40"
+                          FontSize="14"
+                          MaxDropDownHeight="320"
+                          Style="{StaticResource FieldComboBox}"
+                          ItemContainerStyle="{StaticResource PromptEditorCategoryComboBoxItem}"
+                          SelectedValuePath="Id">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="14"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap"
+                                       VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <Grid Grid.Row="4"
+                      Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="指令内容"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ThemeTextStrongBrush}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Text="选择变量插入，使用时自动替换。"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource ThemeTextSecondaryBrush}" />
+                    </StackPanel>
+                    <ComboBox x:Name="VariableComboBox"
+                              Grid.Column="1"
+                              Width="148"
+                              Height="40"
+                              FontSize="13"
+                              MaxDropDownHeight="240"
+                              Style="{StaticResource FieldComboBox}"
+                              ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
+                              SelectedIndex="0"
+                              SelectionChanged="HandleVariableSelectionChanged">
+                        <ComboBoxItem Content="插入变量…"
+                                      IsEnabled="False"
+                                      Visibility="Collapsed" />
+                        <ComboBoxItem Content="当前日期"
+                                      Tag="date"
+                                      ToolTip="插入 {{date}}，使用时替换为当前日期" />
+                        <ComboBoxItem Content="当前时间"
+                                      Tag="time"
+                                      ToolTip="插入 {{time}}，使用时替换为当前时间" />
+                        <ComboBoxItem Content="剪贴板内容"
+                                      Tag="clipboard"
+                                      ToolTip="插入 {{clipboard}}，使用时替换为剪贴板文本" />
+                    </ComboBox>
+                </Grid>
+                <TextBox x:Name="ContentTextBox"
+                         Grid.Row="5"
+                         Style="{StaticResource FieldTextBox}"
+                         Padding="12,10"
+                         MinHeight="150"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalContentAlignment="Top"
+                         PreviewKeyDown="HandleTextBoxPreviewKeyDown"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Disabled"
+                         MaxLength="10000" />
+            </Grid>
+
+            <Grid Grid.Row="2"
+                  Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0"
+
+                <CheckBox x:Name="EnabledCheckBox"
+                          Style="{StaticResource ThemedCheckBox}"
+                          Grid.Column="0"
+                          Content="启用这条指令"
+                          IsChecked="True"
+                          VerticalAlignment="Center"
+                          FontSize="14"
+                          Foreground="{DynamicResource ThemeTextStrongBrush}" />
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
                             VerticalAlignment="Center">
-                    <TextBlock Text="指令内容"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource ThemeTextStrongBrush}" />
-                    <TextBlock Margin="0,4,0,0"
-                               Text="选择变量插入，使用时自动替换。"
-                               TextWrapping="Wrap"
-                               FontSize="12"
-                               Foreground="{DynamicResource ThemeTextSecondaryBrush}" />
+                    <ui:Button Content="取消"
+                            IsCancel="True"
+                            Style="{StaticResource FluentSecondaryButton}"
+                            Margin="0,0,10,0"
+                            Click="HandleCancelClick" />
+                    <ui:Button Content="保存"
+                            IsDefault="True"
+                            Style="{StaticResource FluentPrimaryButton}"
+                            Click="HandleSaveClick" />
                 </StackPanel>
-                <ComboBox x:Name="VariableComboBox"
-                          Grid.Column="1"
-                          Width="148"
-                          Height="40"
-                          FontSize="13"
-                          MaxDropDownHeight="240"
-                          Style="{StaticResource FieldComboBox}"
-                          ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
-                          SelectedIndex="0"
-                          SelectionChanged="HandleVariableSelectionChanged">
-                    <ComboBoxItem Content="插入变量…"
-                                  IsEnabled="False"
-                                  Visibility="Collapsed" />
-                    <ComboBoxItem Content="当前日期"
-                                  Tag="date"
-                                  ToolTip="插入 {{date}}，使用时替换为当前日期" />
-                    <ComboBoxItem Content="当前时间"
-                                  Tag="time"
-                                  ToolTip="插入 {{time}}，使用时替换为当前时间" />
-                    <ComboBoxItem Content="剪贴板内容"
-                                  Tag="clipboard"
-                                  ToolTip="插入 {{clipboard}}，使用时替换为剪贴板文本" />
-                </ComboBox>
             </Grid>
-            <TextBox x:Name="ContentTextBox"
-                     Grid.Row="5"
-                     Style="{StaticResource FieldTextBox}"
-                     Padding="3,8,0,8"
-                     MinHeight="150"
-                     AcceptsReturn="True"
-                     TextWrapping="Wrap"
-                     VerticalContentAlignment="Top"
-                     PreviewKeyDown="HandleTextBoxPreviewKeyDown"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Disabled"
-                     MaxLength="10000" />
-        </Grid>
-
-        <Grid Grid.Row="2"
-              Margin="0,16,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <CheckBox x:Name="EnabledCheckBox"
-                      Style="{StaticResource ThemedCheckBox}"
-                      Grid.Column="0"
-                      Content="启用这条指令"
-                      IsChecked="True"
-                      VerticalAlignment="Center"
-                      FontSize="14"
-                      Foreground="{DynamicResource ThemeTextStrongBrush}" />
-
-            <StackPanel Grid.Column="1"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                <Button Content="取消"
-                        IsCancel="True"
-                        Style="{StaticResource SecondaryButton}"
-                        Margin="0,0,10,0"
-                        Click="HandleCancelClick" />
-                <Button Content="保存"
-                        IsDefault="True"
-                        Style="{StaticResource PrimaryButton}"
-                        Click="HandleSaveClick" />
-            </StackPanel>
         </Grid>
     </Grid>
-</Window>
+    <!-- !SECTION Fluent 编辑窗口 -->
+</ui:FluentWindow>

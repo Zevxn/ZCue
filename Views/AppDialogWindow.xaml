@@ -68,7 +68,7 @@
                TargetType="Button"
                BasedOn="{StaticResource DialogButtonBase}">
             <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeAccentForegroundBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">

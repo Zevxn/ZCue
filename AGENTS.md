@@ -4,12 +4,12 @@
 
 ZCue 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托盘，在任意文本输入场景中监听用户输入，根据 Prompt 名称生成的拼音/首字母隐藏别名和名称文本匹配候选，并在当前光标附近显示不抢焦点的候选窗；确认后删除触发片段并插入完整 Prompt。
 
-当前实现是单项目 WPF 应用，目标框架为 `.NET 8` Windows 桌面，使用 Win32 API、Windows UI Automation 和 `PinYinConverterCore`。`ref/` 中的 JavaScript/HTML 是浏览器插件参考实现，不参与 Windows 项目编译；可参考其匹配、排序和交互思路，但不要把 DOM 代码直接迁移到 WPF。
+当前实现是单项目 WPF 应用，目标框架为 `.NET 8` Windows 桌面，使用 Win32 API、Windows UI Automation、`PinYinConverterCore` 和 `WPF UI`。`ref/` 中的 JavaScript/HTML 是浏览器插件参考实现，不参与 Windows 项目编译；可参考其匹配、排序和交互思路，但不要把 DOM 代码直接迁移到 WPF。
 
 ## 技术入口与运行方式
 
 - `App.xaml.cs` 是 WPF 应用入口。应用使用显式关闭模式，启动时创建并启动 `AppController`，退出时释放 Hook、窗口和托盘资源。
-- `ZCue.csproj` 定义 `net8.0-windows`、WPF、Windows Forms、PerMonitorV2 DPI 和 `PinYinConverterCore 1.0.2` 依赖；输出类型是托盘型 `WinExe`。
+- `ZCue.csproj` 定义 `net8.0-windows`、WPF、Windows Forms、PerMonitorV2 DPI、`PinYinConverterCore 1.0.2` 和 `WPF-UI 4.3.0` 依赖；输出类型是托盘型 `WinExe`。
 - `app.manifest` 使用 `asInvoker` 且 `uiAccess=false`。程序不能自动越过权限边界操作高权限目标窗口。
 - 常用命令：
 
@@ -25,7 +25,8 @@ ZCue 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托盘，�
 
 | 位置 | 职责 |
 | --- | --- |
-| `App.xaml(.cs)` | WPF 资源和应用生命周期入口。 |
+| `App.xaml(.cs)` | WPF 资源和应用生命周期入口；合并 WPF UI 的主题与控件字典。 |
+| `Infrastructure/AppThemeManager.cs` | 统一同步 Fluent 控件与自绘窗口的深浅色资源；只给普通 Fluent 窗口刷新 Mica 材质。 |
 | `Models/PromptItem.cs` | Prompt 数据、使用次数、启用状态以及 `PromptMatch`/匹配类型模型。 |
 | `Models/PromptAlias.cs` | 持久化的全拼/首字母别名、分段信息和输入范围到名称高亮范围的映射。 |
 | `Models/AppSettings.cs` | 候选预览、数字键选择、Enter 确认等设置。 |
@@ -94,7 +95,7 @@ App
 2. 保持 `PromptItem`、`PromptMatch`、`PromptAlias` 的字段含义和高亮映射一致。改变别名结构时，同时检查 JSON 反序列化、克隆、目录规范化、匹配和候选高亮。
 3. 不重新引入手工 `Abbreviation` 字段。用户可编辑的文本字段只有名称和内容，启用状态是独立开关；触发别名由名称自动派生并隐藏保存。
 4. 修改输入状态时同时考虑鼠标点击外部、前台窗口切换、Backspace、空格/回车、方向键、Ctrl+A、Ctrl+V、撤销和 IME 提交；这些路径会重置或通过 `FocusedTextService` 同步缓冲区。
-5. 候选窗必须继续使用无激活样式、置顶和 `SWP_NOACTIVATE`，不能因为刷新候选而抢走目标输入框焦点。
+5. 管理器和编辑窗口使用 WPF UI `FluentWindow`；透明候选窗和内容预览仍保留原窗口类型。候选窗必须继续使用无激活样式、置顶和 `SWP_NOACTIVATE`，不能因为刷新候选而抢走目标输入框焦点。
 6. 修改文本插入时必须保留：目标窗口前台校验、注入事件过滤、Unicode 支持、触发串删除长度、剪贴板恢复和异常隔离。
 7. `NativeMethods` 中的 P/Invoke 签名、结构体布局、Hook 消息循环和输入标志非常敏感，除非明确验证 Win32 行为，不要随意改名或调整字段类型。
 8. 注意项目同时启用 WPF 和 Windows Forms。涉及 `Application`、`IDataObject`、`CheckBox` 等同名类型时使用完整命名空间或现有别名，避免引用歧义。
