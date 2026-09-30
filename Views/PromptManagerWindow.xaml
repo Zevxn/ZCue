@@ -34,7 +34,6 @@
                             <Border x:Name="NavigationSurface" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
                                 <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left" />
                             </Border>
-                            <Border x:Name="SelectionIndicator" Width="3" Height="20" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="2" Background="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Collapsed" />
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -42,9 +41,6 @@
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="NavigationSurface" Property="Opacity" Value="0.7" />
-                            </Trigger>
-                            <Trigger Property="Tag" Value="Selected">
-                                <Setter TargetName="SelectionIndicator" Property="Visibility" Value="Visible" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -381,52 +377,64 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1"
-                                Margin="0,32,0,0">
-                        <TextBlock Text="工作区"
-                                   Foreground="{DynamicResource ThemeTextMutedBrush}"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"
-                                   Margin="14,0,0,9" />
-                        <ui:Button x:Name="CommandsNavigationButton"
-                                Tag="Selected"
-                                Style="{StaticResource NavigationButton}"
-                                Background="{DynamicResource ThemeAccentSurfaceBrush}"
-                                Foreground="{DynamicResource ThemeAccentTextBrush}"
-                                Click="ShowCommandsPage">
-                            <StackPanel Orientation="Horizontal"
-                                        VerticalAlignment="Center">
-                                <ui:SymbolIcon Symbol="TextBulletListSquare24" FontSize="20" Width="22" VerticalAlignment="Center" />
-                                <TextBlock Text="指令管理"
-                                           Margin="10,0,0,0"
-                                           VerticalAlignment="Center" />
-                            </StackPanel>
-                        </ui:Button>
-                        <ui:Button x:Name="SettingsNavigationButton"
-                                Style="{StaticResource NavigationButton}"
-                                Margin="0,4,0,0"
-                                Click="ShowSettingsPage">
-                            <StackPanel Orientation="Horizontal"
-                                        VerticalAlignment="Center">
-                                <ui:SymbolIcon Symbol="Keyboard24" FontSize="20" Width="22" VerticalAlignment="Center" />
-                                <TextBlock Text="指令设置"
-                                           Margin="10,0,0,0"
-                                           VerticalAlignment="Center" />
+                    <Grid x:Name="NavigationHost" Grid.Row="1" Margin="0,32,0,0" SizeChanged="HandleNavigationHostSizeChanged">
+                        <StackPanel>
+                            <TextBlock Text="工作区"
+                                       Foreground="{DynamicResource ThemeTextMutedBrush}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Margin="14,0,0,9" />
+                            <ui:Button x:Name="CommandsNavigationButton"
+                                    Style="{StaticResource NavigationButton}"
+                                    Background="{DynamicResource ThemeAccentSurfaceBrush}"
+                                    Foreground="{DynamicResource ThemeAccentTextBrush}"
+                                    Click="ShowCommandsPage">
+                                <StackPanel Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="TextBulletListSquare24" FontSize="20" Width="22" VerticalAlignment="Center" />
+                                    <TextBlock Text="指令管理"
+                                               Margin="10,0,0,0"
+                                               VerticalAlignment="Center" />
                                 </StackPanel>
                             </ui:Button>
-                        <ui:Button x:Name="ApplicationSettingsNavigationButton"
-                                Style="{StaticResource NavigationButton}"
-                                Margin="0,4,0,0"
-                                Click="ShowApplicationSettingsPage">
-                            <StackPanel Orientation="Horizontal"
-                                        VerticalAlignment="Center">
-                                <ui:SymbolIcon Symbol="Settings24" FontSize="20" Width="22" VerticalAlignment="Center" />
-                                <TextBlock Text="应用设置"
-                                           Margin="10,0,0,0"
-                                           VerticalAlignment="Center" />
-                            </StackPanel>
-                        </ui:Button>
-                    </StackPanel>
+                            <ui:Button x:Name="SettingsNavigationButton"
+                                    Style="{StaticResource NavigationButton}"
+                                    Margin="0,4,0,0"
+                                    Click="ShowSettingsPage">
+                                <StackPanel Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Keyboard24" FontSize="20" Width="22" VerticalAlignment="Center" />
+                                    <TextBlock Text="指令设置"
+                                               Margin="10,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </ui:Button>
+                            <ui:Button x:Name="ApplicationSettingsNavigationButton"
+                                    Style="{StaticResource NavigationButton}"
+                                    Margin="0,4,0,0"
+                                    Click="ShowApplicationSettingsPage">
+                                <StackPanel Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Settings24" FontSize="20" Width="22" VerticalAlignment="Center" />
+                                    <TextBlock Text="应用设置"
+                                               Margin="10,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </ui:Button>
+                        </StackPanel>
+                        <Border x:Name="NavigationSelectionIndicator"
+                                Width="3" Height="20" CornerRadius="2"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                Visibility="Collapsed" IsHitTestVisible="False">
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="NavigationIndicatorScale" CenterY="10" />
+                                    <TranslateTransform x:Name="NavigationIndicatorTranslate" />
+                                </TransformGroup>
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
 
                     <ui:Button Grid.Row="2"
                             Style="{StaticResource NavigationButton}"
@@ -1189,7 +1197,7 @@
                                                 <TextBlock TextWrapping="Wrap" Text="选择浅色、深色，或跟随 Windows 外观" Foreground="{DynamicResource ThemeTextSecondaryBrush}" FontSize="12" Margin="0,4,0,0" />
                                             </StackPanel>
                                         </Grid>
-                                        <ComboBox Grid.Column="1" Width="148" Height="36" Padding="12,5,8,5" VerticalContentAlignment="Center" Style="{StaticResource FieldComboBox}" ItemContainerStyle="{StaticResource ThemeComboBoxItem}" SelectedValuePath="Tag" SelectedValue="{Binding ThemeMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="24,0,3,0" PreviewMouseWheel="HandleThemeModePreviewMouseWheel">
+                                        <ComboBox Grid.Column="1" Width="120" Height="36" Padding="12,5,8,5" VerticalContentAlignment="Center" Style="{StaticResource FieldComboBox}" ItemContainerStyle="{StaticResource ThemeComboBoxItem}" SelectedValuePath="Tag" SelectedValue="{Binding ThemeMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="24,0,3,0" PreviewMouseWheel="HandleThemeModePreviewMouseWheel">
                                             <ComboBoxItem Content="跟随系统" Tag="{x:Static models:AppThemeMode.System}" />
                                             <ComboBoxItem Content="浅色模式" Tag="{x:Static models:AppThemeMode.Light}" />
                                             <ComboBoxItem Content="深色模式" Tag="{x:Static models:AppThemeMode.Dark}" />

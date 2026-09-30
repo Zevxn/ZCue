@@ -47,6 +47,8 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private readonly WpfCursor _grabCursor;
     private readonly WpfCursor _grabbingCursor;
     private bool _allowClose;
+    private WpfButton? _selectedNavigationButton;
+    private bool _navigationIndicatorInitialized;
     private WpfPoint _promptDragStartPoint;
     private WpfPoint _promptDragGrabOffset;
     private string? _pendingPromptDragId;
@@ -104,6 +106,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         Closing += HandleClosing;
         Loaded += (_, _) =>
         {
+            UpdateNavigationIndicator(_selectedNavigationButton ?? CommandsNavigationButton, animate: false);
             UpdateEmptyState();
             UpdateBatchSelectionState();
         };
@@ -150,13 +153,74 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         UpdateEmptyState();
     }
 
+    // SECTION 侧栏选中指示动画
+
+    private void HandleNavigationHostSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateNavigationIndicator(_selectedNavigationButton ?? CommandsNavigationButton, animate: false);
+    }
+
+    private void UpdateNavigationIndicator(WpfButton selectedButton, bool animate = true)
+    {
+        _selectedNavigationButton = selectedButton;
+        if (!IsLoaded || selectedButton.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var targetY = selectedButton.TranslatePoint(
+            new WpfPoint(0, (selectedButton.ActualHeight - NavigationSelectionIndicator.Height) / 2),
+            NavigationHost).Y;
+        var currentY = NavigationIndicatorTranslate.Y;
+        var currentScale = NavigationIndicatorScale.ScaleY;
+        if (animate && _navigationIndicatorInitialized
+            && Math.Abs(targetY - (double)NavigationIndicatorTranslate.GetAnimationBaseValue(TranslateTransform.YProperty)) < 0.1)
+        {
+            return;
+        }
+
+        NavigationSelectionIndicator.Visibility = Visibility.Visible;
+        NavigationIndicatorTranslate.Y = targetY;
+        NavigationIndicatorScale.ScaleY = 1;
+        if (animate && _navigationIndicatorInitialized && SystemParameters.ClientAreaAnimation
+            && Math.Abs(targetY - currentY) > 0.1)
+        {
+            // 从当前显示位置接续动画，快速切换页面时也不会跳回上一次起点。
+            var duration = TimeSpan.FromMilliseconds(220);
+            var movement = new DoubleAnimation(currentY, targetY, duration)
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                FillBehavior = FillBehavior.Stop
+            };
+            var stretch = new DoubleAnimationUsingKeyFrames
+            {
+                Duration = duration,
+                FillBehavior = FillBehavior.Stop
+            };
+            stretch.KeyFrames.Add(new DiscreteDoubleKeyFrame(currentScale, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            stretch.KeyFrames.Add(new EasingDoubleKeyFrame(1.5, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(80)),
+                new CubicEase { EasingMode = EasingMode.EaseOut }));
+            stretch.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(duration),
+                new CubicEase { EasingMode = EasingMode.EaseOut }));
+            NavigationIndicatorTranslate.BeginAnimation(TranslateTransform.YProperty, movement);
+            NavigationIndicatorScale.BeginAnimation(ScaleTransform.ScaleYProperty, stretch);
+        }
+        else
+        {
+            NavigationIndicatorTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+            NavigationIndicatorScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        }
+
+        _navigationIndicatorInitialized = true;
+    }
+
+    // !SECTION 侧栏选中指示动画
+
     // SECTION 页面导航与列表交互
 
     private void ShowCommandsPage(object sender, RoutedEventArgs e)
     {
-        CommandsNavigationButton.Tag = "Selected";
-        SettingsNavigationButton.Tag = null;
-        ApplicationSettingsNavigationButton.Tag = null;
+        UpdateNavigationIndicator(CommandsNavigationButton);
         CommandsPage.Visibility = Visibility.Visible;
         SettingsPage.Visibility = Visibility.Collapsed;
         ApplicationSettingsPage.Visibility = Visibility.Collapsed;
@@ -176,9 +240,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ShowSettingsPage(object sender, RoutedEventArgs e)
     {
-        CommandsNavigationButton.Tag = null;
-        SettingsNavigationButton.Tag = "Selected";
-        ApplicationSettingsNavigationButton.Tag = null;
+        UpdateNavigationIndicator(SettingsNavigationButton);
         CommandsPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Visible;
         ApplicationSettingsPage.Visibility = Visibility.Collapsed;
@@ -197,9 +259,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ShowApplicationSettingsPage(object sender, RoutedEventArgs e)
     {
-        CommandsNavigationButton.Tag = null;
-        SettingsNavigationButton.Tag = null;
-        ApplicationSettingsNavigationButton.Tag = "Selected";
+        UpdateNavigationIndicator(ApplicationSettingsNavigationButton);
         CommandsPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Collapsed;
         ApplicationSettingsPage.Visibility = Visibility.Visible;
