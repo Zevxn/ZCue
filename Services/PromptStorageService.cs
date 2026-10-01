@@ -289,23 +289,46 @@ public sealed class PromptStorageService
         Enabled = command.Active,
         UsageCount = command.UsageCount,
         CategoryId = command.CategoryId,
-        PinyinAliases = command.PinyinAliases?
-            .Select(alias => alias.DeepCopy())
-            .ToList() ?? []
+        PinyinAliases = PinyinAliasService.CreateAliases(command.Key ?? string.Empty, command.PinyinList)
     };
 
-    private static StoredCommand FromPromptItem(PromptItem prompt) => new()
+    private static StoredCommand FromPromptItem(PromptItem prompt)
     {
-        Id = prompt.Id,
-        Key = prompt.Name,
-        Value = prompt.Content,
-        Active = prompt.Enabled,
-        UsageCount = prompt.UsageCount,
-        CategoryId = prompt.CategoryId,
-        PinyinAliases = prompt.PinyinAliases?
-            .Select(alias => alias.DeepCopy())
-            .ToList() ?? []
-    };
+        var aliases = prompt.PinyinAliases is { Count: > 0 }
+            ? prompt.PinyinAliases
+            : PinyinAliasService.CreateAliases(prompt.Name ?? string.Empty);
+        var primary = aliases.FirstOrDefault(alias => alias.Kind == PromptAliasKind.FullPinyin && alias.IsPrimary)
+            ?? aliases.FirstOrDefault(alias => alias.Kind == PromptAliasKind.FullPinyin);
+        var pinyins = primary?.Segments.Select(segment =>
+            primary.SearchText.Substring(segment.SearchStart, segment.SearchLength)).ToList() ?? [];
+        var initials = pinyins.Select(pinyin =>
+            pinyin.StartsWith("zh", StringComparison.Ordinal)
+                || pinyin.StartsWith("ch", StringComparison.Ordinal)
+                || pinyin.StartsWith("sh", StringComparison.Ordinal)
+                ? pinyin[..2] : pinyin[..1]).ToList();
+        var fuzzyPinyins = pinyins.Select(NormalizePluginPinyin).ToList();
+        var fuzzyInitials = initials.Select(NormalizePluginPinyin).ToList();
+        return new StoredCommand
+        {
+            Id = prompt.Id,
+            Key = prompt.Name ?? string.Empty,
+            Value = prompt.Content,
+            Active = prompt.Enabled,
+            UsageCount = prompt.UsageCount,
+            CategoryId = prompt.CategoryId,
+            PinyinList = pinyins,
+            InitialList = initials,
+            FuzzyPinyins = fuzzyPinyins,
+            FuzzyInits = fuzzyInitials,
+            RawString = string.Concat(initials),
+            SearchString = string.Concat(fuzzyInitials)
+        };
+    }
+
+    private static string NormalizePluginPinyin(string value) => value
+        .Replace("zh", "z", StringComparison.Ordinal)
+        .Replace("ch", "c", StringComparison.Ordinal)
+        .Replace("sh", "s", StringComparison.Ordinal);
 
     // !SECTION 插件数据映射
 
@@ -350,7 +373,22 @@ public sealed class PromptStorageService
         [JsonPropertyName("categoryId")]
         public string CategoryId { get; set; } = string.Empty;
 
-        [JsonPropertyName("pinyinAliases")]
-        public List<PromptAlias>? PinyinAliases { get; set; } = [];
+        [JsonPropertyName("_pinyinList")]
+        public List<string>? PinyinList { get; set; }
+
+        [JsonPropertyName("_initialList")]
+        public List<string>? InitialList { get; set; }
+
+        [JsonPropertyName("_fuzzyPinyins")]
+        public List<string>? FuzzyPinyins { get; set; }
+
+        [JsonPropertyName("_fuzzyInits")]
+        public List<string>? FuzzyInits { get; set; }
+
+        [JsonPropertyName("_rawString")]
+        public string? RawString { get; set; }
+
+        [JsonPropertyName("_searchString")]
+        public string? SearchString { get; set; }
     }
 }

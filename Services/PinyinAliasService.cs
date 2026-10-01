@@ -12,11 +12,7 @@ public sealed class PinyinAliasService
 
     public bool RefreshAliases(PromptItem item)
     {
-        var generatedAliases = BuildGeneratedAliases(item.Name ?? string.Empty);
-        var generated = generatedAliases.Full
-            .Concat(generatedAliases.Initials)
-            .DistinctBy(alias => (alias.Kind, alias.SearchText))
-            .ToList();
+        var generated = CreateAliases(item.Name ?? string.Empty);
 
         if (AreEquivalent(item.PinyinAliases, generated))
         {
@@ -30,6 +26,14 @@ public sealed class PinyinAliasService
     public static string NormalizeInput(string value)
     {
         return Normalize(value);
+    }
+
+    public static List<PromptAlias> CreateAliases(string name, IReadOnlyList<string>? cachedPinyins = null)
+    {
+        var aliases = BuildGeneratedAliases(name, cachedPinyins);
+        return aliases.Full.Concat(aliases.Initials)
+            .DistinctBy(alias => (alias.Kind, alias.SearchText))
+            .ToList();
     }
 
     private static bool AreEquivalent(
@@ -77,20 +81,30 @@ public sealed class PinyinAliasService
         bool IsPrimary);
 
     private static (IReadOnlyList<PromptAlias> Full, IReadOnlyList<PromptAlias> Initials)
-        BuildGeneratedAliases(string name)
+        BuildGeneratedAliases(string name, IReadOnlyList<string>? cachedPinyins)
     {
+        var nameParts = name.Select((character, index) =>
+                (NameIndex: index, Options: GetPinyinOptions(character)))
+            .Where(part => part.Options.Count > 0)
+            .ToArray();
+        var useCache = cachedPinyins is not null
+            && cachedPinyins.Count == nameParts.Length
+            && nameParts.Select((part, index) => part.Options.Any(option =>
+                string.Equals(option.Text, cachedPinyins[index], StringComparison.Ordinal))).All(valid => valid);
         var variants = new List<PinyinVariant>
         {
             new(Array.Empty<PinyinPart>(), true)
         };
 
-        for (var nameIndex = 0; nameIndex < name.Length; nameIndex++)
+        for (var partIndex = 0; partIndex < nameParts.Length; partIndex++)
         {
-            var options = GetPinyinOptions(name[nameIndex]);
-            if (options.Count == 0)
-            {
-                continue;
-            }
+            var (nameIndex, storedOptions) = nameParts[partIndex];
+            // 插件数组记录首选读音；其他读音仍在加载时补齐，不在按键时转换。
+            var options = useCache
+                ? storedOptions.OrderByDescending(option => option.Text == cachedPinyins![partIndex])
+                    .Select(option => new PinyinOption(option.Text, option.Text == cachedPinyins![partIndex]))
+                    .ToArray()
+                : storedOptions;
 
             var expanded = new List<PinyinVariant>();
             foreach (var variant in variants)

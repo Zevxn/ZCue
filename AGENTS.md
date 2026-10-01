@@ -85,8 +85,8 @@ App
 - Prompt 文件默认位于 `%LOCALAPPDATA%\ZCue\prompts.json`，可在应用设置中迁移到新的 JSON 文件位置；设置文件仍为 `%LOCALAPPDATA%\ZCue\settings.json`，通过 `PromptDataFilePath` 记录自定义路径。如果系统无法提供 LocalAppData，默认目录回退到程序目录。
 - 路径切换通过目录服务持有数据锁：目标文件存在时，先读取并规范化目标提示词和分类，可靠保存位置设置后再替换内存目录并刷新管理界面，切换时不回写目标文件；目标文件不存在时，先创建当前数据副本再保存位置设置。失败时保留原位置、内存数据和原文件。自定义数据文件缺失或读取失败应提示启动失败，不得用内置默认数据覆盖。
 - `PromptCatalogService` 是 Prompt 的唯一变更入口。新增或编辑时根据 `Name` 调用 `PinyinAliasService.RefreshAliases`，再由 `PromptStorageService` 持久化。
-- `PromptItem.PinyinAliases` 是隐藏内部字段，不在管理界面展示。它保存全拼/首字母别名、匹配分段和高亮映射；匹配热路径只读取该字段，不应在每次按键时重新生成拼音。
-- 加载没有别名的旧 JSON 时，目录服务会生成别名并回写；已有别名直接使用。修改名称时必须通过目录服务更新，确保别名与名称同步。
+- `PromptItem.PinyinAliases` 是隐藏的内存字段，不在管理界面展示。JSON 只保存插件的 `_pinyinList`、`_initialList`、`_fuzzyPinyins`、`_fuzzyInits`、`_rawString` 和 `_searchString` 数组/字符串缓存；加载时重建多音字、匹配分段和高亮映射，按键热路径只读取内存别名。
+- 持久化和导入导出只使用插件的新缓存字段，不再解析旧的 `pinyinAliases` 对象或执行缓存格式迁移。修改名称必须通过目录服务刷新缓存。
 - `PromptStorageService` 和 `AppSettingsService` 使用大小写不敏感、缩进 JSON，并在本地文件不存在或读取失败时回退默认对象。修改错误处理时要特别注意不要造成用户 Prompt 或设置的意外覆盖。
 - `UsageCount` 由目录服务统一累加并保存；候选排序依赖匹配质量、使用次数、匹配长度和名称长度等现有规则。
 

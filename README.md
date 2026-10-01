@@ -47,6 +47,8 @@ ZCue 的重点是快速复用 AI 提示词；实际可用性取决于目标应�
 
 路径记录在默认目录的 `settings.json` 中，设置文件本身不会迁移。如果自定义数据文件不可读取，程序会提示启动失败，避免用默认提示词覆盖该位置；恢复文件或修正 `PromptDataFilePath` 后即可启动。
 
+拼音缓存使用与插件一致的 `_pinyinList`、`_initialList`、`_fuzzyPinyins`、`_fuzzyInits`、`_rawString` 和 `_searchString` 字段。例如“理解需求”的 `_pinyinList` 为 `["li", "jie", "xu", "qiu"]`，不再保存展开的 `Segments` 对象。桌面版加载数组时在内存中重建多音字别名及名称高亮映射，按键匹配时直接读取内存缓存。
+
 ## 运行
 
 需要 Windows 11、.NET 8 SDK 和桌面开发组件：
