@@ -31,14 +31,16 @@
     <!-- SECTION Fluent 编辑窗口 -->
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="48" />
+            <RowDefinition Height="32" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <ui:TitleBar Title="{Binding Title, RelativeSource={RelativeSource AncestorType={x:Type ui:FluentWindow}}}"
+        <ui:TitleBar Height="32"
+                     Title="{Binding Title, RelativeSource={RelativeSource AncestorType={x:Type ui:FluentWindow}}}"
                      ShowMinimize="False"
                      ShowMaximize="False">
             <ui:TitleBar.Icon>
-                <ui:ImageIcon Source="pack://application:,,,/assets/logo.png" />
+                <ui:ImageIcon Source="pack://application:,,,/assets/logo.png"
+                              Margin="0,2,-8,0" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
         <Grid Grid.Row="1" Margin="28,18,28,24">

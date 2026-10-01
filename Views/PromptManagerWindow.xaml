@@ -348,7 +348,8 @@
                      Title="ZCue"
                      CloseWindowByDoubleClickOnIcon="False">
             <ui:TitleBar.Icon>
-                <ui:ImageIcon Source="pack://application:,,,/assets/logo.png" />
+                <ui:ImageIcon Source="pack://application:,,,/assets/logo.png"
+                              Margin="0,2,-8,0" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
         <Grid Grid.Row="1">
