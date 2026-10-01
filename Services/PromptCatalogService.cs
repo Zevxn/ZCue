@@ -9,6 +9,7 @@ public sealed class PromptCatalogService
     private readonly PinyinAliasService _pinyinAliasService = new();
     private readonly List<PromptItem> _items = [];
     private readonly List<PromptCategory> _categories = [];
+    private IReadOnlyList<PromptItem>? _enabledMatchSnapshot;
 
     // SECTION 初始化与查询
 
@@ -82,6 +83,16 @@ public sealed class PromptCatalogService
         }
     }
 
+    internal IReadOnlyList<PromptItem> GetEnabledMatchSnapshot()
+    {
+        lock (_gate)
+        {
+            // 匹配和候选展示只读此快照；目录修改后替换快照，保留旧候选的数据。
+            return _enabledMatchSnapshot ??= Array.AsReadOnly(
+                _items.Where(item => item.Enabled).Select(item => item.Clone()).ToArray());
+        }
+    }
+
     public IReadOnlyList<PromptItem> GetAllItems()
     {
         lock (_gate)
@@ -117,6 +128,7 @@ public sealed class PromptCatalogService
                 _items.AddRange(data.Items);
                 _categories.Clear();
                 _categories.AddRange(data.Categories);
+                _enabledMatchSnapshot = null;
             }
 
             return dataChanged;
@@ -563,6 +575,7 @@ public sealed class PromptCatalogService
 
     private void PersistLocked()
     {
+        _enabledMatchSnapshot = null;
         _storage.Save(_items, _categories);
     }
 

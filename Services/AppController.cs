@@ -442,7 +442,7 @@ public sealed class AppController : IDisposable
         }
 
         var token = _inputBuffer.GetCurrentToken();
-        var enabledItems = _catalog.GetEnabledItems();
+        var enabledItems = _catalog.GetEnabledMatchSnapshot();
         var matches = _matchService.Match(
             token,
             enabledItems,

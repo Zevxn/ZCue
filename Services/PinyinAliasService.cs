@@ -28,9 +28,9 @@ public sealed class PinyinAliasService
         return Normalize(value);
     }
 
-    public static List<PromptAlias> CreateAliases(string name, IReadOnlyList<string>? cachedPinyins = null)
+    public static List<PromptAlias> CreateAliases(string name)
     {
-        var aliases = BuildGeneratedAliases(name, cachedPinyins);
+        var aliases = BuildGeneratedAliases(name);
         return aliases.Full.Concat(aliases.Initials)
             .DistinctBy(alias => (alias.Kind, alias.SearchText))
             .ToList();
@@ -81,30 +81,20 @@ public sealed class PinyinAliasService
         bool IsPrimary);
 
     private static (IReadOnlyList<PromptAlias> Full, IReadOnlyList<PromptAlias> Initials)
-        BuildGeneratedAliases(string name, IReadOnlyList<string>? cachedPinyins)
+        BuildGeneratedAliases(string name)
     {
-        var nameParts = name.Select((character, index) =>
-                (NameIndex: index, Options: GetPinyinOptions(character)))
-            .Where(part => part.Options.Count > 0)
-            .ToArray();
-        var useCache = cachedPinyins is not null
-            && cachedPinyins.Count == nameParts.Length
-            && nameParts.Select((part, index) => part.Options.Any(option =>
-                string.Equals(option.Text, cachedPinyins[index], StringComparison.Ordinal))).All(valid => valid);
         var variants = new List<PinyinVariant>
         {
             new(Array.Empty<PinyinPart>(), true)
         };
 
-        for (var partIndex = 0; partIndex < nameParts.Length; partIndex++)
+        for (var nameIndex = 0; nameIndex < name.Length; nameIndex++)
         {
-            var (nameIndex, storedOptions) = nameParts[partIndex];
-            // 插件数组记录首选读音；其他读音仍在加载时补齐，不在按键时转换。
-            var options = useCache
-                ? storedOptions.OrderByDescending(option => option.Text == cachedPinyins![partIndex])
-                    .Select(option => new PinyinOption(option.Text, option.Text == cachedPinyins![partIndex]))
-                    .ToArray()
-                : storedOptions;
+            var options = GetPinyinOptions(name[nameIndex]);
+            if (options.Count == 0)
+            {
+                continue;
+            }
 
             var expanded = new List<PinyinVariant>();
             foreach (var variant in variants)

@@ -56,25 +56,18 @@ public sealed class PromptStorageService
     {
         var filePath = FilePath;
         var hasCustomPath = !string.IsNullOrWhiteSpace(_settings?.Current.PromptDataFilePath);
-        try
+        if (!File.Exists(filePath))
         {
-            if (!File.Exists(filePath))
+            if (hasCustomPath)
             {
-                if (hasCustomPath)
-                {
-                    throw new FileNotFoundException("找不到自定义提示词数据文件，请检查保存位置是否可用。", filePath);
-                }
-
-                return null;
+                throw new FileNotFoundException("找不到自定义提示词数据文件，请检查保存位置是否可用。", filePath);
             }
 
-            return ReadDocument(filePath);
-        }
-        catch when (!hasCustomPath)
-        {
-            // 保留损坏文件，调用方使用默认数据启动，避免启动失败。
             return null;
         }
+
+        // 已有文件读取失败时中止启动，避免默认数据覆盖用户文件。
+        return ReadDocument(filePath);
     }
 
     private StorageSnapshot ReadDocument(string filePath)
@@ -110,7 +103,7 @@ public sealed class PromptStorageService
         }
         catch
         {
-            // 本地数据写入失败不应中断全局 Hook；下次启动仍可使用默认数据。
+            // 本地数据写入失败时保持内存数据，避免中断全局 Hook。
         }
     }
 
@@ -279,7 +272,7 @@ public sealed class PromptStorageService
 
     // !SECTION 外部文件导入与导出
 
-    // SECTION 插件数据映射
+    // SECTION 提示词数据映射
 
     private static PromptItem ToPromptItem(StoredCommand command) => new()
     {
@@ -289,48 +282,20 @@ public sealed class PromptStorageService
         Enabled = command.Active,
         UsageCount = command.UsageCount,
         CategoryId = command.CategoryId,
-        PinyinAliases = PinyinAliasService.CreateAliases(command.Key ?? string.Empty, command.PinyinList)
+        PinyinAliases = PinyinAliasService.CreateAliases(command.Key ?? string.Empty)
     };
 
-    private static StoredCommand FromPromptItem(PromptItem prompt)
+    private static StoredCommand FromPromptItem(PromptItem prompt) => new()
     {
-        var aliases = prompt.PinyinAliases is { Count: > 0 }
-            ? prompt.PinyinAliases
-            : PinyinAliasService.CreateAliases(prompt.Name ?? string.Empty);
-        var primary = aliases.FirstOrDefault(alias => alias.Kind == PromptAliasKind.FullPinyin && alias.IsPrimary)
-            ?? aliases.FirstOrDefault(alias => alias.Kind == PromptAliasKind.FullPinyin);
-        var pinyins = primary?.Segments.Select(segment =>
-            primary.SearchText.Substring(segment.SearchStart, segment.SearchLength)).ToList() ?? [];
-        var initials = pinyins.Select(pinyin =>
-            pinyin.StartsWith("zh", StringComparison.Ordinal)
-                || pinyin.StartsWith("ch", StringComparison.Ordinal)
-                || pinyin.StartsWith("sh", StringComparison.Ordinal)
-                ? pinyin[..2] : pinyin[..1]).ToList();
-        var fuzzyPinyins = pinyins.Select(NormalizePluginPinyin).ToList();
-        var fuzzyInitials = initials.Select(NormalizePluginPinyin).ToList();
-        return new StoredCommand
-        {
-            Id = prompt.Id,
-            Key = prompt.Name ?? string.Empty,
-            Value = prompt.Content,
-            Active = prompt.Enabled,
-            UsageCount = prompt.UsageCount,
-            CategoryId = prompt.CategoryId,
-            PinyinList = pinyins,
-            InitialList = initials,
-            FuzzyPinyins = fuzzyPinyins,
-            FuzzyInits = fuzzyInitials,
-            RawString = string.Concat(initials),
-            SearchString = string.Concat(fuzzyInitials)
-        };
-    }
+        Id = prompt.Id,
+        Key = prompt.Name ?? string.Empty,
+        Value = prompt.Content,
+        Active = prompt.Enabled,
+        UsageCount = prompt.UsageCount,
+        CategoryId = prompt.CategoryId
+    };
 
-    private static string NormalizePluginPinyin(string value) => value
-        .Replace("zh", "z", StringComparison.Ordinal)
-        .Replace("ch", "c", StringComparison.Ordinal)
-        .Replace("sh", "s", StringComparison.Ordinal);
-
-    // !SECTION 插件数据映射
+    // !SECTION 提示词数据映射
 
     public sealed record StorageSnapshot(
         IReadOnlyList<PromptItem> Prompts,
@@ -372,23 +337,5 @@ public sealed class PromptStorageService
 
         [JsonPropertyName("categoryId")]
         public string CategoryId { get; set; } = string.Empty;
-
-        [JsonPropertyName("_pinyinList")]
-        public List<string>? PinyinList { get; set; }
-
-        [JsonPropertyName("_initialList")]
-        public List<string>? InitialList { get; set; }
-
-        [JsonPropertyName("_fuzzyPinyins")]
-        public List<string>? FuzzyPinyins { get; set; }
-
-        [JsonPropertyName("_fuzzyInits")]
-        public List<string>? FuzzyInits { get; set; }
-
-        [JsonPropertyName("_rawString")]
-        public string? RawString { get; set; }
-
-        [JsonPropertyName("_searchString")]
-        public string? SearchString { get; set; }
     }
 }

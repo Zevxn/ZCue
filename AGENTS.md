@@ -28,12 +28,12 @@ ZCue 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托盘，�
 | `App.xaml(.cs)` | WPF 资源和应用生命周期入口；合并 WPF UI 的主题与控件字典。 |
 | `Infrastructure/AppThemeManager.cs` | 统一同步 Fluent 控件与自绘窗口的深浅色资源；只给普通 Fluent 窗口刷新 Mica 材质。 |
 | `Models/PromptItem.cs` | Prompt 数据、使用次数、启用状态以及 `PromptMatch`/匹配类型模型。 |
-| `Models/PromptAlias.cs` | 持久化的全拼/首字母别名、分段信息和输入范围到名称高亮范围的映射。 |
+| `Models/PromptAlias.cs` | 内存中的全拼/首字母别名、分段信息和输入范围到名称高亮范围的映射。 |
 | `Models/AppSettings.cs` | 候选预览、数字键选择、Enter 确认等设置。 |
 | `Services/AppController.cs` | 应用编排中心，连接 Hook、缓冲区、匹配、候选窗、光标定位、文本插入、托盘和管理器。 |
 | `Services/KeyboardHookService.cs` | 独立线程上的 `WH_KEYBOARD_LL` 键盘 Hook 和 `WH_MOUSE_LL` 鼠标按下监听；鼠标事件只观察、不拦截。 |
 | `Services/InputBufferService.cs` | 最近输入缓冲区、当前 token、Backspace、光标前文本同步和边界重置。默认最大缓冲长度为 30。 |
-| `Services/PromptMatchService.cs` | 读取已保存别名和名称，尝试当前输入的尾部候选片段，计算匹配质量、排序和名称高亮范围。 |
+| `Services/PromptMatchService.cs` | 读取内存别名和名称，尝试当前输入的尾部候选片段，计算匹配质量、排序和名称高亮范围。 |
 | `Services/PinyinAliasService.cs` | 根据 Prompt 名称生成全拼、首字母、多音字变体及分段映射；不负责 UI。 |
 | `Services/PromptCatalogService.cs` | Prompt 的加载、规范化、增删改、启用状态、使用次数和别名刷新；是 Prompt 数据变更的统一入口。 |
 | `Services/PromptStorageService.cs` | 将 Prompt 保存到用户本地 JSON。 |
@@ -85,10 +85,11 @@ App
 - Prompt 文件默认位于 `%LOCALAPPDATA%\ZCue\prompts.json`，可在应用设置中迁移到新的 JSON 文件位置；设置文件仍为 `%LOCALAPPDATA%\ZCue\settings.json`，通过 `PromptDataFilePath` 记录自定义路径。如果系统无法提供 LocalAppData，默认目录回退到程序目录。
 - 路径切换通过目录服务持有数据锁：目标文件存在时，先读取并规范化目标提示词和分类，可靠保存位置设置后再替换内存目录并刷新管理界面，切换时不回写目标文件；目标文件不存在时，先创建当前数据副本再保存位置设置。失败时保留原位置、内存数据和原文件。自定义数据文件缺失或读取失败应提示启动失败，不得用内置默认数据覆盖。
 - `PromptCatalogService` 是 Prompt 的唯一变更入口。新增或编辑时根据 `Name` 调用 `PinyinAliasService.RefreshAliases`，再由 `PromptStorageService` 持久化。
-- `PromptItem.PinyinAliases` 是隐藏的内存字段，不在管理界面展示。JSON 只保存插件的 `_pinyinList`、`_initialList`、`_fuzzyPinyins`、`_fuzzyInits`、`_rawString` 和 `_searchString` 数组/字符串缓存；加载时重建多音字、匹配分段和高亮映射，按键热路径只读取内存别名。
-- 持久化和导入导出只使用插件的新缓存字段，不再解析旧的 `pinyinAliases` 对象或执行缓存格式迁移。修改名称必须通过目录服务刷新缓存。
-- `PromptStorageService` 和 `AppSettingsService` 使用大小写不敏感、缩进 JSON，并在本地文件不存在或读取失败时回退默认对象。修改错误处理时要特别注意不要造成用户 Prompt 或设置的意外覆盖。
+- `PromptItem.PinyinAliases` 是隐藏的内存字段，不在管理界面展示。启动时根据名称生成全拼、首字母、多音字别名及高亮映射；按键匹配复用内存缓存。持久化和导出只保存提示词、分类等基本数据，不保存拼音字段，修改名称必须通过目录服务刷新缓存。
+- 切换已有目标文件时只读，导入源文件不改写。
+- `PromptStorageService` 和 `AppSettingsService` 使用大小写不敏感、缩进 JSON。默认提示词文件不存在时可初始化默认数据，已有提示词文件读取失败必须中止加载，避免回写默认数据覆盖用户文件；设置加载失败可回退默认设置。
 - `UsageCount` 由目录服务统一累加并保存；候选排序依赖匹配质量、使用次数、匹配长度和名称长度等现有规则。
+- 候选匹配通过 `GetEnabledMatchSnapshot` 复用只读使用的内存快照；目录数据修改后失效，下次匹配时重建。匹配和候选展示不得修改快照中的对象；管理查询仍返回独立副本。
 
 ## 修改约束
 
