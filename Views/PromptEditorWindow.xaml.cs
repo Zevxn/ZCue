@@ -2,10 +2,8 @@
 using ZCue.Infrastructure;
 using ZCue.Models;
 
-using WpfKey = System.Windows.Input.Key;
-using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
-using WpfKeyboard = System.Windows.Input.Keyboard;
-using WpfModifierKeys = System.Windows.Input.ModifierKeys;
+using WpfApplicationCommands = System.Windows.Input.ApplicationCommands;
+using WpfExecutedRoutedEventArgs = System.Windows.Input.ExecutedRoutedEventArgs;
 using WpfComboBox = System.Windows.Controls.ComboBox;
 using WpfComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using WpfSelectionChangedEventArgs = System.Windows.Controls.SelectionChangedEventArgs;
@@ -57,12 +55,10 @@ public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
 
     public PromptItem? ResultItem { get; private set; }
 
-    private void HandleTextBoxPreviewKeyDown(object sender, WpfKeyEventArgs e)
+    private void HandleTextBoxPreviewExecuted(object sender, WpfExecutedRoutedEventArgs e)
     {
-        var modifiers = WpfKeyboard.Modifiers;
-        var isCutShortcut = e.Key == WpfKey.X && modifiers == WpfModifierKeys.Control
-            || e.Key == WpfKey.Delete && modifiers == WpfModifierKeys.Shift;
-        if (!isCutShortcut
+        // 菜单和快捷键共用剪切命令，保留写入成功后才删除选区的行为。
+        if (e.Command != WpfApplicationCommands.Cut
             || sender is not WpfTextBox textBox
             || textBox.IsReadOnly
             || textBox.SelectionLength == 0)

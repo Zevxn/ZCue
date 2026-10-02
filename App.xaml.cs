@@ -21,6 +21,7 @@ public partial class App : System.Windows.Application
         ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
         ButtonPressFeedbackService.Initialize();
+        TextContextMenuService.Initialize();
 
         try
         {

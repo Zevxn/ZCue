@@ -11,6 +11,33 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- SECTION Fluent 控件与兼容样式 -->
+            <Style x:Key="SelectionContextMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                <Style.Triggers>
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <ContextMenu x:Key="DefaultControlContextMenu">
+                <MenuItem Header="复制" Command="{x:Static ApplicationCommands.Copy}" InputGestureText="Ctrl+C"
+                          Style="{StaticResource SelectionContextMenuItem}"
+                          CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
+                <MenuItem Header="剪切" Command="{x:Static ApplicationCommands.Cut}" InputGestureText="Ctrl+X"
+                          Style="{StaticResource SelectionContextMenuItem}"
+                          CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
+                <MenuItem Header="粘贴" Command="{x:Static ApplicationCommands.Paste}" InputGestureText="Ctrl+V"
+                          CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}">
+                    <MenuItem.Style>
+                        <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding PlacementTarget.IsReadOnly, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </MenuItem.Style>
+                </MenuItem>
+            </ContextMenu>
             <Style TargetType="{x:Type Window}">
                 <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
                 <Setter Property="FontSize" Value="14" />
@@ -47,6 +74,11 @@
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="MinHeight" Value="34" />
                 <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Style.Triggers>
+                    <Trigger Property="IsEditable" Value="False">
+                        <Setter Property="ContextMenu" Value="{x:Null}" />
+                    </Trigger>
+                </Style.Triggers>
             </Style>
             <Style x:Key="ThemeComboBoxItem" TargetType="{x:Type ComboBoxItem}" BasedOn="{StaticResource DefaultComboBoxItemStyle}">
                 <Setter Property="Cursor" Value="Hand" />

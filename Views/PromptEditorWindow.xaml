@@ -83,7 +83,7 @@
                          Padding="12,8"
                          VerticalContentAlignment="Center"
                          Style="{StaticResource FieldTextBox}"
-                         PreviewKeyDown="HandleTextBoxPreviewKeyDown"
+                         CommandManager.PreviewExecuted="HandleTextBoxPreviewExecuted"
                          MaxLength="80" />
 
                 <TextBlock Grid.Row="2"
@@ -161,7 +161,7 @@
                          AcceptsReturn="True"
                          TextWrapping="Wrap"
                          VerticalContentAlignment="Top"
-                         PreviewKeyDown="HandleTextBoxPreviewKeyDown"
+                         CommandManager.PreviewExecuted="HandleTextBoxPreviewExecuted"
                          VerticalScrollBarVisibility="Auto"
                          HorizontalScrollBarVisibility="Disabled"
                          MaxLength="10000" />
