@@ -299,6 +299,22 @@ internal static class NativeMethods
 
     // !SECTION 键盘状态与窗口信息
 
+    // SECTION MSAA 光标定位
+
+    internal const uint OBJID_CARET = unchecked((uint)-8);
+    internal const int CHILDID_SELF = 0;
+    internal const int STATE_SYSTEM_INVISIBLE = 0x8000;
+    internal const int STATE_SYSTEM_OFFSCREEN = 0x10000;
+
+    [DllImport("oleacc.dll", ExactSpelling = true)]
+    internal static extern int AccessibleObjectFromWindow(
+        IntPtr windowHandle,
+        uint objectId,
+        ref Guid interfaceId,
+        [MarshalAs(UnmanagedType.Interface)] out Accessibility.IAccessible? accessible);
+
+    // !SECTION MSAA 光标定位
+
     // SECTION 剪贴板操作
 
     [DllImport("user32.dll", SetLastError = true)]

@@ -38,7 +38,7 @@ ZCue 是 Windows 全局 Prompt 实时补全工具。程序常驻系统托盘，�
 | `Services/PromptCatalogService.cs` | Prompt 的加载、规范化、增删改、启用状态、使用次数和别名刷新；是 Prompt 数据变更的统一入口。 |
 | `Services/PromptStorageService.cs` | 将 Prompt 保存到用户本地 JSON。 |
 | `Services/AppSettingsService.cs` | 设置加载、保存、线程安全快照和 `Changed` 通知。 |
-| `Services/CaretPositionService.cs` | UI Automation 光标定位，并按 Win32 caret、窗口矩形、鼠标位置顺序 fallback。 |
+| `Services/CaretPositionService.cs` | 组合 Win32 caret、UIA TextPattern2/旧 TextPattern 和 MSAA 光标定位；UIA 空范围可借助相邻字符估算，全部失败后使用目标窗口内鼠标位置或焦点控件中心。 |
 | `Services/FocusedTextService.cs` | 通过 UI Automation 的 `TextPattern` 读取焦点控件中光标前的文本，用于 Ctrl+V、撤销和 IME 场景同步。 |
 | `Services/TextInsertionService.cs` | 通过 `SendInput` 删除触发片段并优先注入 Unicode；失败时使用保护/恢复剪贴板的粘贴方案。 |
 | `Services/StartupService.cs` | 读写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的开机启动项。 |
