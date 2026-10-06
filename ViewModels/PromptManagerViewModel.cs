@@ -351,8 +351,11 @@ public sealed class PromptManagerViewModel : INotifyPropertyChanged
             return true;
         }
 
+        var pinyinFilter = PinyinAliasService.NormalizeInput(filter);
         return prompt.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)
-            || prompt.Content.Contains(filter, StringComparison.OrdinalIgnoreCase);
+            || prompt.Content.Contains(filter, StringComparison.OrdinalIgnoreCase)
+            || (pinyinFilter.Length > 0 && prompt.PinyinAliases.Any(alias =>
+                alias.SearchText.Contains(pinyinFilter, StringComparison.OrdinalIgnoreCase)));
     }
 
     // !SECTION 过滤逻辑

@@ -34,7 +34,9 @@ public sealed class CaretPositionService
 
         var hasAutomationPosition = TryGetUiAutomationCaretPosition(foregroundWindow, out var automationPosition)
             || TryGetUiAutomationPosition(foregroundWindow, out automationPosition);
-        if (hasAutomationPosition && !automationPosition.IsFallback)
+        // 相邻字符的矩形仍来自当前文本范围。自绘窗口的 MSAA caret 可能滞后，
+        // 不能仅因它被标为真实光标，就覆盖已经取得的文本行位置。
+        if (hasAutomationPosition)
         {
             return automationPosition with { DpiScale = dpiScale };
         }
@@ -42,11 +44,6 @@ public sealed class CaretPositionService
         if (TryGetAccessiblePosition(foregroundWindow, out var accessiblePosition))
         {
             return accessiblePosition with { DpiScale = dpiScale };
-        }
-
-        if (hasAutomationPosition)
-        {
-            return automationPosition with { DpiScale = dpiScale };
         }
 
         var hasCursor = NativeMethods.GetCursorPos(out var cursorPosition);
