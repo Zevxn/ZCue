@@ -430,9 +430,7 @@ public sealed class AppController : IDisposable
         return false;
     }
 
-    private void RecomputeSuggestions(
-        IntPtr targetWindow,
-        bool inferCommittedImeText = false)
+    private void RecomputeSuggestions(IntPtr targetWindow)
     {
         if (NativeMethods.GetForegroundWindow() != targetWindow
             || !_applicationFilter.IsApplicationAllowed(targetWindow))
@@ -447,28 +445,6 @@ public sealed class AppController : IDisposable
             token,
             enabledItems,
             settings: _settings.Current);
-        if (inferCommittedImeText)
-        {
-            // Chromium 类控件不暴露光标前文本时，物理缓冲里只有拼音字母，而输入框里
-            // 实际已上屏中文。这里按拼音匹配结果反推出对应的中文名称片段，仅用于本次
-            // 候选与确认时的删除长度计算；不回写 _inputBuffer，避免残留片段影响后续输入。
-            var inferredMatch = matches.FirstOrDefault(match =>
-                match.MatchKind is PromptMatchKind.PinyinFull or PromptMatchKind.PinyinInitial
-                && match.HighlightLength > 0
-                && match.HighlightStart >= 0
-                && match.HighlightStart + match.HighlightLength <= match.Item.Name.Length);
-            if (inferredMatch is not null)
-            {
-                token = inferredMatch.Item.Name.Substring(
-                    inferredMatch.HighlightStart,
-                    inferredMatch.HighlightLength);
-                matches = _matchService.Match(
-                    token,
-                    enabledItems,
-                    settings: _settings.Current);
-            }
-        }
-
         long version;
 
         lock (_stateGate)
@@ -707,7 +683,7 @@ public sealed class AppController : IDisposable
 
     /// <summary>
     /// 输入法组合或选词期间压住候选显示。这里只隐藏窗口、不结束输入法状态：
-    /// 组合结束后还要按拼音缓冲区重新匹配，若在此清空状态会丢掉触发串。
+    /// 组合结束后还要用光标前的真实文本同步缓冲，不能在组合期间丢掉输入状态。
     /// IMM32 组合串和当前候选列表用于捕获输入/选词状态；其他输入法继续使用候选窗类名兜底。
     /// </summary>
     private bool HideSuggestionsIfImeInputActive(IntPtr targetWindow)
@@ -868,7 +844,6 @@ public sealed class AppController : IDisposable
                 return;
             }
 
-            var inferCommittedImeText = false;
             if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
             {
                 var matchesPhysicalInput = TextBeforeCaretMatchesCurrentToken(textBeforeCaret);
@@ -881,17 +856,16 @@ public sealed class AppController : IDisposable
                     _inputBuffer.ReplaceFromTextBeforeCaret(textBeforeCaret);
                 }
             }
-            else
+            else if (imeInputObserved && !preservePhysicalInputForShiftCommit)
             {
-                if (imeInputObserved && !preservePhysicalInputForShiftCommit)
-                {
-                    // VS Code 的 Chromium 编辑器不暴露可靠的光标文本。保留组合期间收集的
-                    // 拼音触发串，并按其对应的中文名称字符数删除已上屏文本。
-                    inferCommittedImeText = true;
-                }
+                // 选词结果不能由拼音唯一确定；读不到已提交文本时，不再用旧拼音匹配或
+                // 从提示词反推中文，避免 bb 上屏为“宝宝”后误触发“发布备注”。
+                ClearSuggestions(resetBuffer: true);
+                CompleteImeInputState(targetWindow);
+                return;
             }
 
-            RecomputeSuggestions(targetWindow, inferCommittedImeText);
+            RecomputeSuggestions(targetWindow);
             if (imeInputObserved)
             {
                 CompleteImeInputState(targetWindow);
