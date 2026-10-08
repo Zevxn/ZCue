@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using ZCue.Infrastructure;
-using WpfClipboard = System.Windows.Clipboard;
-using WpfDataObject = System.Windows.IDataObject;
+using WinFormsClipboard = System.Windows.Forms.Clipboard;
+using WinFormsDataObject = System.Windows.Forms.IDataObject;
 
 namespace ZCue.Services;
 
@@ -13,6 +13,7 @@ public sealed class TextInsertionService
     private const int ClipboardRetryDelayMilliseconds = 25;
     private const int ClipboardWriteRetryCount = 20;
     private const int ClipboardReadDelayAfterPasteMilliseconds = 150;
+    private static readonly SemaphoreSlim ClipboardPasteGate = new(1, 1);
 
     public async Task<bool> ReplaceAsync(
         IntPtr targetWindow,
@@ -61,6 +62,25 @@ public sealed class TextInsertionService
     // SECTION 剪贴板文本粘贴
 
     private static async Task<bool> PasteTextAsync(
+        IntPtr targetWindow,
+        IntPtr clipboardOwnerWindow,
+        int deleteLength,
+        string replacement)
+    {
+        // 捕获、粘贴和恢复必须串行，避免连续确认时覆盖原剪贴板。
+        await ClipboardPasteGate.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            return await PasteTextCoreAsync(
+                targetWindow, clipboardOwnerWindow, deleteLength, replacement).ConfigureAwait(true);
+        }
+        finally
+        {
+            ClipboardPasteGate.Release();
+        }
+    }
+
+    private static async Task<bool> PasteTextCoreAsync(
         IntPtr targetWindow,
         IntPtr clipboardOwnerWindow,
         int deleteLength,
@@ -119,20 +139,20 @@ public sealed class TextInsertionService
         }
     }
 
-    private static async Task<(bool Captured, WpfDataObject? Data)> TryGetClipboardDataAsync()
+    private static async Task<(bool Captured, WinFormsDataObject? Data)> TryGetClipboardDataAsync()
     {
         for (var attempt = 0; attempt < ClipboardRetryCount; attempt++)
         {
             try
             {
-                var original = WpfClipboard.GetDataObject();
+                var original = WinFormsClipboard.GetDataObject();
                 if (original is null)
                 {
                     return (true, null);
                 }
 
                 // IDataObject 可能仍指向原剪贴板的延迟渲染数据；清空剪贴板后再读会失效。
-                var snapshot = new System.Windows.DataObject();
+                var snapshot = new System.Windows.Forms.DataObject();
                 foreach (var format in original.GetFormats(autoConvert: false))
                 {
                     try
@@ -145,7 +165,7 @@ public sealed class TextInsertionService
 
                         if (data is not null)
                         {
-                            snapshot.SetData(format, data, autoConvert: false);
+                            snapshot.SetData(format, autoConvert: false, data: data);
                         }
                     }
                     catch (Exception exception) when (exception is ExternalException or InvalidOperationException or NotSupportedException)
@@ -271,7 +291,7 @@ public sealed class TextInsertionService
         }
     }
 
-    private static async Task RestoreClipboardAsync(WpfDataObject? originalClipboard)
+    private static async Task RestoreClipboardAsync(WinFormsDataObject? originalClipboard)
     {
         for (var attempt = 0; attempt < ClipboardRetryCount; attempt++)
         {
@@ -279,11 +299,12 @@ public sealed class TextInsertionService
             {
                 if (originalClipboard is null)
                 {
-                    WpfClipboard.Clear();
+                    WinFormsClipboard.Clear();
                 }
                 else
                 {
-                    WpfClipboard.SetDataObject(originalClipboard, true);
+                    // 禁用 API 内部的同步重试，由外层异步重试处理短暂占用。
+                    WinFormsClipboard.SetDataObject(originalClipboard, true, 0, 0);
                 }
 
                 return;
