@@ -81,7 +81,7 @@ Infrastructure/
   TrayIconService.cs
 Views/
   SuggestionWindow.xaml(.cs)
-  GhostPreviewWindow.xaml(.cs)
+  GhostPreview.xaml(.cs)
   PromptManagerWindow.xaml(.cs)
   PromptEditorWindow.xaml(.cs)
 ViewModels/

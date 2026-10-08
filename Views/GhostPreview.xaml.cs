@@ -1,6 +1,6 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Documents;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -10,20 +10,13 @@ using Forms = System.Windows.Forms;
 
 namespace ZCue.Views;
 
-public partial class GhostPreviewWindow : Window
+public sealed partial class GhostPreview : Border, IDisposable
 {
-    /// <summary>
-    /// 隐藏用的屏幕外坐标。窗口保持可见，只把坐标挪到屏幕外。
-    /// </summary>
-    private const double OffScreenCoordinate = -32000;
-
-    private IntPtr _windowHandle;
     private IntPtr _targetWindow;
-    private HwndSource? _windowSource;
     private readonly DispatcherTimer _foregroundTimer;
     private readonly LayeredPreviewSurface _surface = new();
 
-    public GhostPreviewWindow()
+    public GhostPreview()
     {
         InitializeComponent();
         _foregroundTimer = new DispatcherTimer
@@ -31,12 +24,6 @@ public partial class GhostPreviewWindow : Window
             Interval = TimeSpan.FromMilliseconds(120)
         };
         _foregroundTimer.Tick += HandleForegroundTimerTick;
-
-        // WPF 窗口只在屏幕外排版；实际预览由独立原生窗口提交完整画面。
-        Left = OffScreenCoordinate;
-        Top = OffScreenCoordinate;
-        GhostClip.Opacity = 0;
-        Show();
     }
 
     // SECTION 幽灵文字渲染与定位
@@ -56,8 +43,9 @@ public partial class GhostPreviewWindow : Window
             return;
         }
 
-        GhostClip.Opacity = 1;
         var scale = caretPosition.DpiScale <= 0 ? 1 : caretPosition.DpiScale;
+        // 离屏控件没有 HWND 提供 DPI，按目标输入框的 DPI 排版。
+        VisualTreeHelper.SetRootDpi(this, new DpiScale(scale, scale));
         var screenPoint = new System.Drawing.Point(caretPosition.Left, caretPosition.Top);
         var workArea = Forms.Screen.FromPoint(screenPoint).WorkingArea;
         var textAreaLeft = controlBounds is { } bounds
@@ -103,20 +91,20 @@ public partial class GhostPreviewWindow : Window
 
         GhostText.FontSize = fontSize;
         GhostText.LineHeight = Math.Max(fontSize * 1.1, caretHeight);
-        GhostClip.Width = availableWidthDip;
-        GhostClip.Height = availableHeightDip;
         GhostText.MaxWidth = availableWidthDip;
         GhostText.MaxHeight = availableHeightDip;
         Width = availableWidthDip;
         Height = availableHeightDip;
 
-        UpdateLayout();
+        var layoutSize = new System.Windows.Size(availableWidthDip, availableHeightDip);
+        Measure(layoutSize);
+        Arrange(new Rect(layoutSize));
 
-        var pixelWidth = Math.Max(1, (int)Math.Ceiling(GhostClip.ActualWidth * scale));
+        var pixelWidth = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
         var pixelHeight = Math.Max(1, (int)Math.Ceiling(
-            Math.Min(GhostClip.ActualHeight, GhostText.DesiredSize.Height) * scale));
+            Math.Min(ActualHeight, GhostText.DesiredSize.Height) * scale));
         var frame = new RenderTargetBitmap(pixelWidth, pixelHeight, 96 * scale, 96 * scale, PixelFormats.Pbgra32);
-        frame.Render(GhostClip);
+        frame.Render(this);
         if (NativeMethods.GetForegroundWindow() != targetWindow)
         {
             HidePreview();
@@ -137,69 +125,26 @@ public partial class GhostPreviewWindow : Window
         _surface.HideSurface();
         _foregroundTimer.Stop();
         _targetWindow = IntPtr.Zero;
-        Left = OffScreenCoordinate;
-        Top = OffScreenCoordinate;
         GhostText.Inlines.Clear();
-        GhostClip.Opacity = 0;
-        Width = 1;
-        Height = 1;
     }
 
     // !SECTION 幽灵文字渲染与定位
 
-    // SECTION 透明窗口样式
+    // SECTION 预览生命周期
 
-    protected override void OnSourceInitialized(EventArgs e)
+    public void Dispose()
     {
-        base.OnSourceInitialized(e);
-        _windowHandle = new WindowInteropHelper(this).Handle;
-
-        var extendedStyle = NativeMethods.GetWindowLongPtr(_windowHandle, NativeMethods.GWL_EXSTYLE).ToInt64();
-        var transparentStyle = extendedStyle
-            | NativeMethods.WS_EX_NOACTIVATE
-            | NativeMethods.WS_EX_TOOLWINDOW
-            | NativeMethods.WS_EX_TRANSPARENT;
-        NativeMethods.SetWindowLongPtr(_windowHandle, NativeMethods.GWL_EXSTYLE, new IntPtr(transparentStyle));
-
-        _windowSource = HwndSource.FromHwnd(_windowHandle);
-        _windowSource?.AddHook(WindowProc);
-    }
-
-    protected override void OnClosed(EventArgs e)
-    {
-        _surface.Dispose();
-        _foregroundTimer.Stop();
+        HidePreview();
         _foregroundTimer.Tick -= HandleForegroundTimerTick;
-        _windowSource?.RemoveHook(WindowProc);
-        _windowSource = null;
-        base.OnClosed(e);
     }
 
     private void HandleForegroundTimerTick(object? sender, EventArgs e)
     {
-        // 窗口常驻可见，无法再用 IsVisible 判断是否已隐藏；_targetWindow 才是当前是否
-        // 正在显示的依据（HidePreview 会把它清空，并停掉本计时器）。
         if (_targetWindow == IntPtr.Zero || NativeMethods.GetForegroundWindow() != _targetWindow)
         {
             HidePreview();
         }
     }
 
-    private static IntPtr WindowProc(
-        IntPtr hwnd,
-        int message,
-        IntPtr wParam,
-        IntPtr lParam,
-        ref bool handled)
-    {
-        if (message == NativeMethods.WM_NCHITTEST)
-        {
-            handled = true;
-            return (IntPtr)NativeMethods.HTTRANSPARENT;
-        }
-
-        return IntPtr.Zero;
-    }
-
-    // !SECTION 透明窗口样式
+    // !SECTION 预览生命周期
 }

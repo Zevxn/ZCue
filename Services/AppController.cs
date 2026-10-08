@@ -27,7 +27,7 @@ public sealed class AppController : IDisposable
     private readonly KeyboardHookService _keyboardHook = new();
     private readonly TrayIconService _trayIcon;
     private SuggestionWindow? _suggestionWindow;
-    private readonly GhostPreviewWindow _ghostPreviewWindow;
+    private readonly GhostPreview _ghostPreview;
     private readonly PromptManagerWindow _promptManagerWindow;
     private readonly IntPtr _clipboardOwnerWindow;
     private readonly object _stateGate = new();
@@ -54,7 +54,7 @@ public sealed class AppController : IDisposable
             Interval = TimeSpan.FromMilliseconds(60)
         };
         _foregroundMonitor.Tick += HandleForegroundMonitorTick;
-        _ghostPreviewWindow = new GhostPreviewWindow();
+        _ghostPreview = new GhostPreview();
 
         _trayIcon = new TrayIconService(
             _startupService,
@@ -124,7 +124,7 @@ public sealed class AppController : IDisposable
         _foregroundMonitor.Stop();
         _foregroundMonitor.Tick -= HandleForegroundMonitorTick;
         CloseSuggestionWindow();
-        _ghostPreviewWindow.HidePreview();
+        _ghostPreview.Dispose();
         _promptManagerWindow.CloseWithoutHiding();
         _trayIcon.Dispose();
         _lifetimeCancellation.Dispose();
@@ -507,7 +507,7 @@ public sealed class AppController : IDisposable
                 // 否则分层窗口在隐藏瞬间会露出上一轮的候选行。
                 _foregroundMonitor.Stop();
                 CloseSuggestionWindow();
-                _ghostPreviewWindow.HidePreview();
+                _ghostPreview.HidePreview();
                 return;
             }
 
@@ -544,7 +544,7 @@ public sealed class AppController : IDisposable
             catch
             {
                 CloseSuggestionWindow();
-                _ghostPreviewWindow.HidePreview();
+                _ghostPreview.HidePreview();
             }
         });
     }
@@ -646,7 +646,7 @@ public sealed class AppController : IDisposable
                 catch
                 {
                     CloseSuggestionWindow();
-                    _ghostPreviewWindow.HidePreview();
+                    _ghostPreview.HidePreview();
                 }
             }
         });
@@ -679,7 +679,7 @@ public sealed class AppController : IDisposable
         PostAsyncToUi(async () =>
         {
             CloseSuggestionWindow();
-            _ghostPreviewWindow.HidePreview();
+            _ghostPreview.HidePreview();
             if (NativeMethods.GetForegroundWindow() != targetWindow)
             {
                 return;
@@ -756,7 +756,7 @@ public sealed class AppController : IDisposable
         {
             _foregroundMonitor.Stop();
             CloseSuggestionWindow();
-            _ghostPreviewWindow.HidePreview();
+            _ghostPreview.HidePreview();
         });
     }
 
@@ -1140,7 +1140,7 @@ public sealed class AppController : IDisposable
             }
             if (!settings.ShowContentPreview)
             {
-                _ghostPreviewWindow.HidePreview();
+                _ghostPreview.HidePreview();
             }
             else
             {
@@ -1196,7 +1196,7 @@ public sealed class AppController : IDisposable
             || targetWindow == IntPtr.Zero
             || NativeMethods.GetForegroundWindow() != targetWindow)
         {
-            _ghostPreviewWindow.HidePreview();
+            _ghostPreview.HidePreview();
             return;
         }
 
@@ -1205,7 +1205,7 @@ public sealed class AppController : IDisposable
             var hasControlBounds = _caretPositionService.TryGetTextControlBounds(
                 targetWindow,
                 out var controlBounds);
-            _ghostPreviewWindow.ShowPreview(
+            _ghostPreview.ShowPreview(
                 content,
                 caretPosition,
                 targetWindow,
@@ -1213,7 +1213,7 @@ public sealed class AppController : IDisposable
         }
         catch
         {
-            _ghostPreviewWindow.HidePreview();
+            _ghostPreview.HidePreview();
         }
     }
 
