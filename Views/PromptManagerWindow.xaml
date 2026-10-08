@@ -878,6 +878,27 @@
                                                     <ColumnDefinition Width="40" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
+                                                <ui:SymbolIcon Symbol="LocalLanguage24" FontSize="22" Width="24" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock TextWrapping="Wrap" Text="中文选词期间显示候选" Foreground="{DynamicResource ThemeTextPrimaryBrush}" FontSize="14" FontWeight="Normal" />
+                                                    <TextBlock TextWrapping="Wrap" Text="输入拼音或选词时显示 ZCue 候选，按 ↑/↓ 切换、Tab 插入；数字、空格等仍用于选词" Foreground="{DynamicResource ThemeTextSecondaryBrush}" FontSize="12" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <ui:ToggleSwitch Grid.Column="1" Style="{StaticResource FluentToggleSwitch}" IsChecked="{Binding ShowSuggestionsDuringImeComposition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="24,0,3,0" />
+                                        </Grid>
+                                    </ui:Card>
+
+                                    <ui:Card Style="{StaticResource FluentSettingCard}">
+                                        <Grid MinHeight="46">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid Margin="0,0,24,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="40" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
                                                 <ui:SymbolIcon Symbol="NumberSymbol24" FontSize="22" Width="24" HorizontalAlignment="Left" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                     <TextBlock TextWrapping="Wrap" Text="数字键选择候选" Foreground="{DynamicResource ThemeTextPrimaryBrush}" FontSize="14" FontWeight="Normal" />

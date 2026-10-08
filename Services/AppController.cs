@@ -197,10 +197,42 @@ public sealed class AppController : IDisposable
             return KeyboardHookDecision.Pass;
         }
 
-        var imeInputActive = HideSuggestionsIfImeInputActive(foregroundWindow);
+        if (TryGetPinyinInput(input.VirtualKeyCode, out _)
+            || input.VirtualKeyCode is NativeMethods.VK_BACK or NativeMethods.VK_DELETE)
+        {
+            _imeCompositionService.BeginTextInput(foregroundWindow);
+        }
+
+        var imeInputActive = ObserveImeInputState(foregroundWindow);
+        if (imeInputActive && !_settings.Current.ShowSuggestionsDuringImeComposition)
+        {
+            ClearSuggestions(resetBuffer: false, cancelTextSync: false);
+        }
         if (IsShiftKey(input.VirtualKeyCode))
         {
             return KeyboardHookDecision.Pass;
+        }
+
+        if (HasSuggestions())
+        {
+            // 候选显示时先处理导航和确认，避免被输入法分支提前放行。
+            if (input.VirtualKeyCode == NativeMethods.VK_UP)
+            {
+                MoveSelection(-1);
+                return KeyboardHookDecision.Block;
+            }
+
+            if (input.VirtualKeyCode == NativeMethods.VK_DOWN)
+            {
+                MoveSelection(1);
+                return KeyboardHookDecision.Block;
+            }
+
+            if (input.VirtualKeyCode == NativeMethods.VK_TAB && !input.IsShiftDown)
+            {
+                ConfirmSelection(GetSelectedIndex());
+                return KeyboardHookDecision.Block;
+            }
         }
 
         if (imeInputActive)
@@ -243,21 +275,8 @@ public sealed class AppController : IDisposable
 
         if (HasSuggestions())
         {
-            if (input.VirtualKeyCode == NativeMethods.VK_UP)
-            {
-                MoveSelection(-1);
-                return KeyboardHookDecision.Block;
-            }
-
-            if (input.VirtualKeyCode == NativeMethods.VK_DOWN)
-            {
-                MoveSelection(1);
-                return KeyboardHookDecision.Block;
-            }
-
-            if ((input.VirtualKeyCode == NativeMethods.VK_RETURN
-                    && _settings.Current.EnableEnterConfirmation)
-                || input.VirtualKeyCode == NativeMethods.VK_TAB && !input.IsShiftDown)
+            if (input.VirtualKeyCode == NativeMethods.VK_RETURN
+                && _settings.Current.EnableEnterConfirmation)
             {
                 ConfirmSelection(GetSelectedIndex());
                 return KeyboardHookDecision.Block;
@@ -279,7 +298,7 @@ public sealed class AppController : IDisposable
         if (input.VirtualKeyCode == NativeMethods.VK_BACK)
         {
             _inputBuffer.Backspace();
-            RecomputeSuggestions(foregroundWindow);
+            ClearSuggestions(resetBuffer: false, cancelTextSync: false);
             ScheduleFocusedTextSync(foregroundWindow);
             return KeyboardHookDecision.Pass;
         }
@@ -339,7 +358,9 @@ public sealed class AppController : IDisposable
     {
         var isRightAltKey = virtualKeyCode == RightAltVirtualKeyCode;
         var isShiftKey = IsShiftKey(virtualKeyCode);
-        if ((!isShiftKey && !isRightAltKey) || IsPaused())
+        var isImeCommitKey = virtualKeyCode is NativeMethods.VK_SPACE or NativeMethods.VK_RETURN
+            or (>= 0x31 and <= 0x39);
+        if ((!isShiftKey && !isRightAltKey && !isImeCommitKey) || IsPaused())
         {
             return;
         }
@@ -364,11 +385,16 @@ public sealed class AppController : IDisposable
             return;
         }
 
+        if (isImeCommitKey && !IsImeInputStateObserved(foregroundWindow))
+        {
+            return;
+        }
+        // 选词键按下时目标控件尚未处理提交，松开后再同步一次真实文本。
         ScheduleFocusedTextSync(
             foregroundWindow,
             preservePhysicalInputForShiftCommit: isShiftKey,
             waitForVoiceInputSettle: isRightAltKey,
-            allowImeCommitSync: isShiftKey);
+            allowImeCommitSync: isShiftKey || isImeCommitKey);
     }
 
     private void SwitchTargetWindowIfNeeded(IntPtr foregroundWindow)
@@ -396,12 +422,13 @@ public sealed class AppController : IDisposable
     {
         lock (_stateGate)
         {
-            return _imeInputStateTarget == targetWindow;
+            return targetWindow != IntPtr.Zero && _imeInputStateTarget == targetWindow;
         }
     }
 
     private void CompleteImeInputState(IntPtr targetWindow)
     {
+        _imeCompositionService.ClearTextEditComposition(targetWindow);
         lock (_stateGate)
         {
             if (_imeInputStateTarget == targetWindow)
@@ -498,6 +525,13 @@ public sealed class AppController : IDisposable
 
                 var previewContents = _promptVariableService.ResolveAll(
                     matches.Select(match => match.Item.Content).ToArray());
+                // 定位和变量解析期间输入法仍可开始预编辑，显示前必须再次检查。
+                if (!IsCurrentVersion(version)
+                    || HideSuggestionsIfImeInputActive(targetWindow))
+                {
+                    return;
+                }
+
                 _suggestionWindow.ShowSuggestions(
                     matches,
                     currentIndex,
@@ -600,7 +634,6 @@ public sealed class AppController : IDisposable
         CancelFocusedTextSync();
         _inputBuffer.Reset();
         var selectedMatch = match!;
-        _catalog.IncrementUsage(selectedMatch.Item.Id);
 
         PostAsyncToUi(async () =>
         {
@@ -612,11 +645,24 @@ public sealed class AppController : IDisposable
             }
 
             var content = _promptVariableService.Resolve(selectedMatch.Item.Content);
-            await _textInsertionService.ReplaceAsync(
+            CompleteImeInputState(targetWindow);
+            var inserted = await _textInsertionService.ReplaceAsync(
                 targetWindow,
                 selectedMatch.MatchLength,
                 content,
                 _suggestionWindow.NativeHandle);
+            if (inserted)
+            {
+                try
+                {
+                    // 使用计数的磁盘保存不应阻塞正文插入和候选键响应。
+                    await Task.Run(() => _catalog.IncrementUsage(selectedMatch.Item.Id)).ConfigureAwait(true);
+                }
+                catch (Exception exception)
+                {
+                    System.Diagnostics.Trace.TraceWarning("ZCue 使用计数保存失败：{0}", exception.GetType().Name);
+                }
+            }
         });
     }
 
@@ -684,10 +730,29 @@ public sealed class AppController : IDisposable
     /// <summary>
     /// 输入法组合或选词期间压住候选显示。这里只隐藏窗口、不结束输入法状态：
     /// 组合结束后还要用光标前的真实文本同步缓冲，不能在组合期间丢掉输入状态。
-    /// IMM32 组合串和当前候选列表用于捕获输入/选词状态；其他输入法继续使用候选窗类名兜底。
+    /// UIA TextEditPattern、IMM32 和候选窗共同检测状态；设置允许时仍可显示候选。
     /// </summary>
     private bool HideSuggestionsIfImeInputActive(IntPtr targetWindow)
     {
+        if (!ObserveImeInputState(targetWindow)
+            || _settings.Current.ShowSuggestionsDuringImeComposition)
+        {
+            return false;
+        }
+
+        ClearSuggestions(resetBuffer: false, cancelTextSync: false);
+        return true;
+    }
+
+    private bool ObserveImeInputState(IntPtr targetWindow)
+    {
+        if (targetWindow == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        _imeCompositionService.RefreshTextEditComposition(targetWindow);
+
         var isImeInputActive = _imeCompositionService.IsComposing(targetWindow)
             || _imeCompositionService.HasCandidateList(targetWindow)
             || _imeCompositionService.HasVisibleCandidateWindow();
@@ -701,7 +766,6 @@ public sealed class AppController : IDisposable
             _imeInputStateTarget = targetWindow;
         }
 
-        ClearSuggestions(resetBuffer: false, cancelTextSync: false);
         return true;
     }
 
@@ -749,7 +813,10 @@ public sealed class AppController : IDisposable
             || !_applicationFilter.IsApplicationAllowed(foregroundWindow))
         {
             ClearSuggestions(resetBuffer: true);
+            return;
         }
+
+        HideSuggestionsIfImeInputActive(targetWindow);
     }
 
     // !SECTION 候选状态与确认
@@ -779,17 +846,44 @@ public sealed class AppController : IDisposable
             }
 
             var observedComposition = false;
-            var suggestionsSuppressed = false;
+            var compositionSuggestionsUpdated = false;
             var compositionDeadline = Environment.TickCount64 + 2000;
             while (true)
             {
-                if (_imeCompositionService.IsComposing(targetWindow))
+                await _imeCompositionService.RefreshTextEditCompositionAsync(targetWindow).ConfigureAwait(true);
+                if (request != Volatile.Read(ref _textSyncRequest)
+                    || NativeMethods.GetForegroundWindow() != targetWindow)
+                {
+                    return;
+                }
+
+                if (allowImeCommitSync
+                    && !_imeCompositionService.HasNativeComposition(targetWindow)
+                    && !_imeCompositionService.HasCandidateList(targetWindow)
+                    && !_imeCompositionService.HasVisibleCandidateWindow())
+                {
+                    // 已收到选词提交键且原生选词信号结束，忽略 Chromium 残留的 UIA 范围。
+                    _imeCompositionService.CompleteTextEditComposition(targetWindow);
+                }
+
+                // 提交键之后候选列表可能滞留；等待活动组合结束，再读取真实上屏文本。
+                // 非提交按键仍保留候选窗信号，覆盖只有 TSF 选词窗的输入法。
+                if (_imeCompositionService.IsComposing(targetWindow)
+                    || !allowImeCommitSync && ObserveImeInputState(targetWindow))
                 {
                     observedComposition = true;
-                    if (!suggestionsSuppressed || HasSuggestions())
+                    if (!compositionSuggestionsUpdated)
                     {
-                        HideSuggestionsIfImeInputActive(targetWindow);
-                        suggestionsSuppressed = true;
+                        if (_settings.Current.ShowSuggestionsDuringImeComposition)
+                        {
+                            RecomputeSuggestions(targetWindow);
+                        }
+                        else
+                        {
+                            ClearSuggestions(resetBuffer: false, cancelTextSync: false);
+                        }
+
+                        compositionSuggestionsUpdated = true;
                     }
 
                     if (Environment.TickCount64 >= compositionDeadline)
@@ -816,7 +910,8 @@ public sealed class AppController : IDisposable
                         return;
                     }
 
-                    if (_imeCompositionService.IsComposing(targetWindow))
+                    if (_imeCompositionService.IsComposing(targetWindow)
+                        || !allowImeCommitSync && ObserveImeInputState(targetWindow))
                     {
                         observedComposition = true;
                         continue;
@@ -839,12 +934,38 @@ public sealed class AppController : IDisposable
 
             var imeInputObserved = observedComposition
                 || IsImeInputStateObserved(targetWindow);
-            if (!allowImeCommitSync && HideSuggestionsIfImeInputActive(targetWindow))
+            if (!allowImeCommitSync && ObserveImeInputState(targetWindow))
             {
+                HideSuggestionsIfImeInputActive(targetWindow);
                 return;
             }
 
-            if (_focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret))
+            var canReadText = _focusedTextService.TryGetTextBeforeCaret(targetWindow, out var textBeforeCaret);
+            if (imeInputObserved && !preservePhysicalInputForShiftCommit)
+            {
+                // 组合结束和 UIA 光标/文本更新不同步；不能因第一次仍为空或旧拼音就结束同步。
+                var textDeadline = Environment.TickCount64 + 250;
+                while ((!canReadText || string.IsNullOrEmpty(textBeforeCaret)
+                        || TextBeforeCaretMatchesCurrentToken(textBeforeCaret))
+                    && Environment.TickCount64 < textDeadline)
+                {
+                    await Task.Delay(35).ConfigureAwait(true);
+                    if (request != Volatile.Read(ref _textSyncRequest)
+                        || NativeMethods.GetForegroundWindow() != targetWindow)
+                    {
+                        return;
+                    }
+
+                    canReadText = _focusedTextService.TryGetTextBeforeCaret(targetWindow, out textBeforeCaret);
+                }
+            }
+
+            if (request != Volatile.Read(ref _textSyncRequest)
+                || NativeMethods.GetForegroundWindow() != targetWindow)
+            {
+                return;
+            }
+            if (canReadText)
             {
                 var matchesPhysicalInput = TextBeforeCaretMatchesCurrentToken(textBeforeCaret);
                 var shouldReplaceBuffer = preservePhysicalInputForShiftCommit
@@ -865,11 +986,12 @@ public sealed class AppController : IDisposable
                 return;
             }
 
-            RecomputeSuggestions(targetWindow);
             if (imeInputObserved)
             {
                 CompleteImeInputState(targetWindow);
             }
+
+            RecomputeSuggestions(targetWindow);
         });
     }
 

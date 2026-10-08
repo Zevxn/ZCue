@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using ZCue.Infrastructure;
 using WpfClipboard = System.Windows.Clipboard;
@@ -125,7 +125,38 @@ public sealed class TextInsertionService
         {
             try
             {
-                return (true, WpfClipboard.GetDataObject());
+                var original = WpfClipboard.GetDataObject();
+                if (original is null)
+                {
+                    return (true, null);
+                }
+
+                // IDataObject 可能仍指向原剪贴板的延迟渲染数据；清空剪贴板后再读会失效。
+                var snapshot = new System.Windows.DataObject();
+                foreach (var format in original.GetFormats(autoConvert: false))
+                {
+                    try
+                    {
+                        var data = original.GetData(format, autoConvert: false);
+                        if (data is System.IO.MemoryStream stream)
+                        {
+                            data = new System.IO.MemoryStream(stream.ToArray());
+                        }
+
+                        if (data is not null)
+                        {
+                            snapshot.SetData(format, data, autoConvert: false);
+                        }
+                    }
+                    catch (Exception exception) when (exception is ExternalException or InvalidOperationException or NotSupportedException)
+                    {
+                        // 某些应用的私有格式不可读取，仍保留其余已成功物化的格式。
+                    }
+                }
+
+                return snapshot.GetFormats(autoConvert: false).Length > 0
+                    ? (true, snapshot)
+                    : (false, null);
             }
             catch (ExternalException)
             {

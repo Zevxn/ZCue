@@ -198,6 +198,16 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool ShowSuggestionsDuringImeComposition
+    {
+        get => _settings.Current.ShowSuggestionsDuringImeComposition;
+        set
+        {
+            _settings.Update(current => current.ShowSuggestionsDuringImeComposition = value);
+            OnPropertyChanged();
+        }
+    }
+
     public bool EnableAutomaticUpdateNotifications
     {
         get => _settings.Current.EnableAutomaticUpdateNotifications;
@@ -319,6 +329,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CurrentApplicationListTitle));
         OnPropertyChanged(nameof(ThemeMode));
         OnPropertyChanged(nameof(EnablePinyinWake));
+        OnPropertyChanged(nameof(ShowSuggestionsDuringImeComposition));
         OnPropertyChanged(nameof(CnWakeThreshold));
         OnPropertyChanged(nameof(PinWakeThreshold));
         OnPropertyChanged(nameof(EnWakeThreshold));

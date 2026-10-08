@@ -8,6 +8,8 @@ public sealed class AppSettings
 
     public bool EnablePinyinWake { get; set; } = true;
 
+    public bool ShowSuggestionsDuringImeComposition { get; set; }
+
     public int CnWakeThreshold { get; set; } = 2;
 
     public int PinWakeThreshold { get; set; } = 2;
@@ -35,6 +37,7 @@ public sealed class AppSettings
         PromptDataFilePath = PromptDataFilePath,
         ThemeMode = ThemeMode,
         EnablePinyinWake = EnablePinyinWake,
+        ShowSuggestionsDuringImeComposition = ShowSuggestionsDuringImeComposition,
         CnWakeThreshold = CnWakeThreshold,
         PinWakeThreshold = PinWakeThreshold,
         EnWakeThreshold = EnWakeThreshold,

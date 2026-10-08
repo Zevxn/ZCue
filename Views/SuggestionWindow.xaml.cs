@@ -4,6 +4,7 @@ using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using ZCue.Infrastructure;
 using ZCue.Models;
 using ZCue.Services;
@@ -28,11 +29,16 @@ public partial class SuggestionWindow : Window
     private int _selectedIndex;
     private bool _isLightTheme;
     private AppThemeMode _themeMode = AppThemeMode.System;
+    private CaretPosition? _caretPosition;
+    private bool _preferAbovePreview;
+    private DispatcherOperation? _positionUpdate;
 
     public SuggestionWindow()
     {
         InitializeComponent();
         ApplyTheme();
+        SizeChanged += (_, _) => SchedulePositionUpdate();
+        DpiChanged += (_, _) => SchedulePositionUpdate();
 
         // 启动时先显示一次并停在屏幕外，此后不再 Show/Hide。
         // 分层窗口（AllowsTransparency）在 Hide 之后重新 Show 时，DWM 会先合成上一次
@@ -99,6 +105,8 @@ public partial class SuggestionWindow : Window
     {
         Dispatcher.VerifyAccess();
 
+        _caretPosition = caretPosition;
+        _preferAbovePreview = preferAbovePreview;
         RootBorder.Opacity = 1;
         _matches.Clear();
         _matches.AddRange(matches.Take(9));
@@ -114,8 +122,6 @@ public partial class SuggestionWindow : Window
         ApplyTheme();
         RenderRows();
 
-        // 窗口高度由内容决定（SizeToContent="Height"），必须先完成布局才拿得到真实尺寸。
-        UpdateLayout();
         PositionWindow(caretPosition, preferAbovePreview);
     }
 
@@ -128,6 +134,9 @@ public partial class SuggestionWindow : Window
     public void HideSuggestions()
     {
         Dispatcher.VerifyAccess();
+        _caretPosition = null;
+        _positionUpdate?.Abort();
+        _positionUpdate = null;
         Left = OffScreenCoordinate;
         Top = OffScreenCoordinate;
         _matches.Clear();
@@ -358,15 +367,31 @@ public partial class SuggestionWindow : Window
 
     private void PositionWindow(CaretPosition caretPosition, bool preferAbovePreview)
     {
-        var scale = caretPosition.DpiScale <= 0 ? 1 : caretPosition.DpiScale;
-        var screenPoint = new System.Drawing.Point(caretPosition.Left, caretPosition.Bottom);
-        var workArea = Forms.Screen.FromPoint(screenPoint).WorkingArea;
-        var width = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
-        var height = Math.Max(1, (int)Math.Ceiling(ActualHeight * scale));
-        var left = caretPosition.Left;
+        const int margin = 8;
         const int gap = 8;
-        var spaceAbove = caretPosition.Top - workArea.Top;
-        var spaceBelow = workArea.Bottom - caretPosition.Bottom;
+        var screenPoint = new System.Drawing.Point(caretPosition.Left, caretPosition.Top);
+        var workArea = Forms.Screen.FromPoint(screenPoint).WorkingArea;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var availableWidth = Math.Max(1, (workArea.Width - margin * 2) / dpi.DpiScaleX);
+        var availableHeight = Math.Max(1, (workArea.Height - margin * 2) / dpi.DpiScaleY);
+        MinWidth = Math.Min(200, availableWidth);
+        MaxWidth = Math.Min(1000, availableWidth);
+        MaxHeight = availableHeight;
+        var borderHeight = RootBorder.Padding.Top + RootBorder.Padding.Bottom
+            + RootBorder.BorderThickness.Top + RootBorder.BorderThickness.Bottom;
+        ItemsScrollViewer.MaxHeight = Math.Min(380, Math.Max(1, availableHeight - borderHeight));
+
+        // SizeToContent 和跨屏 DPI 都会改变尺寸；完成布局后读取候选窗自己的像素矩形。
+        UpdateLayout();
+        var hasWindowBounds = NativeMethods.GetWindowRect(_windowHandle, out var windowBounds);
+        var width = hasWindowBounds
+            ? Math.Max(1, windowBounds.Right - windowBounds.Left)
+            : Math.Max(1, (int)Math.Ceiling(ActualWidth * dpi.DpiScaleX));
+        var height = hasWindowBounds
+            ? Math.Max(1, windowBounds.Bottom - windowBounds.Top)
+            : Math.Max(1, (int)Math.Ceiling(ActualHeight * dpi.DpiScaleY));
+        var spaceAbove = caretPosition.Top - workArea.Top - margin;
+        var spaceBelow = workArea.Bottom - caretPosition.Bottom - margin;
         var fitsAbove = spaceAbove >= height + gap;
         var fitsBelow = spaceBelow >= height + gap;
         var top = preferAbovePreview && fitsAbove
@@ -376,35 +401,43 @@ public partial class SuggestionWindow : Window
                 : fitsAbove
                     ? caretPosition.Top - height - gap
                     : spaceAbove > spaceBelow
-                        ? Math.Max(workArea.Top + 8, caretPosition.Top - height - gap)
-                        : Math.Min(caretPosition.Bottom + gap, workArea.Bottom - height - 8);
-
-        if (left + width > workArea.Right - 8)
-        {
-            left = Math.Max(workArea.Left + 8, workArea.Right - width - 8);
-        }
-
-        if (top + height > workArea.Bottom - 8 && caretPosition.Top - height - 8 >= workArea.Top)
-        {
-            top = caretPosition.Top - height - 8;
-        }
-
-        Left = left / scale;
-        Top = top / scale;
+                        ? caretPosition.Top - height - gap
+                        : caretPosition.Bottom + gap;
+        var left = Math.Clamp(caretPosition.Left, workArea.Left + margin,
+            Math.Max(workArea.Left + margin, workArea.Right - width - margin));
+        top = Math.Clamp(top, workArea.Top + margin,
+            Math.Max(workArea.Top + margin, workArea.Bottom - height - margin));
 
         if (_windowHandle != IntPtr.Zero)
         {
             NativeMethods.SetWindowPos(
                 _windowHandle,
                 NativeMethods.HWND_TOPMOST,
+                left,
+                top,
                 0,
                 0,
-                0,
-                0,
-                NativeMethods.SWP_NOMOVE
-                    | NativeMethods.SWP_NOSIZE
+                NativeMethods.SWP_NOSIZE
                     | NativeMethods.SWP_NOACTIVATE);
         }
+    }
+
+    private void SchedulePositionUpdate()
+    {
+        if (_caretPosition is null || _positionUpdate?.Status == DispatcherOperationStatus.Pending)
+        {
+            return;
+        }
+
+        // 等尺寸或 DPI 更新完成后再校正，避免使用上一轮尺寸；隐藏后不得重新移回屏幕。
+        _positionUpdate = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            _positionUpdate = null;
+            if (_caretPosition is { } caretPosition && _matches.Count > 0)
+            {
+                PositionWindow(caretPosition, _preferAbovePreview);
+            }
+        }));
     }
 
     private void ApplyTheme()
