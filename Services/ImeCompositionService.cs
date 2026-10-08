@@ -9,6 +9,7 @@ public sealed class ImeCompositionService
     [ThreadStatic]
     private static TextEditInterop.IAutomation? _textEditAutomation;
     private IntPtr _textEditCompositionTarget;
+    private IntPtr _directInputTarget;
     private IntPtr _completedTextEditTarget;
     private readonly object _textEditGate = new();
     private Task _textEditRefresh = Task.CompletedTask;
@@ -61,18 +62,27 @@ public sealed class ImeCompositionService
 
     public async Task RefreshTextEditCompositionAsync(IntPtr targetWindow)
     {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(80));
         try
         {
-            await RequestTextEditRefresh(targetWindow)
-                .WaitAsync(TimeSpan.FromMilliseconds(80)).ConfigureAwait(false);
+            Task previousRefresh;
+            lock (_textEditGate)
+            {
+                previousRefresh = _textEditRefresh;
+            }
+
+            await previousRefresh.WaitAsync(timeout.Token).ConfigureAwait(false);
+            // 延迟同步必须读取按键处理后的状态，不能复用 Hook 在按键上屏前取得的缓存。
+            await RequestTextEditRefresh(targetWindow, forceRefresh: true)
+                .WaitAsync(timeout.Token).ConfigureAwait(false);
         }
-        catch (TimeoutException)
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {
             // 无响应的 UIA provider 只占用一个后台查询，不能排队积压。
         }
     }
 
-    private Task RequestTextEditRefresh(IntPtr targetWindow)
+    private Task RequestTextEditRefresh(IntPtr targetWindow, bool forceRefresh = false)
     {
         lock (_textEditGate)
         {
@@ -82,7 +92,7 @@ public sealed class ImeCompositionService
             }
 
             if (!_textEditRefresh.IsCompleted
-                || Environment.TickCount64 - _textEditRefreshStarted < 40)
+                || !forceRefresh && Environment.TickCount64 - _textEditRefreshStarted < 40)
             {
                 return _textEditRefresh;
             }
@@ -91,8 +101,9 @@ public sealed class ImeCompositionService
             var version = _textEditVersion;
             _textEditRefresh = Task.Run(() =>
             {
-                var active = TryReadTextEditComposition(targetWindow)
-                    && NativeMethods.GetForegroundWindow() == targetWindow;
+                var directInput = TryReadDirectInputMode(targetWindow);
+                var active = !directInput && TryReadTextEditComposition(targetWindow);
+                var isForeground = NativeMethods.GetForegroundWindow() == targetWindow;
                 lock (_textEditGate)
                 {
                     if (version != _textEditVersion)
@@ -100,7 +111,10 @@ public sealed class ImeCompositionService
                         return;
                     }
 
-                    Interlocked.Exchange(ref _textEditCompositionTarget, active ? targetWindow : IntPtr.Zero);
+                    Interlocked.Exchange(ref _textEditCompositionTarget,
+                        active && isForeground ? targetWindow : IntPtr.Zero);
+                    Interlocked.Exchange(ref _directInputTarget,
+                        directInput && isForeground ? targetWindow : IntPtr.Zero);
                 }
             });
             return _textEditRefresh;
@@ -145,6 +159,52 @@ public sealed class ImeCompositionService
     // !SECTION UIA 组合状态
 
     // SECTION 输入法候选与组合检测
+
+    public bool IsDirectInput(IntPtr targetWindow)
+    {
+        return targetWindow != IntPtr.Zero
+            && Interlocked.CompareExchange(ref _directInputTarget, IntPtr.Zero, IntPtr.Zero) == targetWindow;
+    }
+
+    private static bool TryReadDirectInputMode(IntPtr targetWindow)
+    {
+        if (targetWindow == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        // 跨进程不能依赖 ImmGetContext；向焦点线程的默认 IME 窗口查询输入模式。
+        // 仅在后台调用并限制等待时间；查询失败不能当作英文模式。
+        var imeWindow = NativeMethods.ImmGetDefaultIMEWnd(GetFocusedWindow(targetWindow));
+        if (imeWindow == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        if (NativeMethods.SendMessageTimeout(
+                imeWindow,
+                NativeMethods.WM_IME_CONTROL,
+                new UIntPtr(NativeMethods.IMC_GETOPENSTATUS),
+                IntPtr.Zero,
+                NativeMethods.SMTO_ABORTIFHUNG,
+                30,
+                out var openStatus) != IntPtr.Zero
+            && openStatus == UIntPtr.Zero)
+        {
+            return true;
+        }
+
+        // 微软拼音、豆包切为英文时 IME 可能仍打开，必须继续检查 Native 转换位。
+        return NativeMethods.SendMessageTimeout(
+                imeWindow,
+                NativeMethods.WM_IME_CONTROL,
+                new UIntPtr(NativeMethods.IMC_GETCONVERSIONMODE),
+                IntPtr.Zero,
+                NativeMethods.SMTO_ABORTIFHUNG,
+                30,
+                out var conversionMode) != IntPtr.Zero
+            && (conversionMode.ToUInt64() & NativeMethods.IME_CMODE_NATIVE) == 0;
+    }
 
     public bool HasVisibleCandidateWindow()
     {
@@ -208,12 +268,10 @@ public sealed class ImeCompositionService
             return false;
         }
 
-        if (Interlocked.CompareExchange(ref _textEditCompositionTarget, IntPtr.Zero, IntPtr.Zero) == targetWindow)
-        {
-            return true;
-        }
-
-        return HasNativeComposition(targetWindow);
+        // 原生组合仍优先；直接英文输入时不能让残留的 UIA 范围阻止匹配。
+        return HasNativeComposition(targetWindow)
+            || !IsDirectInput(targetWindow)
+                && Interlocked.CompareExchange(ref _textEditCompositionTarget, IntPtr.Zero, IntPtr.Zero) == targetWindow;
     }
 
     public bool HasNativeComposition(IntPtr targetWindow)

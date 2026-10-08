@@ -8,7 +8,7 @@ public sealed class InputBufferService
     private readonly StringBuilder _buffer = new();
     private readonly int _maxLength;
 
-    public InputBufferService(int maxLength = 30)
+    public InputBufferService(int maxLength = 10)
     {
         _maxLength = Math.Max(8, maxLength);
     }

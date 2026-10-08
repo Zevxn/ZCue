@@ -227,6 +227,25 @@ internal static class NativeMethods
 
     // SECTION 输入法组合状态
 
+    internal const uint WM_IME_CONTROL = 0x0283;
+    internal const uint IMC_GETCONVERSIONMODE = 0x0001;
+    internal const uint IMC_GETOPENSTATUS = 0x0005;
+    internal const uint IME_CMODE_NATIVE = 0x0001;
+    internal const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    [DllImport("imm32.dll")]
+    internal static extern IntPtr ImmGetDefaultIMEWnd(IntPtr hWnd);
+
+    [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW", SetLastError = true)]
+    internal static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd,
+        uint message,
+        UIntPtr wParam,
+        IntPtr lParam,
+        uint flags,
+        uint timeout,
+        out UIntPtr result);
+
     [DllImport("imm32.dll")]
     internal static extern IntPtr ImmGetContext(IntPtr hWnd);
 

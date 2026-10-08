@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
 using ZCue.Infrastructure;

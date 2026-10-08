@@ -99,6 +99,8 @@ public sealed partial class GhostPreview : Border, IDisposable
         var layoutSize = new System.Windows.Size(availableWidthDip, availableHeightDip);
         Measure(layoutSize);
         Arrange(new Rect(layoutSize));
+        // 子控件的布局更新可能仍在队列中，生成位图前必须完成本轮排版。
+        UpdateLayout();
 
         var pixelWidth = Math.Max(1, (int)Math.Ceiling(ActualWidth * scale));
         var pixelHeight = Math.Max(1, (int)Math.Ceiling(

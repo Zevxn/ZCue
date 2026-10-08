@@ -973,6 +973,16 @@ public sealed class AppController : IDisposable
                 await WaitForVoiceInputSettleAsync(request, targetWindow).ConfigureAwait(true);
             }
 
+            if (_imeCompositionService.IsDirectInput(targetWindow)
+                && !_imeCompositionService.HasNativeComposition(targetWindow)
+                && !_imeCompositionService.HasCandidateList(targetWindow)
+                && !_imeCompositionService.HasVisibleCandidateWindow())
+            {
+                // 英文已直接上屏，先结束误记的组合状态；读不到 UIA 文本时仍保留物理字母。
+                observedComposition = false;
+                CompleteImeInputState(targetWindow);
+            }
+
             var imeInputObserved = observedComposition
                 || IsImeInputStateObserved(targetWindow);
             if (!allowImeCommitSync && ObserveImeInputState(targetWindow))
