@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using ZCue.Infrastructure;
 using ZCue.Models;
@@ -25,9 +26,10 @@ public sealed class AppController : IDisposable
     private readonly TextInsertionService _textInsertionService = new();
     private readonly KeyboardHookService _keyboardHook = new();
     private readonly TrayIconService _trayIcon;
-    private readonly SuggestionWindow _suggestionWindow;
+    private SuggestionWindow? _suggestionWindow;
     private readonly GhostPreviewWindow _ghostPreviewWindow;
     private readonly PromptManagerWindow _promptManagerWindow;
+    private readonly IntPtr _clipboardOwnerWindow;
     private readonly object _stateGate = new();
     private const int RightAltVirtualKeyCode = 0xA5;
 
@@ -52,10 +54,6 @@ public sealed class AppController : IDisposable
             Interval = TimeSpan.FromMilliseconds(60)
         };
         _foregroundMonitor.Tick += HandleForegroundMonitorTick;
-        _suggestionWindow = new SuggestionWindow();
-        _suggestionWindow.SetThemeMode(_settings.Current.ThemeMode);
-        _suggestionWindow.SuggestionBoxWidth = _settings.Current.SuggestionBoxWidth;
-        _suggestionWindow.SelectionRequested += HandleMouseSelection;
         _ghostPreviewWindow = new GhostPreviewWindow();
 
         _trayIcon = new TrayIconService(
@@ -71,6 +69,8 @@ public sealed class AppController : IDisposable
             enabled => SetPaused(!enabled),
             _trayIcon.UpdateStartupState,
             _updateService);
+        // 候选窗会在隐藏时销毁；粘贴操作使用生命周期稳定的管理器句柄。
+        _clipboardOwnerWindow = new WindowInteropHelper(_promptManagerWindow).EnsureHandle();
         _trayIcon.OpenManagerRequested += OpenPromptManager;
         _trayIcon.PauseRequested += () => SetPaused(true);
         _trayIcon.EnableRequested += () => SetPaused(false);
@@ -123,7 +123,7 @@ public sealed class AppController : IDisposable
         _keyboardHook.Dispose();
         _foregroundMonitor.Stop();
         _foregroundMonitor.Tick -= HandleForegroundMonitorTick;
-        _suggestionWindow.HideSuggestions();
+        CloseSuggestionWindow();
         _ghostPreviewWindow.HidePreview();
         _promptManagerWindow.CloseWithoutHiding();
         _trayIcon.Dispose();
@@ -506,7 +506,7 @@ public sealed class AppController : IDisposable
                 // 无匹配时关闭窗口，但必须先清空行内容再隐藏：
                 // 否则分层窗口在隐藏瞬间会露出上一轮的候选行。
                 _foregroundMonitor.Stop();
-                _suggestionWindow.HideSuggestions();
+                CloseSuggestionWindow();
                 _ghostPreviewWindow.HidePreview();
                 return;
             }
@@ -532,7 +532,7 @@ public sealed class AppController : IDisposable
                     return;
                 }
 
-                _suggestionWindow.ShowSuggestions(
+                GetOrCreateSuggestionWindow().ShowSuggestions(
                     matches,
                     currentIndex,
                     caretPosition,
@@ -543,7 +543,7 @@ public sealed class AppController : IDisposable
             }
             catch
             {
-                _suggestionWindow.HideSuggestions();
+                CloseSuggestionWindow();
                 _ghostPreviewWindow.HidePreview();
             }
         });
@@ -552,6 +552,34 @@ public sealed class AppController : IDisposable
     // !SECTION 全局键盘事件与输入状态
 
     // SECTION 候选状态与确认
+
+    private SuggestionWindow GetOrCreateSuggestionWindow()
+    {
+        if (_suggestionWindow is not null)
+        {
+            return _suggestionWindow;
+        }
+
+        var window = new SuggestionWindow();
+        window.SetThemeMode(_settings.Current.ThemeMode);
+        window.SuggestionBoxWidth = _settings.Current.SuggestionBoxWidth;
+        window.SelectionRequested += HandleMouseSelection;
+        _suggestionWindow = window;
+        return window;
+    }
+
+    private void CloseSuggestionWindow()
+    {
+        var window = _suggestionWindow;
+        _suggestionWindow = null;
+        if (window is null)
+        {
+            return;
+        }
+
+        window.SelectionRequested -= HandleMouseSelection;
+        window.Close();
+    }
 
     private void MoveSelection(int direction)
     {
@@ -597,14 +625,27 @@ public sealed class AppController : IDisposable
                 try
                 {
                     var caretPosition = _caretPositionService.GetPosition(targetWindow);
-                    _suggestionWindow.UpdateSelection(selectedIndex);
-                    var previewContent = _promptVariableService.Resolve(
-                        matches[selectedIndex].Item.Content);
+                    string previewContent;
+                    if (_suggestionWindow is { } window)
+                    {
+                        window.UpdateSelection(selectedIndex);
+                        previewContent = _promptVariableService.Resolve(matches[selectedIndex].Item.Content);
+                    }
+                    else
+                    {
+                        // 首次显示前已按下方向键时，也要用当前选择创建完整的新候选窗。
+                        var previewContents = _promptVariableService.ResolveAll(
+                            matches.Select(match => match.Item.Content).ToArray());
+                        GetOrCreateSuggestionWindow().ShowSuggestions(matches, selectedIndex,
+                            caretPosition, _settings.Current.ShowContentPreview, previewContents);
+                        _foregroundMonitor.Start();
+                        previewContent = previewContents[selectedIndex];
+                    }
                     ShowGhostPreview(previewContent, targetWindow, caretPosition);
                 }
                 catch
                 {
-                    _suggestionWindow.HideSuggestions();
+                    CloseSuggestionWindow();
                     _ghostPreviewWindow.HidePreview();
                 }
             }
@@ -637,7 +678,7 @@ public sealed class AppController : IDisposable
 
         PostAsyncToUi(async () =>
         {
-            _suggestionWindow.HideSuggestions();
+            CloseSuggestionWindow();
             _ghostPreviewWindow.HidePreview();
             if (NativeMethods.GetForegroundWindow() != targetWindow)
             {
@@ -650,7 +691,7 @@ public sealed class AppController : IDisposable
                 targetWindow,
                 selectedMatch.MatchLength,
                 content,
-                _suggestionWindow.NativeHandle);
+                _clipboardOwnerWindow);
             if (inserted)
             {
                 try
@@ -674,7 +715,7 @@ public sealed class AppController : IDisposable
     private void HandleMouseButtonDown(int x, int y)
     {
         _ = _applicationFilter.GetForegroundProcessName();
-        if (HasSuggestions() && !_suggestionWindow.ContainsScreenPoint(x, y))
+        if (HasSuggestions() && _suggestionWindow?.ContainsScreenPoint(x, y) != true)
         {
             ClearSuggestions(resetBuffer: true);
         }
@@ -714,7 +755,7 @@ public sealed class AppController : IDisposable
         PostToUi(() =>
         {
             _foregroundMonitor.Stop();
-            _suggestionWindow.HideSuggestions();
+            CloseSuggestionWindow();
             _ghostPreviewWindow.HidePreview();
         });
     }
@@ -1092,8 +1133,11 @@ public sealed class AppController : IDisposable
         {
             AppThemeManager.Apply(settings.ThemeMode);
             _trayIcon.ApplyTheme(settings.ThemeMode);
-            _suggestionWindow.SetThemeMode(settings.ThemeMode);
-            _suggestionWindow.SuggestionBoxWidth = settings.SuggestionBoxWidth;
+            if (_suggestionWindow is { } window)
+            {
+                window.SetThemeMode(settings.ThemeMode);
+                window.SuggestionBoxWidth = settings.SuggestionBoxWidth;
+            }
             if (!settings.ShowContentPreview)
             {
                 _ghostPreviewWindow.HidePreview();
@@ -1125,7 +1169,7 @@ public sealed class AppController : IDisposable
         {
             AppThemeManager.Apply(themeMode);
             _trayIcon.ApplyTheme(themeMode);
-            _suggestionWindow.SetThemeMode(themeMode);
+            _suggestionWindow?.SetThemeMode(themeMode);
         });
     }
 

@@ -1,6 +1,8 @@
 ﻿using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ZCue.Infrastructure;
 using ZCue.Services;
@@ -19,6 +21,7 @@ public partial class GhostPreviewWindow : Window
     private IntPtr _targetWindow;
     private HwndSource? _windowSource;
     private readonly DispatcherTimer _foregroundTimer;
+    private readonly LayeredPreviewSurface _surface = new();
 
     public GhostPreviewWindow()
     {
@@ -29,9 +32,7 @@ public partial class GhostPreviewWindow : Window
         };
         _foregroundTimer.Tick += HandleForegroundTimerTick;
 
-        // 启动时先显示一次并停在屏幕外，此后不再 Show/Hide。
-        // 分层窗口 Hide 后再 Show 时 DWM 会回放上一次的合成表面，这是"旧预览闪回"的来源；
-        // 常驻可见、只用坐标表达"隐藏"就没有这个瞬间。
+        // WPF 窗口只在屏幕外排版；实际预览由独立原生窗口提交完整画面。
         Left = OffScreenCoordinate;
         Top = OffScreenCoordinate;
         GhostClip.Opacity = 0;
@@ -48,15 +49,14 @@ public partial class GhostPreviewWindow : Window
     {
         Dispatcher.VerifyAccess();
 
-        if (string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text) || targetWindow == IntPtr.Zero
+            || NativeMethods.GetForegroundWindow() != targetWindow)
         {
             HidePreview();
             return;
         }
 
         GhostClip.Opacity = 1;
-        _targetWindow = targetWindow;
-        _foregroundTimer.Start();
         var scale = caretPosition.DpiScale <= 0 ? 1 : caretPosition.DpiScale;
         var screenPoint = new System.Drawing.Point(caretPosition.Left, caretPosition.Top);
         var workArea = Forms.Screen.FromPoint(screenPoint).WorkingArea;
@@ -110,36 +110,31 @@ public partial class GhostPreviewWindow : Window
         Width = availableWidthDip;
         Height = availableHeightDip;
 
-        // 窗口常驻可见，这里只原地改坐标、尺寸与内容，整段在同一个 UI 任务里完成，
-        // 会一起合成，不会让上一轮的坐标或文字成帧。
-        Left = textAreaLeft / scale;
-        Top = caretPosition.Top / scale;
-
         UpdateLayout();
 
-        if (_windowHandle != IntPtr.Zero)
+        var pixelWidth = Math.Max(1, (int)Math.Ceiling(GhostClip.ActualWidth * scale));
+        var pixelHeight = Math.Max(1, (int)Math.Ceiling(
+            Math.Min(GhostClip.ActualHeight, GhostText.DesiredSize.Height) * scale));
+        var frame = new RenderTargetBitmap(pixelWidth, pixelHeight, 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+        frame.Render(GhostClip);
+        if (NativeMethods.GetForegroundWindow() != targetWindow)
         {
-            NativeMethods.SetWindowPos(
-                _windowHandle,
-                NativeMethods.HWND_TOPMOST,
-                0,
-                0,
-                0,
-                0,
-                NativeMethods.SWP_NOMOVE
-                    | NativeMethods.SWP_NOSIZE
-                    | NativeMethods.SWP_NOACTIVATE);
+            HidePreview();
+            return;
         }
+
+        _surface.Present(frame, textAreaLeft, caretPosition.Top);
+        _targetWindow = targetWindow;
+        _foregroundTimer.Start();
     }
 
     /// <summary>
-    /// 隐藏预览：移出屏幕，然后把窗口表面清空。
-    /// 只移出屏幕不够 —— DWM 缓存着上一次提交的表面，下次移回时会先画出上一轮的幽灵文字。
-    /// 清掉文本、缩到 1×1 并置为全透明，缓存里就是一张空白；顺带免去大尺寸表面的合成开销。
+    /// 释放原生画面并清空排版内容；下次显示时创建新窗口并提交当前画面。
     /// </summary>
     public void HidePreview()
     {
         Dispatcher.VerifyAccess();
+        _surface.HideSurface();
         _foregroundTimer.Stop();
         _targetWindow = IntPtr.Zero;
         Left = OffScreenCoordinate;
@@ -172,6 +167,7 @@ public partial class GhostPreviewWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _surface.Dispose();
         _foregroundTimer.Stop();
         _foregroundTimer.Tick -= HandleForegroundTimerTick;
         _windowSource?.RemoveHook(WindowProc);

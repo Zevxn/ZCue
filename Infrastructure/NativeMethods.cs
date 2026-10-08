@@ -65,6 +65,7 @@ internal static class NativeMethods
     internal const int WS_EX_NOACTIVATE = 0x08000000;
     internal const int WS_EX_TOOLWINDOW = 0x00000080;
     internal const int WS_EX_TRANSPARENT = 0x00000020;
+    internal const int WS_EX_LAYERED = 0x00080000;
     internal const int WM_NCHITTEST = 0x0084;
     internal const int HTTRANSPARENT = -1;
     internal const uint SWP_NOSIZE = 0x0001;
@@ -419,4 +420,63 @@ internal static class NativeMethods
         uint flags);
 
     // !SECTION 文本注入与候选窗样式
+
+    // SECTION 原生预览画面
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BitmapInfoHeader
+    {
+        internal uint Size;
+        internal int Width;
+        internal int Height;
+        internal ushort Planes;
+        internal ushort BitCount;
+        internal uint Compression;
+        internal uint SizeImage;
+        internal int XPelsPerMeter;
+        internal int YPelsPerMeter;
+        internal uint ClrUsed;
+        internal uint ClrImportant;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal struct BlendFunction
+    {
+        internal byte BlendOp;
+        internal byte BlendFlags;
+        internal byte SourceConstantAlpha;
+        internal byte AlphaFormat;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr GetDC(IntPtr window);
+
+    [DllImport("user32.dll")]
+    internal static extern int ReleaseDC(IntPtr window, IntPtr deviceContext);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    internal static extern IntPtr CreateCompatibleDC(IntPtr deviceContext);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DeleteDC(IntPtr deviceContext);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    internal static extern IntPtr CreateDIBSection(IntPtr deviceContext, ref BitmapInfoHeader info,
+        uint usage, out IntPtr bits, IntPtr section, uint offset);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    internal static extern IntPtr SelectObject(IntPtr deviceContext, IntPtr value);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DeleteObject(IntPtr value);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool UpdateLayeredWindow(IntPtr window, IntPtr destinationDc,
+        ref Point destination, ref Point size, IntPtr sourceDc, ref Point source,
+        uint colorKey, ref BlendFunction blend, uint flags);
+
+    // !SECTION 原生预览画面
 }

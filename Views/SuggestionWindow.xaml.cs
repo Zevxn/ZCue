@@ -19,7 +19,7 @@ namespace ZCue.Views;
 public partial class SuggestionWindow : Window
 {
     /// <summary>
-    /// 隐藏用的屏幕外坐标。窗口保持可见，只把坐标挪到屏幕外。
+    /// 首次排版在屏幕外完成；窗口隐藏时关闭，下次显示创建新实例。
     /// </summary>
     private const double OffScreenCoordinate = -32000;
 
@@ -40,19 +40,11 @@ public partial class SuggestionWindow : Window
         SizeChanged += (_, _) => SchedulePositionUpdate();
         DpiChanged += (_, _) => SchedulePositionUpdate();
 
-        // 启动时先显示一次并停在屏幕外，此后不再 Show/Hide。
-        // 分层窗口（AllowsTransparency）在 Hide 之后重新 Show 时，DWM 会先合成上一次
-        // 压入的表面；Opacity=0 挡不住它 —— 透明度同样是异步生效的 WPF 属性。
-        // 保持窗口常驻可见、只用坐标表达"隐藏"，就没有"重新可见"这个瞬间。
         Left = OffScreenCoordinate;
         Top = OffScreenCoordinate;
-        RootBorder.Opacity = 0;
-        Show();
     }
 
     public event Action<int>? SelectionRequested;
-
-    internal IntPtr NativeHandle => _windowHandle;
 
     public void SetThemeMode(AppThemeMode mode)
     {
@@ -93,8 +85,7 @@ public partial class SuggestionWindow : Window
     }
 
     /// <summary>
-    /// 更新候选内容与位置。窗口常驻可见（无匹配时停在屏幕外），这里只原地替换行内容、
-    /// 尺寸与坐标。
+    /// 填充当前候选后首次显示；可见期间原地更新，关闭后的实例不再复用。
     /// </summary>
     public void ShowSuggestions(
         IReadOnlyList<PromptMatch> matches,
@@ -107,7 +98,6 @@ public partial class SuggestionWindow : Window
 
         _caretPosition = caretPosition;
         _preferAbovePreview = preferAbovePreview;
-        RootBorder.Opacity = 1;
         _matches.Clear();
         _matches.AddRange(matches.Take(9));
         _previewContents.Clear();
@@ -122,28 +112,25 @@ public partial class SuggestionWindow : Window
         ApplyTheme();
         RenderRows();
 
+        if (!IsVisible)
+        {
+            Show();
+        }
+
         PositionWindow(caretPosition, preferAbovePreview);
     }
 
-    /// <summary>
-    /// 隐藏候选：移出屏幕，然后把窗口表面清空。
-    /// 两步缺一不可 —— DWM 缓存着分层窗口最后一次提交的画面，只移出屏幕的话缓存里
-    /// 仍是上一轮的候选，下次移回时会被先画出来（表现为"位置正确、内容是上一次的"）。
-    /// 在屏幕外清空内容并置为全透明，下一帧提交后缓存里就是一张空白表面。
-    /// </summary>
-    public void HideSuggestions()
+    protected override void OnClosed(EventArgs e)
     {
-        Dispatcher.VerifyAccess();
         _caretPosition = null;
         _positionUpdate?.Abort();
         _positionUpdate = null;
-        Left = OffScreenCoordinate;
-        Top = OffScreenCoordinate;
+        _windowHandle = IntPtr.Zero;
         _matches.Clear();
         _previewContents.Clear();
         _selectedIndex = 0;
-        RenderRows();
-        RootBorder.Opacity = 0;
+        ItemsPanel.Children.Clear();
+        base.OnClosed(e);
     }
 
     public void UpdateSelection(int selectedIndex)
