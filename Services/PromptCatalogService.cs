@@ -87,7 +87,7 @@ public sealed class PromptCatalogService
     {
         lock (_gate)
         {
-            // 匹配和候选展示只读此快照；目录修改后替换快照，保留旧候选的数据。
+            // 匹配和候选展示只读此快照；使用次数由目录服务同步，其余修改后替换快照。
             return _enabledMatchSnapshot ??= Array.AsReadOnly(
                 _items.Where(item => item.Enabled).Select(item => item.Clone()).ToArray());
         }
@@ -568,7 +568,14 @@ public sealed class PromptCatalogService
             if (item is not null)
             {
                 item.UsageCount++;
-                PersistLocked();
+                // 使用次数只影响排序，直接同步缓存条目，保留提示词和拼音别名快照。
+                var snapshotItem = _enabledMatchSnapshot?.FirstOrDefault(candidate => candidate.Id == id);
+                if (snapshotItem is not null)
+                {
+                    snapshotItem.UsageCount = item.UsageCount;
+                }
+
+                _storage.Save(_items, _categories);
             }
         }
     }
