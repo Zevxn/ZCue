@@ -85,6 +85,14 @@ internal sealed class LayeredPreviewSurface : System.Windows.Forms.NativeWindow,
 
     // SECTION 窗口交互与生命周期
 
+    internal void Move(int left, int top)
+    {
+        if (Handle == IntPtr.Zero) return;
+
+        NativeMethods.SetWindowPos(Handle, NativeMethods.HWND_TOPMOST, left, top, 0, 0,
+            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+    }
+
     // 销毁原生窗口会同时释放上一轮的分层画面；下次显示时创建全新的画面窗口。
     internal void HideSurface() => Dispose();
 

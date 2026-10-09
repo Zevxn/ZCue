@@ -6,7 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using ZCue.Infrastructure;
 using ZCue.Models;
@@ -21,7 +20,6 @@ using WpfDataObject = System.Windows.DataObject;
 using WpfDragEventArgs = System.Windows.DragEventArgs;
 using WpfDragDropEffects = System.Windows.DragDropEffects;
 using WpfGiveFeedbackEventArgs = System.Windows.GiveFeedbackEventArgs;
-using WpfImage = System.Windows.Controls.Image;
 using WpfListViewItem = System.Windows.Controls.ListViewItem;
 using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 using WpfOrientation = System.Windows.Controls.Orientation;
@@ -64,7 +62,9 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private WpfPoint _dragPreviewPointerOffset;
     private UIElement? _dragPreviewSource;
     private double _dragPreviewSourceOpacity;
-    private WpfImage? _dragPreviewImage;
+    private string? _draggedPromptId;
+    private readonly LayeredPreviewSurface _dragPreviewSurface = new();
+    private BitmapSource? _dragPreviewFrame;
     private System.Windows.Threading.DispatcherTimer? _dragPreviewTimer;
     private FrameworkElement? _pressedDragCursorElement;
 
@@ -870,13 +870,13 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             data.SetData("ZCue.PromptId", promptId);
         }
 
-        if (FindPromptContainer(promptId) is { } sourceContainer)
-        {
-            BeginDragPreview(sourceContainer, _promptDragGrabOffset);
-        }
-
         try
         {
+            if (FindPromptContainer(promptId) is { } sourceContainer)
+            {
+                BeginDragPreview(sourceContainer, _promptDragGrabOffset);
+            }
+
             DragDrop.DoDragDrop(PromptListView, data, WpfDragDropEffects.Move);
         }
         finally
@@ -988,7 +988,11 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     {
         UpdateDragPreviewPosition();
         e.UseDefaultCursors = false;
-        Mouse.SetCursor(_grabbingCursor);
+        Mouse.OverrideCursor = e.Effects == WpfDragDropEffects.None
+            ? WpfCursors.No
+            : _grabbingCursor;
+        Mouse.SetCursor(Mouse.OverrideCursor);
+        e.Handled = true;
     }
 
     private void HandlePromptRowCardLoaded(object sender, RoutedEventArgs e)
@@ -996,6 +1000,11 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         if (sender is FrameworkElement promptRow)
         {
             promptRow.Cursor = _grabCursor;
+            if (FindAncestor<WpfListViewItem>(promptRow) is { DataContext: PromptItem prompt } container)
+            {
+                // 排序会重建行容器，按指令 ID 恢复拖动占位样式。
+                container.Tag = prompt.Id == _draggedPromptId ? "DragPlaceholder" : null;
+            }
         }
     }
 
@@ -1015,7 +1024,8 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             _pressedDragCursorElement = null;
         }
 
-        if (ReferenceEquals(Mouse.OverrideCursor, _grabbingCursor))
+        if (ReferenceEquals(Mouse.OverrideCursor, _grabbingCursor)
+            || ReferenceEquals(Mouse.OverrideCursor, WpfCursors.No))
         {
             Mouse.OverrideCursor = null;
         }
@@ -1033,26 +1043,20 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
         _dragPreviewSource = source;
         _dragPreviewSourceOpacity = source.Opacity;
-        _dragPreviewPointerOffset = pointerOffset;
-        _dragPreviewImage = new WpfImage
+        var dpi = VisualTreeHelper.GetDpi(source);
+        _dragPreviewPointerOffset = new WpfPoint(
+            pointerOffset.X * dpi.DpiScaleX,
+            pointerOffset.Y * dpi.DpiScaleY);
+        _dragPreviewFrame = snapshot;
+        if (source is WpfListViewItem { DataContext: PromptItem prompt } container)
         {
-            Source = snapshot,
-            Width = source.RenderSize.Width,
-            Height = source.RenderSize.Height,
-            Opacity = 0.96,
-            IsHitTestVisible = false,
-            Effect = new DropShadowEffect
-            {
-                Color = Colors.Black,
-                BlurRadius = 12,
-                ShadowDepth = 2,
-                Opacity = 0.18,
-                RenderingBias = RenderingBias.Performance
-            }
-        };
-
-        DragPreviewCanvas.Children.Add(_dragPreviewImage);
-        source.Opacity = 0.32;
+            _draggedPromptId = prompt.Id;
+            container.Tag = "DragPlaceholder";
+        }
+        else
+        {
+            source.Opacity = 0.32;
+        }
         UpdateDragPreviewPosition();
 
         _dragPreviewTimer = new System.Windows.Threading.DispatcherTimer(
@@ -1072,6 +1076,16 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             return null;
         }
 
+        // 在控件自身的坐标范围内绘制，避免布局偏移使截图被裁空。
+        var bounds = new System.Windows.Rect(size);
+        var visual = new DrawingVisual();
+        using (var drawing = visual.RenderOpen())
+        {
+            drawing.PushOpacity(0.9);
+            drawing.DrawRectangle(new VisualBrush(source), null, bounds);
+            drawing.Pop();
+        }
+
         var dpi = VisualTreeHelper.GetDpi(source);
         var bitmap = new RenderTargetBitmap(
             Math.Max(1, (int)Math.Ceiling(size.Width * dpi.DpiScaleX)),
@@ -1079,7 +1093,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             96 * dpi.DpiScaleX,
             96 * dpi.DpiScaleY,
             PixelFormats.Pbgra32);
-        bitmap.Render(source);
+        bitmap.Render(visual);
         bitmap.Freeze();
         return bitmap;
     }
@@ -1091,14 +1105,23 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
     private void UpdateDragPreviewPosition()
     {
-        if (_dragPreviewImage is null)
+        if (_dragPreviewFrame is null
+            || !NativeMethods.GetCursorPos(out var pointer))
         {
             return;
         }
 
-        var pointer = Mouse.GetPosition(DragPreviewCanvas);
-        Canvas.SetLeft(_dragPreviewImage, pointer.X - _dragPreviewPointerOffset.X);
-        Canvas.SetTop(_dragPreviewImage, pointer.Y - _dragPreviewPointerOffset.Y);
+        // OLE 拖动期间直接按屏幕像素定位独立画面，不依赖窗口内的布局与重绘。
+        var left = (int)Math.Round(pointer.X - _dragPreviewPointerOffset.X);
+        var top = (int)Math.Round(pointer.Y - _dragPreviewPointerOffset.Y);
+        if (_dragPreviewSurface.Handle == IntPtr.Zero)
+        {
+            _dragPreviewSurface.Present(_dragPreviewFrame, left, top);
+        }
+        else
+        {
+            _dragPreviewSurface.Move(left, top);
+        }
     }
 
     private void EndDragPreview()
@@ -1110,15 +1133,26 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             _dragPreviewTimer = null;
         }
 
-        if (_dragPreviewImage is not null)
+        _dragPreviewSurface.HideSurface();
+        _dragPreviewFrame = null;
+
+        var draggedPromptId = _draggedPromptId;
+        _draggedPromptId = null;
+        if (draggedPromptId is not null && FindPromptContainer(draggedPromptId) is { } currentContainer)
         {
-            DragPreviewCanvas.Children.Remove(_dragPreviewImage);
-            _dragPreviewImage = null;
+            currentContainer.Tag = null;
         }
 
         if (_dragPreviewSource is not null)
         {
-            _dragPreviewSource.Opacity = _dragPreviewSourceOpacity;
+            if (_dragPreviewSource is WpfListViewItem sourceContainer)
+            {
+                sourceContainer.Tag = null;
+            }
+            else
+            {
+                _dragPreviewSource.Opacity = _dragPreviewSourceOpacity;
+            }
             _dragPreviewSource = null;
         }
     }
@@ -1508,10 +1542,9 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         _categoryDragOriginalOrder = GetCategoryButtonOrder();
         _categoryReorderCommitted = false;
         var sourceButton = (WpfButton)sender;
-        BeginDragPreview(sourceButton, _categoryDragGrabOffset);
-
         try
         {
+            BeginDragPreview(sourceButton, _categoryDragGrabOffset);
             DragDrop.DoDragDrop(sourceButton, data, WpfDragDropEffects.Move);
         }
         finally

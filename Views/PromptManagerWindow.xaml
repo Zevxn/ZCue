@@ -213,6 +213,9 @@
                 <DataTrigger Binding="{Binding Enabled}" Value="False">
                     <Setter Property="Opacity" Value="0.58" />
                 </DataTrigger>
+                <Trigger Property="Tag" Value="DragPlaceholder">
+                    <Setter Property="Opacity" Value="1" />
+                </Trigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="RowActionPanel" TargetType="Grid">
@@ -579,6 +582,7 @@
                                   SelectionChanged="HandlePromptSelectionChanged"
                                   Background="Transparent"
                                   BorderThickness="0"
+                                  FocusVisualStyle="{x:Null}"
                                   AllowDrop="True"
                                   DragOver="HandlePromptListDragOver"
                                   Drop="HandlePromptListDrop"
@@ -587,6 +591,18 @@
                                   PreviewMouseMove="HandlePromptListMouseMove"
                                   VirtualizingPanel.ScrollUnit="Pixel"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListView.Template>
+                                <ControlTemplate TargetType="{x:Type ListView}">
+                                    <ScrollViewer x:Name="PART_ScrollViewer"
+                                                  Focusable="False"
+                                                  Padding="{TemplateBinding Padding}"
+                                                  CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
+                                                  HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
+                                                  VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </ControlTemplate>
+                            </ListView.Template>
                             <ListView.ItemTemplate>
                                 <DataTemplate>
                                     <Grid HorizontalAlignment="Stretch">
@@ -629,7 +645,8 @@
                                                 </Border>
                                             </Grid>
                                         </Border>
-                                        <Grid Style="{StaticResource RowActionPanel}"
+                                        <Grid x:Name="PromptRowActions"
+                                              Style="{StaticResource RowActionPanel}"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Stretch"
                                               Margin="0,1,1,1">
@@ -729,8 +746,17 @@
                                                 BorderThickness="2"
                                                 CornerRadius="10"
                                                 IsHitTestVisible="False"
-                                                Panel.ZIndex="2"
-                                                Visibility="Collapsed" />
+                                                 Panel.ZIndex="2"
+                                                 Visibility="Collapsed" />
+                                        <Rectangle x:Name="PromptDragPlaceholder"
+                                                   Margin="1"
+                                                   RadiusX="10"
+                                                   RadiusY="10"
+                                                   Stroke="{DynamicResource ThemeTextMutedBrush}"
+                                                   StrokeThickness="2"
+                                                   StrokeDashArray="3,2"
+                                                   IsHitTestVisible="False"
+                                                   Visibility="Collapsed" />
                                     </Grid>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
@@ -762,6 +788,13 @@
                                             <Setter TargetName="PromptRowSelectionBorder"
                                                     Property="Visibility"
                                                     Value="Visible" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
+                                                     Value="DragPlaceholder">
+                                            <Setter TargetName="PromptRowCard" Property="Opacity" Value="0" />
+                                            <Setter TargetName="PromptRowActions" Property="Visibility" Value="Hidden" />
+                                            <Setter TargetName="PromptRowSelectionBorder" Property="Visibility" Value="Hidden" />
+                                            <Setter TargetName="PromptDragPlaceholder" Property="Visibility" Value="Visible" />
                                         </DataTrigger>
                                     </DataTemplate.Triggers>
                                 </DataTemplate>
@@ -1381,10 +1414,6 @@
                 </Grid>
             </Grid>
 
-            <Canvas x:Name="DragPreviewCanvas"
-                    Panel.ZIndex="1000"
-                    IsHitTestVisible="False"
-                    ClipToBounds="False" />
         </Grid>
     </Grid>
     <!-- !SECTION Fluent 窗口与页面布局 -->
