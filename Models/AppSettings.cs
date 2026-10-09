@@ -26,6 +26,8 @@ public sealed class AppSettings
 
     public bool EnableAutomaticUpdateNotifications { get; set; } = true;
 
+    public List<string> PromptedUpdateVersions { get; set; } = [];
+
     public ApplicationFilterMode FilterMode { get; set; } = ApplicationFilterMode.Blacklist;
 
     public List<string> Blacklist { get; set; } = [];
@@ -46,6 +48,7 @@ public sealed class AppSettings
         EnableNumberSelection = EnableNumberSelection,
         EnableEnterConfirmation = EnableEnterConfirmation,
         EnableAutomaticUpdateNotifications = EnableAutomaticUpdateNotifications,
+        PromptedUpdateVersions = PromptedUpdateVersions is null ? [] : [.. PromptedUpdateVersions],
         FilterMode = FilterMode,
         Blacklist = Blacklist is null ? [] : [.. Blacklist],
         Whitelist = Whitelist is null ? [] : [.. Whitelist]

@@ -140,7 +140,8 @@ public sealed class AppController : IDisposable
             if (update is null
                 || _disposed
                 || cancellationToken.IsCancellationRequested
-                || !_settings.Current.EnableAutomaticUpdateNotifications)
+                || !_settings.Current.EnableAutomaticUpdateNotifications
+                || _settings.HasPromptedUpdate(update.TagName))
             {
                 return;
             }

@@ -1362,7 +1362,7 @@
                                                            Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                            FontSize="14"
                                                            FontWeight="SemiBold" />
-                                                <TextBlock Text="应用启动时自动检查，发现新版本时通过系统托盘通知"
+                                                <TextBlock Text="启动时通过托盘通知，打开管理界面时弹窗提醒新版本"
                                                            Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                                                            FontSize="12"
                                                            Margin="0,4,0,0" />

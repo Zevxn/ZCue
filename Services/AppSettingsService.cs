@@ -68,6 +68,50 @@ public sealed class AppSettingsService
         Changed?.Invoke(snapshot);
     }
 
+    // SECTION 更新提醒记录
+
+    public bool HasPromptedUpdate(string tagName)
+    {
+        lock (_gate)
+        {
+            return _current.PromptedUpdateVersions.Contains(tagName.Trim(), StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    public void RecordPromptedUpdate(string tagName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tagName);
+        lock (_gate)
+        {
+            var normalizedTag = tagName.Trim();
+            if (_current.PromptedUpdateVersions.Contains(normalizedTag, StringComparer.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var updated = _current.Clone();
+            updated.PromptedUpdateVersions.Add(normalizedTag);
+            var temporaryPath = _filePath + $".{Guid.NewGuid():N}.tmp";
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+                File.WriteAllText(temporaryPath, JsonSerializer.Serialize(updated, _jsonOptions));
+                // 提醒记录先可靠落盘，再显示弹窗，避免重启后重复打扰。
+                File.Move(temporaryPath, _filePath, overwrite: true);
+                _current = updated;
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+        }
+    }
+
+    // !SECTION 更新提醒记录
+
     // SECTION 提示词位置设置
 
     public void SetPromptDataFilePath(string filePath)
@@ -121,6 +165,11 @@ public sealed class AppSettingsService
     private static AppSettings Normalize(AppSettings settings)
     {
         settings.PromptDataFilePath = settings.PromptDataFilePath?.Trim() ?? string.Empty;
+        settings.PromptedUpdateVersions = (settings.PromptedUpdateVersions ?? [])
+            .Where(version => !string.IsNullOrWhiteSpace(version))
+            .Select(version => version.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         if (!Enum.IsDefined(typeof(AppThemeMode), settings.ThemeMode))
         {

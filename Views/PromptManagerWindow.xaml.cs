@@ -41,7 +41,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly UpdateService _updateService;
     private readonly System.Threading.CancellationTokenSource _updateCancellation = new();
-    private readonly string _settingsFilePath;
+    private readonly AppSettingsService _settingsService;
     private readonly PromptStorageService _transferStorage;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
@@ -49,6 +49,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private readonly WpfCursor _grabCursor;
     private readonly WpfCursor _grabbingCursor;
     private bool _allowClose;
+    private bool _updateInProgress;
     private WpfButton? _selectedNavigationButton;
     private bool _navigationIndicatorInitialized;
     private WpfPoint _promptDragStartPoint;
@@ -79,7 +80,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     {
         InitializeComponent();
         _updateService = updateService ?? new UpdateService();
-        _settingsFilePath = settings.FilePath;
+        _settingsService = settings;
         var version = typeof(PromptManagerWindow).Assembly.GetName().Version;
         VersionTextBlock.Text = version is null
             ? string.Empty
@@ -110,6 +111,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         SettingsPage.DataContext = _settingsViewModel;
         ApplicationSettingsPage.DataContext = _settingsViewModel;
         Closing += HandleClosing;
+        IsVisibleChanged += HandleUpdateCheckOnVisibilityChanged;
         Loaded += (_, _) =>
         {
             UpdateNavigationIndicator(_selectedNavigationButton ?? CommandsNavigationButton, animate: false);
@@ -296,20 +298,61 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             "无法打开 GitHub Releases 页面。");
     }
 
+    // SECTION 软件更新
+
+    private async void HandleUpdateCheckOnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible && _settingsViewModel.EnableAutomaticUpdateNotifications)
+        {
+            await CheckForUpdatesAsync(automatic: true);
+        }
+    }
+
     private async void HandleCheckUpdatesClick(object sender, RoutedEventArgs e)
     {
+        await CheckForUpdatesAsync(automatic: false);
+    }
+
+    private async Task CheckForUpdatesAsync(bool automatic)
+    {
+        if (_updateInProgress || _updateCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _updateInProgress = true;
         CheckUpdatesButton.IsEnabled = false;
         CheckUpdatesButton.Content = "检查中…";
+        var installing = false;
 
         try
         {
             var update = await _updateService.CheckForUpdateAsync(_updateCancellation.Token);
-            if (update is null)
+            // 检查期间可能已关闭界面或关闭自动提醒，不在后台弹窗打断输入。
+            if (_updateCancellation.IsCancellationRequested
+                || automatic && (!IsVisible || !IsEnabled
+                    || !_settingsViewModel.EnableAutomaticUpdateNotifications))
             {
-                AppDialogWindow.ShowMessage(this, "检查更新", "当前已是最新版本。");
                 return;
             }
 
+            if (update is null)
+            {
+                if (!automatic)
+                {
+                    AppDialogWindow.ShowMessage(this, "检查更新", "当前已是最新版本。");
+                }
+
+                return;
+            }
+
+            // 提醒记录保存在设置中，关闭弹窗或重启软件后也不再自动提示同一版本。
+            if (automatic && _settingsService.HasPromptedUpdate(update.TagName))
+            {
+                return;
+            }
+
+            _settingsService.RecordPromptedUpdate(update.TagName);
             if (update.Download is null)
             {
                 AppDialogWindow.ShowMessage(this, "暂不能直接更新", "此版本尚未提供 Windows x64 更新包，请通过“查看 GitHub Releases”下载。\n\n当前程序未作更改。");
@@ -323,10 +366,11 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
                     message,
                     confirmText: "立即更新"))
             {
+                installing = true;
                 var progress = new Progress<string>(text => CheckUpdatesButton.Content = text);
                 await new UpdateInstallerService().PrepareAndStartAsync(
                     update,
-                    [_settingsFilePath, _transferStorage.FilePath],
+                    [_settingsService.FilePath, _transferStorage.FilePath],
                     progress,
                     _updateCancellation.Token);
                 System.Windows.Application.Current.Shutdown();
@@ -337,6 +381,11 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception exception)
         {
+            if (automatic && !installing)
+            {
+                return;
+            }
+
             AppDialogWindow.ShowMessage(
                 this,
                 "更新失败",
@@ -345,10 +394,13 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         }
         finally
         {
+            _updateInProgress = false;
             CheckUpdatesButton.Content = "检查更新";
             CheckUpdatesButton.IsEnabled = true;
         }
     }
+
+    // !SECTION 软件更新
 
     private void OpenExternalUrl(string url, string title, string message)
     {
