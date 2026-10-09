@@ -40,6 +40,8 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private const string GitHubReleasesUrl = "https://github.com/Zevxn/ZCue/releases";
     private readonly PromptManagerViewModel _promptViewModel;
     private readonly UpdateService _updateService;
+    private readonly System.Threading.CancellationTokenSource _updateCancellation = new();
+    private readonly string _settingsFilePath;
     private readonly PromptStorageService _transferStorage;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
@@ -77,6 +79,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     {
         InitializeComponent();
         _updateService = updateService ?? new UpdateService();
+        _settingsFilePath = settings.FilePath;
         var version = typeof(PromptManagerWindow).Assembly.GetName().Version;
         VersionTextBlock.Text = version is null
             ? string.Empty
@@ -139,6 +142,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
     public void CloseWithoutHiding()
     {
+        _updateCancellation.Cancel();
         if (!IsVisible)
         {
             return;
@@ -299,32 +303,44 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
         try
         {
-            var update = await _updateService.CheckForUpdateAsync();
+            var update = await _updateService.CheckForUpdateAsync(_updateCancellation.Token);
             if (update is null)
             {
                 AppDialogWindow.ShowMessage(this, "检查更新", "当前已是最新版本。");
                 return;
             }
 
-            var message = $"发现新版本 {update.TagName}。当前版本为 v{UpdateService.CurrentVersionText}。\n\n是否打开 GitHub Release 页面查看更新说明并下载？";
+            if (update.Download is null)
+            {
+                AppDialogWindow.ShowMessage(this, "暂不能直接更新", "此版本尚未提供 Windows x64 更新包，请通过“查看 GitHub Releases”下载。\n\n当前程序未作更改。");
+                return;
+            }
+
+            var message = $"发现新版本 {update.TagName}。当前版本为 v{UpdateService.CurrentVersionText}。\n\n立即下载并更新？下载完成后 ZCue 会自动重启，保留提示词和设置。";
             if (AppDialogWindow.Confirm(
                     this,
                     "发现新版本",
                     message,
-                    confirmText: "打开 Release"))
+                    confirmText: "立即更新"))
             {
-                OpenExternalUrl(
-                    update.ReleaseUri.AbsoluteUri,
-                    "无法打开 GitHub Release",
-                    "无法打开新版本的 Release 页面。");
+                var progress = new Progress<string>(text => CheckUpdatesButton.Content = text);
+                await new UpdateInstallerService().PrepareAndStartAsync(
+                    update,
+                    [_settingsFilePath, _transferStorage.FilePath],
+                    progress,
+                    _updateCancellation.Token);
+                System.Windows.Application.Current.Shutdown();
             }
+        }
+        catch (OperationCanceledException) when (_updateCancellation.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
             AppDialogWindow.ShowMessage(
                 this,
-                "检查更新失败",
-                $"无法连接 GitHub 或读取版本信息。请检查网络后重试。\n\n{exception.Message}",
+                "更新失败",
+                $"未能完成更新，当前版本仍可继续使用。\n\n{exception.Message}",
                 AppDialogTone.Warning);
         }
         finally

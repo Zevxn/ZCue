@@ -42,8 +42,41 @@ public sealed class UpdateService
         }
 
         return releaseVersion > CurrentVersion
-            ? new UpdateInfo(tagName, releaseUri)
+            ? new UpdateInfo(tagName, releaseUri, ReadDownload(root, tagName))
             : null;
+    }
+
+    private static UpdateDownload? ReadDownload(JsonElement release, string tagName)
+    {
+        if (!release.TryGetProperty("assets", out var assets))
+        {
+            return null;
+        }
+
+        // 发布包命名固定，避免把源码包或其他架构当作程序更新。
+        var expectedName = $"ZCue-{tagName}-win-x64.zip";
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (!string.Equals(ReadRequiredString(asset, "name"), expectedName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var url = ReadRequiredString(asset, "browser_download_url");
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                || uri.Scheme != Uri.UriSchemeHttps
+                || !string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase)
+                || !uri.AbsolutePath.StartsWith("/Zevxn/ZCue/releases/download/", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("更新包下载地址无效。");
+            }
+
+            return new UpdateDownload(uri, asset.GetProperty("size").GetInt64(),
+                asset.TryGetProperty("digest", out var digest) && digest.ValueKind == JsonValueKind.String
+                    ? digest.GetString() : null);
+        }
+
+        return null;
     }
 
     private static HttpClient CreateHttpClient()
@@ -105,4 +138,6 @@ public sealed class UpdateService
     // !SECTION GitHub Release 查询
 }
 
-public sealed record UpdateInfo(string TagName, Uri ReleaseUri);
+public sealed record UpdateInfo(string TagName, Uri ReleaseUri, UpdateDownload? Download);
+
+public sealed record UpdateDownload(Uri Uri, long Size, string? Digest);

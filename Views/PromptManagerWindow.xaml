@@ -1338,7 +1338,7 @@
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Padding="12,8"
                                                 Margin="0,0,8,0"
-                                                ToolTip="检查 GitHub 上是否有新版本"
+                                                ToolTip="检查新版本并下载更新，完成后自动重启"
                                                 Click="HandleCheckUpdatesClick" />
                                         <ui:Button Content="查看 GitHub Releases"
                                                 Style="{StaticResource FluentSecondaryButton}"

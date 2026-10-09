@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <AssemblyName>ZCue</AssemblyName>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <RootNamespace>ZCue</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>assets\logo.ico</ApplicationIcon>
@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Infrastructure\InstallUpdate.ps1" LogicalName="ZCue.InstallUpdate.ps1" />
     <Resource Include="assets\logo.png" />
     <Resource Include="assets\github.png" />
     <Resource Include="assets\cursors\grab.cur" />
