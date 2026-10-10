@@ -645,6 +645,12 @@
                                                 </Border>
                                             </Grid>
                                         </Border>
+                                        <Border x:Name="PromptRowHoverBorder"
+                                                BorderBrush="{DynamicResource ThemeAccentSoftBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Opacity="0"
+                                                IsHitTestVisible="False" />
                                         <Grid x:Name="PromptRowActions"
                                               Style="{StaticResource RowActionPanel}"
                                               HorizontalAlignment="Right"
@@ -761,15 +767,48 @@
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                                                      Value="True">
-                                            <Setter TargetName="PromptRowCard"
-                                                    Property="BorderBrush"
-                                                    Value="{DynamicResource ThemeAccentSoftBrush}" />
                                             <Setter TargetName="UsageCountText"
                                                     Property="Foreground"
                                                     Value="{DynamicResource ThemeAccentSoftBrush}" />
                                         </DataTrigger>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}" Value="True" />
+                                                <Condition Binding="{Binding Source={x:Static SystemParameters.ClientAreaAnimation}}" Value="True" />
+                                            </MultiDataTrigger.Conditions>
+                                            <MultiDataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="PromptRowHoverBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1">
+                                                            <DoubleAnimation.EasingFunction>
+                                                                <CubicEase EasingMode="EaseOut" />
+                                                            </DoubleAnimation.EasingFunction>
+                                                        </DoubleAnimation>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </MultiDataTrigger.EnterActions>
+                                            <MultiDataTrigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="PromptRowHoverBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1" FillBehavior="Stop">
+                                                            <DoubleAnimation.EasingFunction>
+                                                                <CubicEase EasingMode="EaseOut" />
+                                                            </DoubleAnimation.EasingFunction>
+                                                        </DoubleAnimation>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </MultiDataTrigger.ExitActions>
+                                        </MultiDataTrigger>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}" Value="True" />
+                                                <Condition Binding="{Binding Source={x:Static SystemParameters.ClientAreaAnimation}}" Value="False" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter TargetName="PromptRowHoverBorder" Property="Opacity" Value="1" />
+                                        </MultiDataTrigger>
                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                                                      Value="True">
+                                            <Setter TargetName="PromptRowHoverBorder" Property="Visibility" Value="Collapsed" />
                                             <Setter TargetName="PromptRowCard"
                                                     Property="Background"
                                                     Value="{DynamicResource ThemeSelectionSurfaceBrush}" />
@@ -792,6 +831,7 @@
                                         <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}}}"
                                                      Value="DragPlaceholder">
                                             <Setter TargetName="PromptRowCard" Property="Opacity" Value="0" />
+                                            <Setter TargetName="PromptRowHoverBorder" Property="Visibility" Value="Hidden" />
                                             <Setter TargetName="PromptRowActions" Property="Visibility" Value="Hidden" />
                                             <Setter TargetName="PromptRowSelectionBorder" Property="Visibility" Value="Hidden" />
                                             <Setter TargetName="PromptDragPlaceholder" Property="Visibility" Value="Visible" />
