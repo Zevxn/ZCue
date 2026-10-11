@@ -574,7 +574,14 @@
 
                     <ui:TextBox x:Name="SearchTextBox" Grid.Row="2" Height="40" Margin="0,12,0,16" PlaceholderText="搜索指令名称、拼音或内容" Icon="{ui:SymbolIcon Search24}" ClearButtonEnabled="True" VerticalContentAlignment="Center" TextChanged="HandleSearchTextChanged" />
 
-                    <Grid Grid.Row="3">
+                    <Grid x:Name="PromptDropArea"
+                          Grid.Row="3"
+                          Background="Transparent"
+                          AllowDrop="True"
+                          PreviewDragEnter="HandleTextDragOver"
+                          PreviewDragOver="HandleTextDragOver"
+                          PreviewDragLeave="HandleTextDragLeave"
+                          PreviewDrop="HandleTextDrop">
                         <ListView x:Name="PromptListView"
                                   ItemsSource="{Binding FilteredPrompts}"
                                   SelectedItem="{Binding SelectedPrompt, Mode=TwoWay}"
@@ -863,6 +870,21 @@
                                            HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
+                        <!-- 覆盖层只绘制提示，不包裹列表，不占用列表的布局空间。 -->
+                        <Grid x:Name="TextDropHighlight"
+                              Opacity="0"
+                              IsHitTestVisible="False"
+                              Panel.ZIndex="10">
+                            <Border Background="{DynamicResource ThemeSuccessBrush}"
+                                    Opacity="0.12"
+                                    CornerRadius="10" />
+                            <Rectangle Margin="1"
+                                       Stroke="{DynamicResource ThemeSuccessBrush}"
+                                       StrokeThickness="2"
+                                       StrokeDashArray="3,2"
+                                       RadiusX="10"
+                                       RadiusY="10" />
+                        </Grid>
                     </Grid>
                 </Grid>
 

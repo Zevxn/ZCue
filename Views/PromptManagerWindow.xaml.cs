@@ -55,6 +55,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private string? _pendingPromptDragId;
     private string[]? _promptDragOriginalOrder;
     private bool _promptReorderCommitted;
+    private bool _isTextDropHighlighted;
     private WpfPoint _categoryDragStartPoint;
     private WpfPoint _categoryDragGrabOffset;
     private string[]? _categoryDragOriginalOrder;
@@ -664,12 +665,18 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
     private void HandleAddClick(object sender, RoutedEventArgs e)
     {
+        OpenNewEditor();
+    }
+
+    private void OpenNewEditor(string? initialContent = null)
+    {
         var defaultCategoryId = _promptViewModel.SelectedCategoryId == "all"
             ? string.Empty
             : _promptViewModel.SelectedCategoryId;
         var editor = new PromptEditorWindow(
             categories: _promptViewModel.Categories.ToArray(),
-            defaultCategoryId: defaultCategoryId)
+            defaultCategoryId: defaultCategoryId,
+            initialContent: initialContent)
         {
             Owner = this
         };
@@ -784,6 +791,81 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         _promptViewModel.SetEnabled(item.Id, checkBox.IsChecked == true);
         UpdateEmptyState();
     }
+
+    // SECTION 文字拖入新建指令
+
+    private void SetTextDropHighlight(bool highlighted)
+    {
+        if (_isTextDropHighlighted == highlighted)
+        {
+            return;
+        }
+
+        _isTextDropHighlighted = highlighted;
+        var currentOpacity = TextDropHighlight.Opacity;
+        var targetOpacity = highlighted ? 1d : 0d;
+        TextDropHighlight.Opacity = targetOpacity;
+        // 从当前透明度接续，反复进出时不跳变，DragOver 也不会重复启动动画。
+        TextDropHighlight.BeginAnimation(OpacityProperty,
+            SystemParameters.ClientAreaAnimation
+                ? new DoubleAnimation(currentOpacity, targetOpacity, TimeSpan.FromMilliseconds(160))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                    FillBehavior = FillBehavior.Stop
+                }
+                : null);
+    }
+
+    private static bool CanAcceptTextDrop(WpfDragEventArgs e) =>
+        (e.AllowedEffects & WpfDragDropEffects.Copy) != 0
+        && !e.Data.GetDataPresent("ZCue.PromptId")
+        && !e.Data.GetDataPresent("ZCue.PromptIds")
+        && !e.Data.GetDataPresent("ZCue.CategoryId")
+        && !e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)
+        && (e.Data.GetDataPresent(System.Windows.DataFormats.UnicodeText)
+            || e.Data.GetDataPresent(System.Windows.DataFormats.Text));
+
+    private void HandleTextDragOver(object sender, WpfDragEventArgs e)
+    {
+        var acceptsText = CanAcceptTextDrop(e);
+        SetTextDropHighlight(acceptsText);
+        if (!acceptsText)
+        {
+            return;
+        }
+
+        e.Effects = WpfDragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void HandleTextDragLeave(object sender, WpfDragEventArgs e)
+    {
+        SetTextDropHighlight(false);
+    }
+
+    private void HandleTextDrop(object sender, WpfDragEventArgs e)
+    {
+        SetTextDropHighlight(false);
+        if (!CanAcceptTextDrop(e))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        e.Effects = WpfDragDropEffects.None;
+        var text = e.Data.GetData(System.Windows.DataFormats.UnicodeText) as string
+            ?? e.Data.GetData(System.Windows.DataFormats.Text) as string;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        e.Effects = WpfDragDropEffects.Copy;
+        // 先结束 OLE 拖放，再打开模态编辑框；按复制接收，保留来源中的文字。
+        Dispatcher.BeginInvoke(new Action(() => OpenNewEditor(text)));
+    }
+
+    // !SECTION 文字拖入新建指令
 
     // SECTION 拖拽排序与分类筛选
 

@@ -22,7 +22,8 @@ public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
     public PromptEditorWindow(
         PromptItem? item = null,
         IReadOnlyList<PromptCategory>? categories = null,
-        string? defaultCategoryId = null)
+        string? defaultCategoryId = null,
+        string? initialContent = null)
     {
         InitializeComponent();
         AppThemeManager.TrackWindow(this);
@@ -41,6 +42,7 @@ public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
 
         if (item is null)
         {
+            ContentTextBox.Text = initialContent ?? string.Empty;
             return;
         }
 
