@@ -89,7 +89,7 @@ public sealed class ApplicationFilterService : IDisposable
 
     // SECTION 应用名单维护
 
-    public bool AddToCurrentList(string? processName)
+    public bool AddToCurrentList(string? processName, string? executablePath = null)
     {
         var normalized = NormalizeProcessName(processName);
         if (normalized is null)
@@ -97,9 +97,15 @@ public sealed class ApplicationFilterService : IDisposable
             return false;
         }
 
+        var path = executablePath ?? FindExecutablePath(normalized);
         var added = false;
         _settings.Update(settings =>
         {
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                settings.ApplicationPaths[normalized] = path;
+            }
+
             var list = GetCurrentList(settings);
             if (list.Any(name => string.Equals(name, normalized, StringComparison.OrdinalIgnoreCase)))
             {
@@ -144,6 +150,7 @@ public sealed class ApplicationFilterService : IDisposable
             return false;
         }
 
+        var path = FindExecutablePath(normalized);
         var added = false;
         _settings.Update(settings =>
         {
@@ -157,6 +164,11 @@ public sealed class ApplicationFilterService : IDisposable
             else
             {
                 list.Add(normalized);
+                if (path is not null)
+                {
+                    settings.ApplicationPaths[normalized] = path;
+                }
+
                 added = true;
             }
         });
@@ -177,6 +189,34 @@ public sealed class ApplicationFilterService : IDisposable
     }
 
     // SECTION 进程名缓存与设置更新
+
+    public static string? FindExecutablePath(string processName)
+    {
+        try
+        {
+            string? path = null;
+            foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(processName)))
+            {
+                using (process)
+                {
+                    try
+                    {
+                        path ??= process.MainModule?.FileName;
+                    }
+                    catch
+                    {
+                        // 进程可能已退出，或其模块路径受权限限制。
+                    }
+                }
+            }
+
+            return path;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private string? GetProcessName(IntPtr window, out uint processId)
     {

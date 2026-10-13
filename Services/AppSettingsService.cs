@@ -187,6 +187,20 @@ public sealed class AppSettingsService
 
         settings.Blacklist = NormalizeProcessNames(settings.Blacklist);
         settings.Whitelist = NormalizeProcessNames(settings.Whitelist);
+        var applicationPaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, path) in settings.ApplicationPaths ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(path)
+                && Path.IsPathFullyQualified(path)
+                && string.Equals(name, Path.GetFileName(path), StringComparison.OrdinalIgnoreCase)
+                && (settings.Blacklist.Contains(name, StringComparer.OrdinalIgnoreCase)
+                    || settings.Whitelist.Contains(name, StringComparer.OrdinalIgnoreCase)))
+            {
+                applicationPaths[name] = path;
+            }
+        }
+
+        settings.ApplicationPaths = applicationPaths;
         return settings;
     }
 

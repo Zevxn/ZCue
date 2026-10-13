@@ -1201,26 +1201,44 @@
                                                 <Grid.Style>
                                                     <Style TargetType="Grid">
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding CurrentApplicationNames.Count}" Value="0">
+                                                            <DataTrigger Binding="{Binding CurrentApplications.Count}" Value="0">
                                                                 <Setter Property="MinHeight" Value="64" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Grid.Style>
-                                                <ItemsControl ItemsSource="{Binding CurrentApplicationNames}">
+                                                <ItemsControl ItemsSource="{Binding CurrentApplications}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <Grid Margin="0,3">
                                                                 <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
                                                                     <ColumnDefinition Width="*" />
                                                                     <ColumnDefinition Width="Auto" />
                                                                 </Grid.ColumnDefinitions>
-                                                                <TextBlock Text="{Binding}"
+                                                                <Grid Width="22" Height="22" Margin="0,0,10,0"
+                                                                      VerticalAlignment="Center">
+                                                                    <ui:SymbolIcon Symbol="Window24" FontSize="22"
+                                                                                   Foreground="{DynamicResource ThemeTextMutedBrush}">
+                                                                        <ui:SymbolIcon.Style>
+                                                                            <Style TargetType="ui:SymbolIcon">
+                                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+                                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </ui:SymbolIcon.Style>
+                                                                    </ui:SymbolIcon>
+                                                                    <Image Source="{Binding Icon}" Stretch="Uniform" />
+                                                                </Grid>
+                                                                <TextBlock Grid.Column="1" Text="{Binding ProcessName}"
                                                                            Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                                                                            VerticalAlignment="Center"
                                                                            TextTrimming="CharacterEllipsis" />
-                                                                <ui:Button Grid.Column="1"
-                                                                        Tag="{Binding}"
+                                                                <ui:Button Grid.Column="2"
+                                                                        Tag="{Binding ProcessName}"
                                                                         Content="删除"
                                                                         Style="{StaticResource DangerButton}"
                                                                         FontSize="12"
@@ -1241,7 +1259,7 @@
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Visibility" Value="Collapsed" />
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding CurrentApplicationNames.Count}" Value="0">
+                                                                <DataTrigger Binding="{Binding CurrentApplications.Count}" Value="0">
                                                                     <Setter Property="Visibility" Value="Visible" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>

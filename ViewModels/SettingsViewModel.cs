@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media;
+using ZCue.Infrastructure;
 using ZCue.Models;
 using ZCue.Services;
 
@@ -14,6 +16,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private readonly StartupService _startupService;
     private readonly Func<bool> _isListeningEnabled;
     private readonly Action<bool> _setListeningEnabled;
+    private int _applicationListVersion;
 
     public SettingsViewModel(
         AppSettingsService settings,
@@ -29,7 +32,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         _startupService = startupService;
         _isListeningEnabled = isListeningEnabled;
         _setListeningEnabled = setListeningEnabled;
-        RefreshCurrentApplicationNames();
+        RefreshCurrentApplications();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -38,7 +41,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public event Action? PromptDataChanged;
 
-    public ObservableCollection<string> CurrentApplicationNames { get; } = [];
+    public ObservableCollection<ApplicationListEntry> CurrentApplications { get; } = [];
 
     // SECTION 设置属性
 
@@ -62,7 +65,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsBlacklistMode));
             OnPropertyChanged(nameof(IsWhitelistMode));
             OnPropertyChanged(nameof(CurrentApplicationListTitle));
-            RefreshCurrentApplicationNames();
+            RefreshCurrentApplications();
         }
     }
 
@@ -290,31 +293,75 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         AddApplication(processName);
     }
 
-    public void AddApplication(string? processName)
+    public void AddApplication(string? processName, string? executablePath = null)
     {
-        _applicationFilter.AddToCurrentList(processName);
-        RefreshCurrentApplicationNames();
+        _applicationFilter.AddToCurrentList(processName, executablePath);
+        RefreshCurrentApplications();
     }
 
     public void RemoveApplication(string? processName)
     {
         _applicationFilter.RemoveFromCurrentList(processName);
-        RefreshCurrentApplicationNames();
+        RefreshCurrentApplications();
     }
 
-    private void RefreshCurrentApplicationNames()
+    private void RefreshCurrentApplications()
     {
+        var version = ++_applicationListVersion;
         var settings = _settings.Current;
         var names = settings.FilterMode == ApplicationFilterMode.Blacklist
             ? settings.Blacklist
             : settings.Whitelist;
 
-        CurrentApplicationNames.Clear();
+        CurrentApplications.Clear();
         foreach (var name in names)
         {
-            CurrentApplicationNames.Add(name);
+            CurrentApplications.Add(new ApplicationListEntry(name, null));
+        }
+
+        _ = LoadApplicationIconsAsync(settings, names, version);
+    }
+
+    private async Task LoadApplicationIconsAsync(AppSettings settings, List<string> names, int version)
+    {
+        var entries = await Task.Run(() => names.Select(name =>
+        {
+            settings.ApplicationPaths.TryGetValue(name, out var path);
+            if (!System.IO.File.Exists(path))
+            {
+                path = ApplicationFilterService.FindExecutablePath(name);
+            }
+
+            return (Name: name, Path: path, Icon: ApplicationIconLoader.Load(path));
+        }).ToArray());
+
+        // 切换名单或重新添加后，过期图标不能覆盖当前行和程序路径。
+        if (version != _applicationListVersion)
+        {
+            return;
+        }
+
+        for (var index = 0; index < entries.Length; index++)
+        {
+            CurrentApplications[index] = new ApplicationListEntry(entries[index].Name, entries[index].Icon);
+        }
+
+        var discovered = entries.Where(entry => entry.Path is not null
+            && (!settings.ApplicationPaths.TryGetValue(entry.Name, out var savedPath)
+                || !string.Equals(savedPath, entry.Path, StringComparison.OrdinalIgnoreCase))).ToArray();
+        if (discovered.Length > 0)
+        {
+            _settings.Update(current =>
+            {
+                foreach (var entry in discovered)
+                {
+                    current.ApplicationPaths[entry.Name] = entry.Path!;
+                }
+            });
         }
     }
+
+    public sealed record ApplicationListEntry(string ProcessName, ImageSource? Icon);
 
     // !SECTION 应用范围名单
 
@@ -340,7 +387,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(EnableEnterConfirmation));
         OnPropertyChanged(nameof(EnableAutomaticUpdateNotifications));
         OnPropertyChanged(nameof(LaunchAtStartup));
-        RefreshCurrentApplicationNames();
+        RefreshCurrentApplications();
     }
 
     // !SECTION 设置刷新

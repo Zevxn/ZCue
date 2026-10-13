@@ -34,6 +34,8 @@ public sealed class AppSettings
 
     public List<string> Whitelist { get; set; } = [];
 
+    public Dictionary<string, string> ApplicationPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     public AppSettings Clone() => new()
     {
         PromptDataFilePath = PromptDataFilePath,
@@ -51,6 +53,9 @@ public sealed class AppSettings
         PromptedUpdateVersions = PromptedUpdateVersions is null ? [] : [.. PromptedUpdateVersions],
         FilterMode = FilterMode,
         Blacklist = Blacklist is null ? [] : [.. Blacklist],
-        Whitelist = Whitelist is null ? [] : [.. Whitelist]
+        Whitelist = Whitelist is null ? [] : [.. Whitelist],
+        ApplicationPaths = ApplicationPaths is null
+            ? new(StringComparer.OrdinalIgnoreCase)
+            : new(ApplicationPaths, StringComparer.OrdinalIgnoreCase)
     };
 }

@@ -1455,7 +1455,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
         if (dialog.ShowDialog(this) == true)
         {
-            _settingsViewModel.AddApplication(Path.GetFileName(dialog.FileName));
+            _settingsViewModel.AddApplication(Path.GetFileName(dialog.FileName), dialog.FileName);
         }
     }
 
