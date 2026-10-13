@@ -1276,6 +1276,12 @@
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Click="AddCurrentApplicationClick"
                                                 Margin="0,0,8,0" />
+                                        <ui:Button Content="选择窗口"
+                                                Icon="{ui:SymbolIcon Target20}"
+                                                ToolTip="按住此按钮，拖到目标窗口后松开添加；按 Esc 取消"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                PreviewMouseLeftButtonDown="StartWindowSelection"
+                                                Margin="0,0,8,0" />
                                         <ui:Button Content="选择程序"
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Click="SelectApplicationClick" />

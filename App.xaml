@@ -10,6 +10,53 @@
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- SECTION 滚动条样式 -->
+            <ControlTemplate x:Key="ArrowlessScrollBarTemplate" TargetType="{x:Type ScrollBar}">
+                <Grid Background="Transparent" SnapsToDevicePixels="True">
+                    <Border x:Name="TrackBackground" Width="12" CornerRadius="6" Opacity="0"
+                            Background="{DynamicResource ScrollBarTrackFillPointerOver}" />
+                    <Track x:Name="PART_Track" Width="8" IsDirectionReversed="True"
+                           Orientation="{TemplateBinding Orientation}">
+                        <Track.DecreaseRepeatButton>
+                            <RepeatButton x:Name="DecreaseButton" Command="ScrollBar.PageUpCommand"
+                                          Style="{StaticResource UiScrollBarPageButton}" />
+                        </Track.DecreaseRepeatButton>
+                        <Track.Thumb>
+                            <Thumb Style="{StaticResource UiScrollBarThumb}" />
+                        </Track.Thumb>
+                        <Track.IncreaseRepeatButton>
+                            <RepeatButton x:Name="IncreaseButton" Command="ScrollBar.PageDownCommand"
+                                          Style="{StaticResource UiScrollBarPageButton}" />
+                        </Track.IncreaseRepeatButton>
+                    </Track>
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="TrackBackground" Property="Opacity" Value="1" />
+                    </Trigger>
+                    <Trigger Property="Orientation" Value="Horizontal">
+                        <Setter TargetName="TrackBackground" Property="Width" Value="Auto" />
+                        <Setter TargetName="TrackBackground" Property="Height" Value="12" />
+                        <Setter TargetName="PART_Track" Property="Width" Value="Auto" />
+                        <Setter TargetName="PART_Track" Property="Height" Value="8" />
+                        <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+                        <Setter TargetName="DecreaseButton" Property="Command" Value="ScrollBar.PageLeftCommand" />
+                        <Setter TargetName="IncreaseButton" Property="Command" Value="ScrollBar.PageRightCommand" />
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+            <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource {x:Type ScrollBar}}">
+                <Style.Triggers>
+                    <Trigger Property="Orientation" Value="Vertical">
+                        <Setter Property="Template" Value="{StaticResource ArrowlessScrollBarTemplate}" />
+                    </Trigger>
+                    <Trigger Property="Orientation" Value="Horizontal">
+                        <Setter Property="Template" Value="{StaticResource ArrowlessScrollBarTemplate}" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <!-- !SECTION 滚动条样式 -->
+
             <!-- SECTION Fluent 控件与兼容样式 -->
             <Style x:Key="SelectionContextMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                 <Style.Triggers>

@@ -83,6 +83,10 @@ internal static class NativeMethods
         ref int attributeValue,
         uint attributeSize);
 
+    [DllImport("dwmapi.dll")]
+    internal static extern int DwmGetWindowAttribute(
+        IntPtr windowHandle, int attribute, out Rect value, uint size);
+
     // !SECTION DWM 窗口外观
 
     // SECTION 低级输入 Hook 与消息循环
@@ -204,6 +208,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr WindowFromPoint(Point point);
 
     [DllImport("user32.dll")]
     internal static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);

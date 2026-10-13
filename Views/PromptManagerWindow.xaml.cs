@@ -43,6 +43,9 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private readonly PromptStorageService _transferStorage;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly Action? _refreshStartupState;
+    private readonly WindowSelectionService _windowSelection = new();
+    private UIElement? _windowSelectionSource;
+    private WindowSelectionOverlay? _windowSelectionOverlay;
     private readonly Dictionary<WpfButton, System.Windows.Threading.DispatcherTimer> _copyFeedbackTimers = [];
     private readonly WpfCursor _grabCursor;
     private readonly WpfCursor _grabbingCursor;
@@ -91,6 +94,13 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         _grabbingCursor = LoadCursor("grabbing.cur");
         PreviewMouseLeftButtonUp += (_, _) => ResetPressedDragCursor();
         Deactivated += (_, _) => ResetPressedDragCursor();
+        Deactivated += (_, _) => FinishWindowSelection();
+        PreviewMouseMove += HandleWindowSelectionMouseMove;
+        PreviewMouseLeftButtonUp += HandleWindowSelectionMouseUp;
+        PreviewKeyDown += HandleWindowSelectionKeyDown;
+        LostMouseCapture += (_, _) => FinishWindowSelection();
+        IsVisibleChanged += (_, _) => { if (!IsVisible) FinishWindowSelection(); };
+        Closed += (_, _) => FinishWindowSelection();
         AppThemeManager.TrackWindow(this);
 
         _refreshStartupState = refreshStartupState;
@@ -1399,6 +1409,60 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     // !SECTION 提示词数据位置设置
 
     // SECTION 应用范围设置
+
+    private void StartWindowSelection(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        FinishWindowSelection();
+        if (sender is not UIElement source) return;
+        source.Focus();
+        if (!Mouse.Capture(source, CaptureMode.Element)) return;
+        _windowSelectionSource = source;
+        _windowSelectionOverlay = new WindowSelectionOverlay();
+        Mouse.OverrideCursor = WpfCursors.Cross;
+        _windowSelectionOverlay.ShowTarget(_windowSelection.GetTargetAtCursor());
+    }
+
+    private void HandleWindowSelectionMouseMove(object sender, WpfMouseEventArgs e)
+    {
+        if (_windowSelectionSource is null) return;
+        e.Handled = true;
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            FinishWindowSelection();
+            return;
+        }
+
+        _windowSelectionOverlay?.ShowTarget(_windowSelection.GetTargetAtCursor());
+    }
+
+    private void HandleWindowSelectionMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_windowSelectionSource is null) return;
+        e.Handled = true;
+        var target = _windowSelection.GetTargetAtCursor();
+        FinishWindowSelection();
+        if (target is not null)
+            _settingsViewModel.AddApplication(target.ProcessName, target.ExecutablePath);
+    }
+
+    private void HandleWindowSelectionKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (_windowSelectionSource is null || e.Key != Key.Escape) return;
+        e.Handled = true;
+        FinishWindowSelection();
+    }
+
+    private void FinishWindowSelection()
+    {
+        if (_windowSelectionSource is null) return;
+        var source = _windowSelectionSource;
+        _windowSelectionSource = null;
+        _windowSelectionOverlay?.Close();
+        _windowSelectionOverlay = null;
+        if (ReferenceEquals(Mouse.Captured, source)) Mouse.Capture(null);
+        if (ReferenceEquals(Mouse.OverrideCursor, WpfCursors.Cross)) Mouse.OverrideCursor = null;
+    }
 
     private void HandleApplicationListPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
