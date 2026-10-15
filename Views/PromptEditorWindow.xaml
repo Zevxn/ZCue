@@ -1,4 +1,4 @@
-﻿<ui:FluentWindow x:Class="ZCue.Views.PromptEditorWindow"
+<ui:FluentWindow x:Class="ZCue.Views.PromptEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -58,7 +58,7 @@
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource ThemeTextPrimaryBrush}" />
                 <TextBlock Margin="0,7,0,0"
-                           Text="设置名称和要插入到当前输入框的完整内容。"
+                           Text="设置名称和内容，可插入变量或引用其他指令。"
                            Foreground="{DynamicResource ThemeTextSecondaryBrush}"
                            FontSize="13" />
             </StackPanel>
@@ -71,6 +71,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Text="指令名称"
@@ -124,34 +125,41 @@
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource ThemeTextStrongBrush}" />
                         <TextBlock Margin="0,4,0,0"
-                                   Text="选择变量插入，使用时自动替换。"
+                                   Text="变量与指令引用在使用时自动展开。"
                                    TextWrapping="Wrap"
                                    FontSize="12"
                                    Foreground="{DynamicResource ThemeTextSecondaryBrush}" />
                     </StackPanel>
-                    <ComboBox x:Name="VariableComboBox"
-                              Grid.Column="1"
-                              Width="148"
-                              Height="40"
-                              FontSize="13"
-                              MaxDropDownHeight="240"
-                              Style="{StaticResource FieldComboBox}"
-                              ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
-                              SelectedIndex="0"
-                              SelectionChanged="HandleVariableSelectionChanged">
-                        <ComboBoxItem Content="插入变量…"
-                                      IsEnabled="False"
-                                      Visibility="Collapsed" />
-                        <ComboBoxItem Content="当前日期"
-                                      Tag="date"
-                                      ToolTip="插入 {{date}}，使用时替换为当前日期" />
-                        <ComboBoxItem Content="当前时间"
-                                      Tag="time"
-                                      ToolTip="插入 {{time}}，使用时替换为当前时间" />
-                        <ComboBoxItem Content="剪贴板内容"
-                                      Tag="clipboard"
-                                      ToolTip="插入 {{clipboard}}，使用时替换为剪贴板文本" />
-                    </ComboBox>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:Button Content="引用指令" Margin="0,0,8,0" Height="34"
+                                   FontSize="14"
+                                   Style="{StaticResource FluentSecondaryButton}"
+                                   Click="HandleInsertReferenceClick" />
+                        <ComboBox x:Name="VariableComboBox"
+                                  Width="104"
+                                  Height="34"
+                                  Padding="8,7"
+                                  HorizontalAlignment="Right"
+                                  FontSize="14"
+                                  MaxDropDownHeight="240"
+                                  Style="{StaticResource FieldComboBox}"
+                                  ItemContainerStyle="{StaticResource ThemeComboBoxItem}"
+                                  SelectedIndex="0"
+                                  SelectionChanged="HandleVariableSelectionChanged">
+                            <ComboBoxItem Content="插入变量"
+                                          IsEnabled="False"
+                                          Visibility="Collapsed" />
+                            <ComboBoxItem Content="当前日期"
+                                          Tag="date"
+                                          ToolTip="插入 {{date}}，使用时替换为当前日期" />
+                            <ComboBoxItem Content="当前时间"
+                                          Tag="time"
+                                          ToolTip="插入 {{time}}，使用时替换为当前时间" />
+                            <ComboBoxItem Content="剪贴板内容"
+                                          Tag="clipboard"
+                                          ToolTip="插入 {{clipboard}}，使用时替换为剪贴板文本" />
+                        </ComboBox>
+                    </StackPanel>
                 </Grid>
                 <TextBox x:Name="ContentTextBox"
                          Grid.Row="5"
@@ -164,7 +172,12 @@
                          CommandManager.PreviewExecuted="HandleTextBoxPreviewExecuted"
                          VerticalScrollBarVisibility="Auto"
                          HorizontalScrollBarVisibility="Disabled"
-                         MaxLength="10000" />
+                         MaxLength="10000"
+                         TextChanged="HandleContentTextChanged" />
+                <TextBlock x:Name="ReferenceStatusTextBlock" Grid.Row="6" Margin="0,7,0,0"
+                           FontSize="12" TextWrapping="Wrap" MaxHeight="64"
+                           TextTrimming="CharacterEllipsis" Visibility="Collapsed"
+                           Foreground="{DynamicResource ThemeTextSecondaryBrush}" />
             </Grid>
 
             <Grid Grid.Row="2"
@@ -177,7 +190,8 @@
                 <CheckBox x:Name="EnabledCheckBox"
                           Style="{StaticResource ThemedCheckBox}"
                           Grid.Column="0"
-                          Content="启用这条指令"
+                          Content="参与全局候选匹配"
+                          ToolTip="关闭后不出现在候选中，仍可被其他指令引用。"
                           IsChecked="True"
                           VerticalAlignment="Center"
                           FontSize="14"

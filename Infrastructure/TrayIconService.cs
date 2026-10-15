@@ -83,6 +83,17 @@ public sealed class TrayIconService : IDisposable
             ToolTipIcon.Info);
     }
 
+    public void NotifyContentError(string message)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _pendingUpdateReleaseUri = null;
+        _notifyIcon.ShowBalloonTip(5000, "ZCue 无法展开指令", message, ToolTipIcon.Warning);
+    }
+
     public void Dispose()
     {
         if (_disposed)

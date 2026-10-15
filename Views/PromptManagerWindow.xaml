@@ -687,14 +687,21 @@
                                                 <CheckBox IsChecked="{Binding Enabled, Mode=OneWay}"
                                                           Style="{StaticResource RowEnabledToggle}"
                                                           Click="HandleEnabledClick"
-                                                          ToolTip="启用/禁用"
+                                                          ToolTip="是否参与全局候选匹配；关闭后仍可被引用"
                                                           VerticalAlignment="Center"
                                                           Margin="0,0,2,0" />
                                                 <ui:Button Tag="{Binding}"
                                                         Style="{StaticResource RowActionIconButton}"
-                                                        ToolTip="复制内容"
+                                                        ToolTip="复制内容；右键可复制模板"
                                                         Click="HandleCopyClick"
                                                         Margin="2,0,0,0">
+                                                    <ui:Button.ContextMenu>
+                                                        <ContextMenu Style="{StaticResource CategoryContextMenu}">
+                                                            <MenuItem Header="复制模板" Style="{StaticResource CategoryContextMenuItem}"
+                                                                      Tag="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"
+                                                                      Click="HandleCopyTemplateMenuClick" />
+                                                        </ContextMenu>
+                                                    </ui:Button.ContextMenu>
                                                     <Grid Width="16" Height="16">
                                                         <Path Width="16"
                                                               Height="16"

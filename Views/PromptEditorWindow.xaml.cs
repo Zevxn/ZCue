@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using ZCue.Infrastructure;
 using ZCue.Models;
+using ZCue.Services;
 
 using WpfApplicationCommands = System.Windows.Input.ApplicationCommands;
 using WpfExecutedRoutedEventArgs = System.Windows.Input.ExecutedRoutedEventArgs;
@@ -16,17 +17,29 @@ namespace ZCue.Views;
 
 public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
 {
-    private readonly string? _editingId;
+    private readonly string _editingId;
     private readonly int _usageCount;
+    private readonly IReadOnlyList<PromptItem> _referenceItems;
+    private readonly System.Windows.Threading.DispatcherTimer _referenceValidationTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(200)
+    };
+
+    // SECTION 编辑器初始化
 
     public PromptEditorWindow(
         PromptItem? item = null,
         IReadOnlyList<PromptCategory>? categories = null,
         string? defaultCategoryId = null,
-        string? initialContent = null)
+        string? initialContent = null,
+        IReadOnlyList<PromptItem>? prompts = null)
     {
+        _editingId = item?.Id ?? Guid.NewGuid().ToString("N");
+        _referenceItems = prompts ?? [];
         InitializeComponent();
         AppThemeManager.TrackWindow(this);
+        _referenceValidationTimer.Tick += (_, _) => UpdateReferenceStatus();
+        Closed += (_, _) => _referenceValidationTimer.Stop();
 
         var categoryOptions = new List<PromptCategory>
         {
@@ -43,19 +56,24 @@ public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
         if (item is null)
         {
             ContentTextBox.Text = initialContent ?? string.Empty;
+            UpdateReferenceStatus();
             return;
         }
 
-        _editingId = item.Id;
         _usageCount = item.UsageCount;
         Title = "编辑指令";
         TitleTextBlock.Text = "编辑指令";
         NameTextBox.Text = item.Name;
         ContentTextBox.Text = item.Content;
         EnabledCheckBox.IsChecked = item.Enabled;
+        UpdateReferenceStatus();
     }
 
     public PromptItem? ResultItem { get; private set; }
+
+    // !SECTION 编辑器初始化
+
+    // SECTION 正文编辑与引用
 
     private void HandleTextBoxPreviewExecuted(object sender, WpfExecutedRoutedEventArgs e)
     {
@@ -103,21 +121,75 @@ public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
+        comboBox.SelectedIndex = 0;
+        InsertContentToken(variable);
+    }
+
+    private void InsertContentToken(string token)
+    {
         var selectionStart = ContentTextBox.SelectionStart;
         var selectionLength = ContentTextBox.SelectionLength;
-        var resultingLength = ContentTextBox.Text.Length - selectionLength + variable.Length;
+        var resultingLength = ContentTextBox.Text.Length - selectionLength + token.Length;
         if (resultingLength > ContentTextBox.MaxLength)
         {
-            comboBox.SelectedIndex = 0;
+            AppDialogWindow.ShowMessage(this, "无法插入", "插入后正文将超过 10,000 个字符。");
             ContentTextBox.Focus();
             return;
         }
 
-        comboBox.SelectedIndex = 0;
-        ContentTextBox.SelectedText = variable;
+        ContentTextBox.SelectedText = token;
         ContentTextBox.Focus();
-        ContentTextBox.CaretIndex = selectionStart + variable.Length;
+        ContentTextBox.CaretIndex = selectionStart + token.Length;
     }
+
+    private void HandleInsertReferenceClick(object sender, RoutedEventArgs e)
+    {
+        var selectionStart = ContentTextBox.SelectionStart;
+        var selectionLength = ContentTextBox.SelectionLength;
+        var picker = new PromptReferenceWindow(_referenceItems, _editingId) { Owner = this };
+        if (picker.ShowDialog() == true && picker.SelectedPrompt is { } selected)
+        {
+            ContentTextBox.Select(selectionStart, selectionLength);
+            InsertContentToken("{{prompt:" + selected.Id + "}}");
+        }
+    }
+
+    private void HandleContentTextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (ReferenceStatusTextBlock is not null)
+        {
+            _referenceValidationTimer.Stop();
+            _referenceValidationTimer.Start();
+        }
+    }
+
+    private PromptContentResult ValidateReferences(string name, string content)
+    {
+        var draft = new PromptItem { Id = _editingId, Name = name, Content = content };
+        var items = _referenceItems.Where(item => item.Id != _editingId).Append(draft);
+        return new PromptReferenceService(items).Expand(draft);
+    }
+
+    private void UpdateReferenceStatus()
+    {
+        _referenceValidationTimer.Stop();
+        var ids = PromptReferenceService.GetReferenceIds(ContentTextBox.Text);
+        var result = ValidateReferences(NameTextBox.Text.Trim(), ContentTextBox.Text);
+        var names = ids.Select(id => _referenceItems.FirstOrDefault(item => item.Id == id)?.Name
+            ?? $"缺失指令（{id}）");
+        ReferenceStatusTextBlock.Text = result.Success
+            ? (ids.Count == 0 ? string.Empty : $"引用了：{string.Join("、", names)}")
+            : result.Error!;
+        ReferenceStatusTextBlock.ToolTip = ReferenceStatusTextBlock.Text;
+        ReferenceStatusTextBlock.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+            result.Success ? "ThemeTextSecondaryBrush" : "ThemeDangerTextBrush");
+        ReferenceStatusTextBlock.Visibility = ReferenceStatusTextBlock.Text.Length == 0
+            ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    // !SECTION 正文编辑与引用
+
+    // SECTION 保存与校验
 
     private void HandleSaveClick(object sender, RoutedEventArgs e)
     {
@@ -136,9 +208,16 @@ public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
+        var validation = ValidateReferences(name, content);
+        if (!validation.Success)
+        {
+            ShowValidationMessage(validation.Error!, ContentTextBox);
+            return;
+        }
+
         ResultItem = new PromptItem
         {
-            Id = _editingId ?? Guid.NewGuid().ToString("N"),
+            Id = _editingId,
             Name = name,
             Content = content,
             CategoryId = CategoryComboBox.SelectedValue as string ?? string.Empty,
@@ -162,4 +241,6 @@ public partial class PromptEditorWindow : Wpf.Ui.Controls.FluentWindow
             AppDialogTone.Information);
         focusElement.Focus();
     }
+
+    // !SECTION 保存与校验
 }

@@ -37,6 +37,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
     private const string GitHubUrl = "https://github.com/Zevxn/ZCue";
     private const string GitHubReleasesUrl = "https://github.com/Zevxn/ZCue/releases";
     private readonly PromptManagerViewModel _promptViewModel;
+    private readonly PromptCatalogService _catalog;
     private readonly UpdateService _updateService;
     private readonly System.Threading.CancellationTokenSource _updateCancellation = new();
     private readonly AppSettingsService _settingsService;
@@ -83,6 +84,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         UpdateService? updateService = null)
     {
         InitializeComponent();
+        _catalog = catalog;
         _updateService = updateService ?? new UpdateService();
         _settingsService = settings;
         var version = typeof(PromptManagerWindow).Assembly.GetName().Version;
@@ -524,7 +526,8 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         var confirmation = AppDialogWindow.Confirm(
             this,
             "批量删除提示词",
-            $"确定删除选中的 {selectedIds.Length} 条提示词吗？\n删除后无法恢复。",
+            $"确定删除选中的 {selectedIds.Length} 条提示词吗？\n删除后无法恢复。"
+                + GetDeletionWarning(selectedIds),
             "删除",
             isDestructive: true);
         if (confirmation)
@@ -569,12 +572,18 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
+        var localItems = _promptViewModel.Prompts.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var conflicts = importData.Prompts.Where(item => localItems.TryGetValue(item.Id, out var local)
+                && (item.Content != local.Content || item.Name != local.Name)).ToArray();
+        var conflictWarning = conflicts.Length == 0 ? string.Empty
+            : $"\n以下 {conflicts.Length} 条同 ID 指令与本地内容不同，将保留本地版本，引用也将使用本地内容：\n"
+                + FormatPromptNames(conflicts) + "\n";
         var confirmation = AppDialogWindow.Confirm(
             this,
             "确认导入",
             $"文件中包含 {importData.Prompts.Count} 条提示词和 {importData.Categories.Count} 个分类。\n"
             + "导入会保留现有提示词；相同 ID 的提示词将跳过，同名分类会合并，找不到对应分类的提示词会归入“无分类”。\n\n"
-            + "是否继续？",
+            + conflictWarning + "是否继续？",
             "导入");
         if (!confirmation)
         {
@@ -599,7 +608,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         AppDialogWindow.ShowMessage(
             this,
             "导入完成",
-            summary);
+            summary + GetReferenceErrors(_promptViewModel.Prompts));
     }
 
     private void HandleExportClick(object sender, RoutedEventArgs e)
@@ -627,12 +636,26 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
         var selectedCategoryIds = exportDialog.SelectedCategoryIds
             .ToHashSet(StringComparer.Ordinal);
-        var promptsToExport = prompts
+        var selectedPrompts = prompts
             .Where(prompt => selectedCategoryIds.Contains(prompt.CategoryId ?? string.Empty))
-            .Select(prompt => prompt.Clone())
             .ToArray();
+        var references = new PromptReferenceService(prompts);
+        var exportIds = references.GetDependencyIds(selectedPrompts.Select(prompt => prompt.Id));
+        var promptsToExport = prompts.Where(prompt => exportIds.Contains(prompt.Id))
+            .Select(prompt => prompt.Clone()).ToArray();
+        var errors = GetReferenceErrors(promptsToExport);
+        if (errors.Length > 0)
+        {
+            AppDialogWindow.ShowMessage(this, "无法导出", "请先修复指令引用。" + errors, AppDialogTone.Warning);
+            return;
+        }
+
+        var dependencies = promptsToExport.Where(prompt => !selectedCategoryIds.Contains(prompt.CategoryId))
+            .ToArray();
+        var dependencyCategories = promptsToExport.Select(prompt => prompt.CategoryId)
+            .ToHashSet(StringComparer.Ordinal);
         var categoriesToExport = categories
-            .Where(category => selectedCategoryIds.Contains(category.Id))
+            .Where(category => selectedCategoryIds.Contains(category.Id) || dependencyCategories.Contains(category.Id))
             .Select(category => category.Clone())
             .ToArray();
 
@@ -670,7 +693,9 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         AppDialogWindow.ShowMessage(
             this,
             "导出完成",
-            $"已导出 {promptsToExport.Length} 条提示词和 {categoriesToExport.Length} 个分类。");
+            $"已导出 {promptsToExport.Length} 条提示词和 {categoriesToExport.Length} 个分类。"
+                + (dependencies.Length == 0 ? string.Empty
+                    : $"\n已自动包含 {dependencies.Length} 条跨分类引用的指令：\n{FormatPromptNames(dependencies)}"));
     }
 
     private void HandleAddClick(object sender, RoutedEventArgs e)
@@ -686,7 +711,8 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         var editor = new PromptEditorWindow(
             categories: _promptViewModel.Categories.ToArray(),
             defaultCategoryId: defaultCategoryId,
-            initialContent: initialContent)
+            initialContent: initialContent,
+            prompts: _promptViewModel.Prompts.ToArray())
         {
             Owner = this
         };
@@ -704,12 +730,41 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
+        CopyPromptContent(item, expand: true, (WpfButton)sender);
+    }
+
+    private void HandleCopyTemplateMenuClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: PromptItem item })
+        {
+            CopyPromptContent(item, expand: false);
+        }
+    }
+
+    private void CopyPromptContent(PromptItem item, bool expand, WpfButton? button = null)
+    {
+        var content = item.Content;
+        if (expand)
+        {
+            var resolved = new PromptVariableService().Resolve(item, _catalog.GetContentSnapshot());
+            if (!resolved.Success)
+            {
+                AppDialogWindow.ShowMessage(this, "无法复制", resolved.Error!, AppDialogTone.Warning);
+                return;
+            }
+
+            content = resolved.Content;
+        }
+
         try
         {
             var clipboardData = new WinFormsDataObject();
-            clipboardData.SetText(item.Content, WinFormsTextDataFormat.UnicodeText);
+            clipboardData.SetText(content, WinFormsTextDataFormat.UnicodeText);
             WinFormsClipboard.SetDataObject(clipboardData, true, 20, 25);
-            ShowCopySuccessFeedback((WpfButton)sender);
+            if (button is not null)
+            {
+                ShowCopySuccessFeedback(button);
+            }
         }
         catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException
             or InvalidOperationException)
@@ -759,15 +814,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var editor = new PromptEditorWindow(item, _promptViewModel.Categories.ToArray())
-        {
-            Owner = this
-        };
-        if (editor.ShowDialog() == true && editor.ResultItem is not null)
-        {
-            _promptViewModel.Update(editor.ResultItem);
-            UpdateEmptyState();
-        }
+        OpenEditor(item);
     }
 
     private void HandleDeleteClick(object sender, RoutedEventArgs e)
@@ -780,7 +827,7 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
         var result = AppDialogWindow.Confirm(
             this,
             "删除指令",
-            $"确定删除“{item.Name}”吗？\n删除后无法恢复。",
+            $"确定删除“{item.Name}”吗？\n删除后无法恢复。" + GetDeletionWarning([item.Id]),
             "删除",
             isDestructive: true);
         if (result)
@@ -1539,7 +1586,8 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
 
     private void OpenEditor(PromptItem item)
     {
-        var editor = new PromptEditorWindow(item, _promptViewModel.Categories.ToArray())
+        var editor = new PromptEditorWindow(item, _promptViewModel.Categories.ToArray(),
+            prompts: _promptViewModel.Prompts.ToArray())
         {
             Owner = this
         };
@@ -1549,6 +1597,37 @@ public partial class PromptManagerWindow : Wpf.Ui.Controls.FluentWindow
             UpdateEmptyState();
         }
     }
+
+    // SECTION 引用检查与提示
+
+    private static string FormatPromptNames(IEnumerable<PromptItem> prompts)
+    {
+        var items = prompts.ToArray();
+        return string.Join("、", items.Take(8).Select(item => item.Name))
+            + (items.Length > 8 ? " 等" : string.Empty);
+    }
+
+    private string GetDeletionWarning(IEnumerable<string> ids)
+    {
+        var deletedIds = ids.ToHashSet(StringComparer.Ordinal);
+        var affected = new PromptReferenceService(_promptViewModel.Prompts).GetAffectedByDeletion(deletedIds);
+        return affected.Count == 0 ? string.Empty
+            : $"\n\n以下 {affected.Count} 条指令直接或间接引用了待删除指令，删除后将无法展开：\n"
+                + FormatPromptNames(affected);
+    }
+
+    private static string GetReferenceErrors(IEnumerable<PromptItem> prompts)
+    {
+        var items = prompts.ToArray();
+        var references = new PromptReferenceService(items);
+        var errors = items.Select(item => (Item: item, Result: references.Expand(item)))
+            .Where(entry => !entry.Result.Success).ToArray();
+        return errors.Length == 0 ? string.Empty
+            : $"\n\n发现 {errors.Length} 条指令的引用有问题，使用前请修复：\n"
+                + string.Join("\n", errors.Take(8).Select(entry => $"{entry.Item.Name}：{entry.Result.Error}"));
+    }
+
+    // !SECTION 引用检查与提示
 
     private static WpfCursor LoadCursor(string fileName)
     {

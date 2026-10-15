@@ -101,6 +101,20 @@ public sealed class PromptCatalogService
         }
     }
 
+    internal IReadOnlyList<PromptItem> GetContentSnapshot()
+    {
+        lock (_gate)
+        {
+            // 内容解析包含禁用的公共片段，不复制或重建匹配用的拼音别名。
+            return _items.Select(item => new PromptItem
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Content = item.Content
+            }).ToArray();
+        }
+    }
+
     public IReadOnlyList<PromptCategory> GetAllCategories()
     {
         lock (_gate)

@@ -1,41 +1,83 @@
 using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
+using ZCue.Models;
 using WpfClipboard = System.Windows.Clipboard;
 
 namespace ZCue.Services;
 
 public sealed class PromptVariableService
 {
-    private const string ClipboardVariable = "{{clipboard}}";
-    private const string DateVariable = "{{date}}";
-    private const string TimeVariable = "{{time}}";
     private const string ClipboardReadFailureText = "[无法读取剪贴板]";
+    private static readonly Regex VariablePattern = new(
+        @"\{\{(?<name>date|time|clipboard)\}\}", RegexOptions.CultureInvariant);
 
-    public IReadOnlyList<string> ResolveAll(IReadOnlyList<string> templates)
+    public IReadOnlyList<PromptContentResult> ResolveAll(
+        IReadOnlyList<PromptItem> prompts,
+        IReadOnlyList<PromptItem> catalog)
     {
-        if (templates.Count == 0)
+        if (prompts.Count == 0)
         {
-            return Array.Empty<string>();
+            return Array.Empty<PromptContentResult>();
         }
 
+        var references = new PromptReferenceService(catalog);
+        var currentItems = catalog.DistinctBy(item => item.Id, StringComparer.Ordinal)
+            .ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var expanded = prompts.Select(prompt => currentItems.TryGetValue(prompt.Id, out var current)
+                ? references.Expand(current)
+                : new PromptContentResult(string.Empty, $"指令已被删除：{prompt.Name}"))
+            .ToArray();
         var now = DateTime.Now;
         var date = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var time = now.ToString("HH:mm", CultureInfo.InvariantCulture);
-        var clipboardText = templates.Any(template =>
-                template.Contains(ClipboardVariable, StringComparison.Ordinal))
+        var clipboardText = expanded.Any(result => result.Success
+                && result.Content.Contains("{{clipboard}}", StringComparison.Ordinal))
             ? ReadClipboardText()
             : string.Empty;
 
-        return templates
-            .Select(template => template
-                .Replace(DateVariable, date, StringComparison.Ordinal)
-                .Replace(TimeVariable, time, StringComparison.Ordinal)
-                .Replace(ClipboardVariable, clipboardText, StringComparison.Ordinal))
-            .ToArray();
+        return expanded.Select(result => ResolveVariables(result, date, time, clipboardText)).ToArray();
     }
 
-    public string Resolve(string template)
+    public PromptContentResult Resolve(PromptItem prompt, IReadOnlyList<PromptItem> catalog)
     {
-        return ResolveAll([template])[0];
+        return ResolveAll([prompt], catalog)[0];
+    }
+
+    private static PromptContentResult ResolveVariables(
+        PromptContentResult expanded, string date, string time, string clipboardText)
+    {
+        if (!expanded.Success)
+        {
+            return expanded;
+        }
+
+        try
+        {
+            var content = new StringBuilder();
+            var offset = 0;
+            foreach (Match match in VariablePattern.Matches(expanded.Content))
+            {
+                PromptReferenceService.AppendBounded(content,
+                    expanded.Content.AsSpan(offset, match.Index - offset));
+                var value = match.Groups["name"].Value switch
+                {
+                    "date" => date,
+                    "time" => time,
+                    _ => clipboardText
+                };
+                // 单次扫描模板，剪贴板中的变量和引用标记作为普通文字输出。
+                PromptReferenceService.AppendBounded(content, value);
+                offset = match.Index + match.Length;
+            }
+
+            PromptReferenceService.AppendBounded(content, expanded.Content.AsSpan(offset));
+            return new PromptContentResult(content.ToString());
+        }
+        catch (InvalidOperationException exception)
+        {
+            return new PromptContentResult(string.Empty, exception.Message);
+        }
     }
 
     private static string ReadClipboardText()

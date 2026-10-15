@@ -206,6 +206,9 @@
                        Foreground="{DynamicResource ThemeTextPrimaryBrush}"
                        FontSize="22"
                        FontWeight="SemiBold" />
+            <TextBlock Text="自动包含所选指令引用的公共片段及其分类。"
+                       Margin="0,6,0,0" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{DynamicResource ThemeTextSecondaryBrush}" />
         </StackPanel>
 
         <Border Grid.Row="1"

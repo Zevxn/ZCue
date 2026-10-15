@@ -524,8 +524,9 @@ public sealed class AppController : IDisposable
                     return;
                 }
 
-                var previewContents = _promptVariableService.ResolveAll(
-                    matches.Select(match => match.Item.Content).ToArray());
+                var resolvedContents = _promptVariableService.ResolveAll(
+                    matches.Select(match => match.Item).ToArray(), _catalog.GetContentSnapshot());
+                var previewContents = resolvedContents.Select(result => result.Preview).ToArray();
                 // 定位和变量解析期间输入法仍可开始预编辑，显示前必须再次检查。
                 if (!IsCurrentVersion(version)
                     || HideSuggestionsIfImeInputActive(targetWindow))
@@ -539,7 +540,14 @@ public sealed class AppController : IDisposable
                     caretPosition,
                     _settings.Current.ShowContentPreview,
                     previewContents);
-                ShowGhostPreview(previewContents[currentIndex], targetWindow, caretPosition);
+                if (resolvedContents[currentIndex].Success)
+                {
+                    ShowGhostPreview(previewContents[currentIndex], targetWindow, caretPosition);
+                }
+                else
+                {
+                    _ghostPreview.HidePreview();
+                }
                 _foregroundMonitor.Start();
             }
             catch
@@ -626,23 +634,27 @@ public sealed class AppController : IDisposable
                 try
                 {
                     var caretPosition = _caretPositionService.GetPosition(targetWindow);
-                    string previewContent;
-                    if (_suggestionWindow is { } window)
+                    var resolvedContents = _promptVariableService.ResolveAll(
+                        matches.Select(match => match.Item).ToArray(), _catalog.GetContentSnapshot());
+                    var previewContents = resolvedContents.Select(result => result.Preview).ToArray();
+                    if (!IsCurrentVersion(version)
+                        || NativeMethods.GetForegroundWindow() != targetWindow
+                        || HideSuggestionsIfImeInputActive(targetWindow))
                     {
-                        window.UpdateSelection(selectedIndex);
-                        previewContent = _promptVariableService.Resolve(matches[selectedIndex].Item.Content);
+                        return;
+                    }
+
+                    GetOrCreateSuggestionWindow().ShowSuggestions(matches, selectedIndex,
+                        caretPosition, _settings.Current.ShowContentPreview, previewContents);
+                    _foregroundMonitor.Start();
+                    if (resolvedContents[selectedIndex].Success)
+                    {
+                        ShowGhostPreview(previewContents[selectedIndex], targetWindow, caretPosition);
                     }
                     else
                     {
-                        // 首次显示前已按下方向键时，也要用当前选择创建完整的新候选窗。
-                        var previewContents = _promptVariableService.ResolveAll(
-                            matches.Select(match => match.Item.Content).ToArray());
-                        GetOrCreateSuggestionWindow().ShowSuggestions(matches, selectedIndex,
-                            caretPosition, _settings.Current.ShowContentPreview, previewContents);
-                        _foregroundMonitor.Start();
-                        previewContent = previewContents[selectedIndex];
+                        _ghostPreview.HidePreview();
                     }
-                    ShowGhostPreview(previewContent, targetWindow, caretPosition);
                 }
                 catch
                 {
@@ -686,12 +698,18 @@ public sealed class AppController : IDisposable
                 return;
             }
 
-            var content = _promptVariableService.Resolve(selectedMatch.Item.Content);
+            var content = _promptVariableService.Resolve(selectedMatch.Item, _catalog.GetContentSnapshot());
+            if (!content.Success)
+            {
+                _trayIcon.NotifyContentError(content.Error!);
+                return;
+            }
+
             CompleteImeInputState(targetWindow);
             var inserted = await _textInsertionService.ReplaceAsync(
                 targetWindow,
                 selectedMatch.MatchLength,
-                content,
+                content.Content,
                 _clipboardOwnerWindow);
             if (inserted)
             {
